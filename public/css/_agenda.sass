@@ -1,0 +1,78 @@
+// Estilos personalizados para la agenda (sintaxis SASS)
+$verdeSalas: rgba(0, 175, 154, 0.96)
+$azulSalas: rgb(0, 85, 185)
+.sidebar-scroll
+  max-height: 250px
+  overflow-y: auto
+
+.calendar-scroll
+  max-height: 450px
+  overflow-y: auto
+
+.sticky-header th
+  position: sticky
+  top: 0
+  color: white
+  background-color: $azulSalas
+  z-index: 2
+  text-align: center
+  vertical-align: middle
+  font-weight: bold
+
+.calendar-table-scroll
+  max-height: 100px
+  overflow-y: auto
+
+.sticky-table-header th
+  position: sticky
+  top: 0
+  z-index: 1
+  background-color: white
+  color: $azulSalas  
+  font-weight: bold
+  font-size: 10px
+  text-align: center
+  vertical-align: middle
+  z-index: 2
+  height: auto
+  min-height: 30px  // Altura mínima
+  padding: 4px 8px
+
+
+.calendar-table-body
+  max-height: 100px
+  overflow-y: auto
+  font-size: 10px
+  text-align: center
+  vertical-align: middle
+  tr
+    td
+      height: auto
+      min-height: 30px  // Altura mínima
+      padding: 4px 8px
+
+
+.agenda-col-hora
+  width: 5%
+  min-width: 5%
+  max-width: 5%
+
+.agenda-col-usuario
+  width: 100px
+  min-width: 100px
+  max-width: 100px
+  text-align: center
+  border-left: 2px solid $azulSalas
+.agenda-table
+  box-shadow: 0 0px 15px 0 $azulSalas
+
+// Colores personalizados para filas hover y striped de la agenda
+
+
+// Cambia el color de fondo de filas alternas (striped)
+.agenda-table
+  .table-striped > tbody > tr:nth-of-type(odd)
+    --bs-table-bg: #f4f4f4 !important
+    color: white !important
+.ocupado_calle
+  font-size: 10px !important

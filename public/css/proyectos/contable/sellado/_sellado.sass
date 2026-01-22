@@ -1,0 +1,148 @@
+$verdeSalas: rgba(0, 175, 154, 0.96)
+$azulSalas: rgb(0, 85, 185)
+
+#contenedor_registro_sellado
+  display: flex
+  justify-content: center // Centrado horizontal
+  align-items: center // Centrado vertical
+  //margin-bottom: 10px
+  box-shadow: 0px 3px 4px grey
+  .row
+    margin-bottom: 15px // Separación entre filas
+
+    // Estilos para las etiquetas
+    .form-label
+      font-size: 0.80rem // Reducir el tamaño de las etiquetas
+
+    // Estilos para los inputs
+    .form-control
+      font-size: 0.88rem // Reducir el tamaño de los inputs
+      height: auto // Ajustar la altura de los inputs para que no queden tan grandes
+
+    // Estilos para los selects
+    .form-select
+      font-size: 0.85rem // Reducir el tamaño de los selects
+      padding: 0.5rem // Ajustar padding
+
+    // Estilos para los botones
+    .btn
+      font-size: 0.85rem // Reducir el tamaño de los botones
+
+
+
+.custom-table
+  width: 100% /* Reduce el ancho de la tabla */
+  margin: 0 auto /* Centra la tabla */
+  border-collapse: collapse
+
+
+  th
+    background-color: #0ebef331 /* Color de fondo para los encabezados */
+    font-weight: normal /* Cambiar a normal si quieres una apariencia más ligera */
+    text-transform: uppercase /* Para mantener los títulos en mayúsculas */
+    font-weight: bold
+    font-size: 65%
+
+
+
+  tr:nth-child(even)
+    font-size: 70%
+    background-color: #ffffff /* Alternancia de color en las filas */
+  td
+    font-size: 70%
+
+#tabla_resultadoSellado
+  th
+    color: green
+
+.modal-footer
+  button
+    background-color: #007bff // Azul para los botones
+    border-color: #007bff // Azul en el borde
+
+
+
+/*Tabla de datos*/
+#tablaDatos
+  border: 10vh
+  border-color: $verdeSalas
+  th
+    color: $verdeSalas
+  td
+    color: blue
+    font-size: 80%
+  .td_nombre
+    color: black
+    font-size: 80%
+    text-align: center
+
+
+.engrtanaje
+  color: $verdeSalas
+  font-size: 70%
+  &:hover 
+      color: $azulSalas
+      transform: scale(1.2) // Aumenta el tamaño del ícono al 120% al hacer hover
+  .fa-gear
+    transition: transform 0.1s ease
+  &:focus .fa-gear,
+  &:active .fa-gear
+    transform: rotate(90deg)
+ 
+  
+.engrtanaje
+  color: $verdeSalas
+  font-size: 100
+  
+
+
+  &:hover 
+    color: $azulSalas
+    transform: scale(1.2) // Aumenta el tamaño del ícono al 120% al hacer hover
+
+
+  .fa-gear
+    animation: girar 2s linear infinite // La animación gira continuamente
+
+  // Definición de la animación
+  @keyframes girar
+    0% 
+      transform: rotate(0deg) // Comienza sin rotación
+    100% 
+      transform: rotate(360deg) // Gira 360 grados continuamente
+
+
+/*Fin de la tabla de resultados*/
+
+
+.titulos_carga_datos
+  color: $verdeSalas
+  font-size: 80%
+
+.lables_carga_datos
+  color: $azulSalas
+  font-size: 70%
+.inputDatos
+  color: $verdeSalas
+  font-size: 70%
+
+
+
+
+/* Estilo contenedeor formularios de MODAL: calcuo de datos */
+.contenedorSeccion 
+  box-shadow: 0 2px 8px rgba(156, 182, 231, 0.838)
+  padding: 5px
+  border-radius: 8px
+  background-color: #f9f9f9
+  margin-bottom: 5px
+  margin-top: 5px
+.contenedorSeccion_medio
+  box-shadow: 0 2px 8px rgba(156, 182, 231, 0.838)
+  border-radius: 8px
+  background-color: #f9f9f9
+  width: 49.5%
+
+
+
+

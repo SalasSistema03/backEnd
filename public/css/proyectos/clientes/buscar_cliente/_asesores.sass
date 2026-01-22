@@ -1,0 +1,342 @@
+$azulSalas: rgb(0, 85, 185)
+$verdeSalas: rgba(0, 175, 154, 0.96)
+
+
+.criterio.active 
+  cursor: pointer
+  background-color: rgb(246, 243, 252) !important 
+
+.criterio
+
+  border-bottom: none !important
+  
+
+.hidden-chat 
+  display: none
+ 
+.active-chat 
+  display: block 
+
+.action-menu-container 
+  position: absolute
+  bottom: 120%
+  left: 10px
+  display: flex
+  flex-direction: column
+  gap: 10px
+  transition: transform 0.3s ease, opacity 0.3s ease
+  transform: translateY(10px)
+  opacity: 0
+  pointer-events: none 
+
+.action-menu-container.show 
+  transform: translateY(0)
+  opacity: 1
+  pointer-events: auto
+
+.btn-action-menu 
+  width: 40px
+  height: 40px
+  border-radius: 50%
+  background-color: #007bff
+  color: white
+  display: flex
+  align-items: center
+  justify-content: center
+  font-size: 18px
+  border: none
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2)
+  transition: background-color 0.2s  
+
+.btn-action-menu:hover 
+  background-color: #0056b3 
+
+.codigo-item 
+  padding: 8px 10px
+  transition: background-color 0.2s 
+
+.codigo-item:hover 
+  background-color: #f8f9fa 
+
+.codigo-link 
+  color: #0d6efd
+  text-decoration: none
+  display: block 
+
+.codigo-link:hover 
+  text-decoration: underline 
+
+.asesor_criterio_cliente_titulo 
+  font-size: 8px
+  border: none !important
+
+
+.asesor_criterio_cliente_botones 
+  font-size: 8px
+
+
+.asesor_criterio_cliente 
+  font-size: 10px 
+  border-radius: 5px !important
+  box-shadow: 0px 5px 5px 0px  rgba(0, 0, 0, 0.2) !important
+
+  &:active
+    box-shadow: 0px 5px 5px 0px  $azulSalas !important
+
+
+
+.fa-check 
+  background-color: green
+  color: white
+  border-radius: 20%
+  padding: 2px 
+
+.fa-minus 
+  background-color: orange
+  color: white
+  border-radius: 20%
+  padding: 2px
+
+.fa-xmark 
+  background-color: red
+  color: white
+  border-radius: 20%
+  padding: 2px
+
+
+.list-group-item
+  font-size: 11px !important
+  background-color: white !important
+  color: $azulSalas !important
+  
+  .fa-whatsapp
+    font-size: 14px !important
+    color: $azulSalas !important
+    &:hover
+      color: $verdeSalas !important
+  &:hover
+    
+    background-color: white !important
+    color: $verdeSalas !important
+    
+.barra_contactos
+  height: 87vh
+  overflow-y: auto
+  border-right: 1px solid $azulSalas
+
+.bi-pencil-fill
+  font-size: 12px !important
+  color: $azulSalas !important
+  margin-bottom: 10px !important
+  margin-left: 5px !important
+  &:hover
+    color: $verdeSalas !important 
+
+.sin_resultados
+  display: none
+  font-size: 0.9rem
+  background-color: transparent !important
+  color: $azulSalas
+
+.lista_criterios
+  height: 87vh
+  overflow-y: auto
+  overflow-x: hidden
+  border-right: 1px solid $azulSalas
+
+  
+
+.separador_conversacion
+  border-right: 1px solid $azulSalas 
+  
+.borde_inferior
+  border-bottom: 1px solid $azulSalas 
+
+.cont
+  padding-left: 10px
+  padding-right: 12px 
+
+.asesor_conversacion
+  height: 72vh
+  overflow-y: auto
+ 
+.asesor_conversacion_envio
+  background-color: $verdeSalas
+  border-radius: 5px  
+  overflow-y: auto 
+
+#conversacion-container 
+  
+  .list-group-item.mensaje-conversacion
+    color: black !important
+  
+
+.contacto 
+  background-color: rgba(244, 244, 244, 0.719) !important
+  border: none !important
+  border-radius: 5px !important
+  box-shadow: 0 5px 5px rgba(0, 0, 0, 0.2) !important
+  transition: all 0.3s ease
+  
+  &:active
+    box-shadow: 0 5px 5px $azulSalas !important
+
+
+.scroll
+  overflow-y: auto
+  height: 72vh 
+
+.icono_potabilidad
+  font-size: 15px !important
+
+#codigos-container
+  max-height: 81vh
+  overflow-y: auto
+  background-color: #ffffff !important
+  
+.codigo-item .codigo-link 
+  display: inline-block
+  margin: 2px
+  padding: 0
+
+.t-inmueble
+  font-size: 16px !important 
+  letter-spacing: normal !important
+  background-color: white !important
+  color: $azulSalas !important
+  text-overflow: ellipsis !important
+  white-space: nowrap !important
+
+.codigo_consulta
+  font-size: 10px !important 
+  letter-spacing: normal !important
+  color: gray !important
+  &:hover
+    border: none !important
+    padding: 2px !important
+    border-radius: 5px !important
+    color: white !important
+    background-color: gray !important
+    text-decoration: none !important
+
+.codigo_ofrecimiento
+  font-size: 10px !important 
+  letter-spacing: normal !important
+  color: $verdeSalas !important
+  &:hover
+    border: none !important
+    padding: 2px !important
+    border-radius: 5px !important
+    color: white !important
+    background-color: $verdeSalas !important
+    text-decoration: none !important
+
+.codigo_muestra
+  font-size: 10px !important 
+  letter-spacing: normal !important
+  color: $azulSalas !important
+  &:hover
+    border: none !important
+    padding: 2px !important
+    border-radius: 5px !important
+    color: white !important
+    background-color: $azulSalas !important
+    text-decoration: none !important
+
+.mensaje-resaltado
+  transition: background-color 0.5s ease
+  background-color:#E3F2FD !important
+
+.btn-devolucion-chat
+  //quiero achicar aun mas el tamaño del boton
+  font-size: 10px !important 
+  height: 25px !important
+  width: 60px !important
+  border: 1px solid $azulSalas !important
+  background-color: $azulSalas !important
+  color: white !important
+  font-weight: bold !important
+  padding: 2px !important
+  &:hover
+    background-color: $verdeSalas !important
+    color: white !important
+    border-color: $verdeSalas !important
+
+.devolucion-chat
+  border: none !important
+  font-weight: bold !important
+  background-color: #ffffff !important
+  color: $azulSalas !important
+  border-radius: 5px !important
+  
+
+.boton-mas
+  background-color: #afd7ff !important
+  border-radius: 40% !important
+  border: none !important
+  width: 40px !important
+  text-align: center !important
+  display: flex !important
+  justify-content: center !important
+  align-items: center !important
+  padding: 2px !important
+  color: white !important
+  &:hover
+    background-color: #ffffff !important
+    color:  #afd7ff!important
+    border: 1px solid #afd7ff!important
+    
+  
+.input-texto
+  background-color:  #e1f0ff !important
+  border: none !important
+
+.boton-enviar
+  background-color: #afd7ff !important
+  border-radius: 40% !important
+  border: none !important
+  width: 50px !important
+  text-align: center !important
+  display: flex !important
+  justify-content: center !important
+  align-items: center !important
+  padding: 2px !important
+  color: white !important
+  &:hover
+    background-color: #ffffff !important
+    color:  #afd7ff!important
+    border: 1px solid #afd7ff!important
+
+.direccion-codigo
+  font-size: 8px !important 
+  letter-spacing: normal !important
+  
+.check-codigos-asesores
+  color: black !important
+
+.pertenece_inmobiliaria
+  color: black !important
+  background-color: #afd7ff !important
+  border-radius: 5px !important
+  padding-left: 4px !important
+  padding-right: 4px !important
+  padding-top: 1px !important
+  padding-bottom: 1px !important
+  font-size: 10px !important
+  overflow: hidden !important
+.icon_pertenece_inmobiliaria
+  font-size: 14px !important
+  color: black !important
+
+.btn-agregar-nuevo-criterio
+  cursor: pointer 
+  color: $azulSalas 
+  font-size: 1.2em 
+  border: none 
+  background-color: transparent 
+  padding: 0
+.naranja
+  color:#8f5e03 !important
+.icono-azul
+  color: $azulSalas !important
+  

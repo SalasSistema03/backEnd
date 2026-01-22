@@ -1,0 +1,148 @@
+$verdeSalas: rgba(0, 175, 154, 0.96)
+$azulSalas: rgb(0, 85, 185)
+
+  
+#nombre_inmobiliaria
+  display: none
+
+
+/* Fin titulo indicativo*/
+
+/* Contenedor de tabla de propiedades asignadas */
+#btn_asignarPropiedad
+  height: 5vh
+  width: 10rem
+  padding: 0px /* Ajusta el espacio interno */
+  font-size: 14px /* Cambia el tamaño del texto */
+
+
+/* Reducir tamaño de los inputs, selects y textos */
+.form-control
+  font-size: 0.85rem
+  padding: 3px 10px
+  height: 2rem
+
+/* Espaciado entre elementos */
+.form-group
+  margin-bottom: 8px
+
+
+
+/* Reducir el tamaño de los labels */
+label
+  font-size: 0.85rem
+  font-weight: bold
+
+
+
+
+/* --------------------- Estilos para el fomrulario index.blade.php --------------------- */
+.container-fluid 
+  height: 89vh
+
+#form_cliente 
+  box-shadow: 0px 2px 4px $azulSalas
+  border-radius: 8px
+  margin: 0px
+
+
+#contenedor_acciones 
+  height: 4rem
+  display: flex
+  justify-content: center
+  align-items: center
+
+
+.contenedor_listados 
+  width: 100%
+  border-radius: 5px
+
+h1 
+  font-size: 110%
+
+
+.itulos_contenedores 
+  background: $azulSalas
+  border-radius: 100px
+  padding: 1px
+  width: 90%
+  text-align: center
+  margin-top: 2px
+
+span 
+  color: white
+  letter-spacing: 1.5px
+
+#observaciones 
+  height: 50px
+  resize: none
+
+
+.contenedor_tabla 
+  box-shadow: 0px 2px 4px $azulSalas
+  border-radius: 8px
+
+
+
+
+
+
+/* Contenedor datos cliente */
+.contenedor_datos_cliente
+  height: 15rem
+  padding: 1%
+  .form-group
+    padding: 0px
+    margin-bottom: 0px
+    label
+      font-size: 0.750rem // Reducir tamaño de las etiquetas
+      input.form-control,select.form-control
+        font-size: 0.75rem // Reducir aún más el tamaño de la fuente dentro de los inputs
+        height: 1.8rem // Hacer los inputs más bajos
+        max-width: 100% // Limitar el ancho de los inputs a un máximo del 95% de su contenedor (ajustable)
+        width: 100% // Ocupa todo el ancho disponible en su contenedor
+        textarea.form-control
+          font-size: 0.75rem
+          height: 3rem
+/* Fin contenedor datos cliente */
+
+
+
+/* -------------- Criterio de busqueda -------------- */
+#criterio_busqueda
+  box-shadow: 0px 2px 7px $azulSalas
+  border-radius: 8px
+  margin-top: 5%
+  padding: 1%
+  .form-group
+    padding: 0px
+    margin-bottom: 0px
+    label
+      font-size: 0.750rem // Reducir tamaño de las etiquetas
+      input.form-control,select.form-control
+        font-size: 0.75rem // Reducir aún más el tamaño de la fuente dentro de los inputs
+        height: 1.8rem // Hacer los inputs más bajos
+        max-width: 100% // Limitar el ancho de los inputs a un máximo del 95% de su contenedor (ajustable)
+        width: 100% // Ocupa todo el ancho disponible en su contenedor
+        textarea.form-control
+          font-size: 0.75rem
+          height: 3rem
+        #btn_guardar_cliente
+          font-size: 0.75rem
+          padding: 0.25rem 0.5rem
+          height: auto
+.devolucionT
+  font-size: 0.75rem
+  color: $azulSalas
+.letras-potabilidad
+  font-size: 0.7rem !important
+  
+
+
+
+
+  
+
+/* Fin criterio de busqueda */
+
+

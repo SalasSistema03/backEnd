@@ -1,0 +1,249 @@
+/* -nav.sass */
+$verdeSalas: rgba(0, 175, 154, 0.96)
+$azulSalas: rgb(0, 85, 185)
+
+/* estilo de fondo del nav con la linea inferior*/
+.navbar
+  background-color: white
+  box-shadow: 0 0px 5px 0 $azulSalas
+  padding: 0 20px
+  margin-bottom: 10px
+
+/* estilo para letras el menu */
+.nav-link
+  color: $azulSalas
+
+  &:hover
+    color: $verdeSalas // Color al pasar el cursor
+/* estilo para el menu */
+.navbar-nav .nav-item .item_menu
+  border: 2px solid white
+  position: relative
+  padding: 10px 20px
+  border-radius: 50px // Hace el fondo ovalado
+  transition: all 0.6s ease-in-out
+  font-weight: bold
+
+  &:hover
+    background-color: $verdeSalas // Color de fondo al hacer hover
+    color: white
+    border-radius: 50px
+    border: 2px solid white
+  &:focus
+    background-color: $verdeSalas // Color de fondo al hacer focus
+    color: white
+    border-radius: 50px
+    border: 2px solid white
+
+/* Estilo para el logo */
+#contenedor_logo
+  display: flex
+  align-items: center
+  width: 150px /* Ajusta según el tamaño deseado */
+  height: 60px /* Ajusta según el tamaño deseado */
+  img
+    width: 100%
+    height: 100%
+    object-fit: contain
+
+/* Estilo del sub Sub menú */
+.dropdown-menu
+  min-width: auto
+  max-height: auto
+  max-width: auto
+  padding: 5px
+  font-size: 95%
+  position: absolute
+  left: auto
+  right: auto
+  top: auto
+  bottom: auto
+
+/* Estilo del sub Sub menú */
+.dropdown-item
+  color: $azulSalas
+  transition: all 0.3s ease-in-out /* Transición para el color y el tamaño */
+  background-color: #f9f9f900
+
+  &:hover
+    color: $verdeSalas
+    background-color: #f9f9f900
+    transform: scale(1.1) /* Agrandar ligeramente el item */
+
+/*------------- Estilos para submenu --------------*/
+
+.dropend .titulo_submenu
+  border: none
+  transition: none
+  padding: 0px
+  /* font-size: 80% */
+
+.submenu
+  padding: 0px
+  padding-left: 1px
+
+.item_menu::after
+  display: none // Elimina las flechas del submenú
+
+.contenedor_submenu
+  display: none
+  position: absolute
+  top: 10% // Ajusta la posición vertical
+  left: 90% // Posiciona el submenú al lado derecho
+  margin-left: 15px
+  min-width: auto
+  max-width: auto
+  padding: 1px
+  &.show
+    display: block // Mostrar solo cuando tenga la clase 'show'
+
+/*------------- Fin estilos para submenu --------------*/
+
+/* estilo de Usuario */
+#usuarioNavbar
+  font-size: 100%
+  color: $verdeSalas
+  transition: all 0.3s ease-in-out /* Transición para el color y el tamaño */
+  border: 3px solid white
+  border-radius: 50px
+  padding: 10px 20px
+  font-weight: bold
+
+  &:hover
+    color: white
+    border: 3px solid white
+    border-radius: 50px
+    background-color: $azulSalas
+  &:focus
+    color: white
+    border: 3px solid white
+    border-radius: 50px
+    background-color: $azulSalas
+
+/*------------------- Spinner -------------------*/
+/* configuracion estetica del spinner para esperar el cambio de pagina */
+.spinner-wrapper
+  background-color: rgba(255, 255, 255, 0.466)
+  position: fixed
+  top: 0
+  left: 0
+  width: 100%
+  height: 100%
+  display: flex
+  justify-content: center
+  align-items: center
+  z-index: 9999
+  transition: opacity 0.3s
+.spinner-border
+  width: 4rem
+  height: 4rem
+  /* border-width: 3px */
+  border-color: transparent
+  border-top-color: $azulSalas
+  animation: spinner-border 0.5s linear infinite
+
+/*------------------- Toast -------------------*/
+/* configuracion estetica del toast para mostrar mensajes */
+.toast-notification
+  position: fixed
+  bottom: 30px
+  right: 30px
+  min-width: 320px
+  max-width: 380px
+  background: #ffffff
+  border-radius: 8px
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15)
+  display: flex
+  align-items: flex-start
+  padding: 16px
+  z-index: 9999
+  opacity: 0
+  transform: translateY(20px)
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55)
+  overflow: hidden
+
+.toast-notification::before
+  content: ''
+  position: absolute
+  top: 0
+  left: 0
+  width: 4px
+  height: 100%
+
+.toast-notification.success
+  border-left: 4px solid #28a745
+
+.toast-notification.error
+  border-left: 4px solid #dc3545
+
+.toast-notification.show
+  opacity: 1
+  transform: translateY(0)
+
+.toast-icon
+  font-size: 22px
+  margin-right: 12px
+  display: flex
+  align-items: center
+  justify-content: center
+  width: 24px
+  height: 24px
+
+.toast-icon .fa-check-circle
+  color: #28a745
+
+.toast-icon .fa-exclamation-circle
+  color: #dc3545
+
+.toast-content
+  flex: 1
+
+.toast-title
+  font-weight: 600
+  font-size: 15px
+  margin-bottom: 4px
+  color: #2d3748
+
+.toast-message
+  font-size: 14px
+  color: #4a5568
+  line-height: 1.4
+
+.toast-close
+  background: none
+  border: none
+  color: #a0aec0
+  cursor: pointer
+  padding: 4px
+  margin-left: 12px
+  display: flex
+  align-items: center
+  justify-content: center
+  transition: color 0.2s
+
+.toast-close:hover
+  color: #4a5568
+
+@keyframes slideIn
+  from
+    transform: translateX(100%)
+    opacity: 0
+  to
+    transform: translateX(0)
+    opacity: 1
+
+@keyframes fadeOut
+  from
+    opacity: 1
+    transform: translateY(0)
+  to
+    opacity: 0
+    transform: translateY(20px)
+.notificacion_cliente
+  color: $verdeSalas
+  &:hover
+    color:$azulSalas
+    
+    
+            
+        
