@@ -5,11 +5,7 @@
 
     RewriteEngine On
 
-    # Redirigir la raíz a /log
-    RewriteCond %{REQUEST_URI} ^/$
-    RewriteRule ^$ /log [L,R=301]
-
-    # Handle Authorization Header
+    # Handle Authorization Header (Importante para tu API)
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
