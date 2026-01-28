@@ -10,6 +10,7 @@ use App\Services\usuarios_y_permisos\UsuarioService;
 use App\Models\usuarios_y_permisos\Botones;
 use App\Models\agenda\Sectores;
 use App\Models\agenda\Agenda;
+use App\Services\agenda\AgendaService;
 
 
 
@@ -182,4 +183,116 @@ class PermisoService
         }
     }
 
+
+    public function sincronizarPermisos(array $permisos, int $usuario_id): void
+    {
+        [$permisosRecibidos, $sectoresRecibidos] = $this->separarPermisosYSectores($permisos);
+
+        $this->sincronizarPermisosUsuario($permisosRecibidos, $usuario_id);
+        
+        if (!empty($sectoresRecibidos)) {
+            (new AgendaService())->sincronizarSectores($sectoresRecibidos, $usuario_id);
+        }
+    }
+
+    private function separarPermisosYSectores(array $permisos): array
+    {
+        $permisosRecibidos = [];
+        $sectoresRecibidos = [];
+
+        foreach ($permisos as $permiso) {
+            if (!is_array($permiso) || count($permiso) < 3) {
+                continue;
+            }
+
+            $permisosRecibidos[] = [
+                $permiso[0] ?? null, 
+                $permiso[1] ?? null, 
+                $permiso[2] ?? null
+            ];
+
+            // Extraer sector si existe
+            if (count($permiso) == 4 && $permiso[3] !== null) {
+                $sectoresRecibidos[] = $permiso[3];
+            }
+        }
+
+        return [
+            array_unique($permisosRecibidos, SORT_REGULAR),
+            array_unique($sectoresRecibidos)
+        ];
+    }
+
+    private function sincronizarPermisosUsuario(array $permisosNuevos, int $usuario_id): void
+    {
+        $permisosActuales = $this->obtenerPermisosActuales($usuario_id);
+
+        // Eliminar permisos obsoletos
+        $this->eliminarPermisosObsoletos($permisosActuales, $permisosNuevos, $usuario_id);
+
+        // Agregar nuevos permisos
+        $this->agregarPermisosNuevos($permisosActuales, $permisosNuevos, $usuario_id);
+    }
+
+    private function obtenerPermisosActuales(int $usuario_id): array
+    {
+        return Permiso::where('usuario_id', $usuario_id)
+            ->select('nav_id', 'vista_id', 'boton_id')
+            ->get()
+            ->map(fn($p) => [$p->nav_id, $p->vista_id, $p->boton_id])
+            ->toArray();
+    }
+
+    private function eliminarPermisosObsoletos(
+        array $permisosActuales, 
+        array $permisosNuevos, 
+        int $usuario_id
+    ): void {
+        $permisosAEliminar = array_diff(
+            array_map('json_encode', $permisosActuales),
+            array_map('json_encode', $permisosNuevos)
+        );
+
+        if (empty($permisosAEliminar)) {
+            return;
+        }
+
+        foreach (array_map('json_decode', $permisosAEliminar) as $permiso) {
+            Permiso::where('usuario_id', $usuario_id)
+                ->where('nav_id', $permiso[0])
+                ->where('vista_id', $permiso[1])
+                ->where('boton_id', $permiso[2])
+                ->delete();
+        }
+    }
+
+    private function agregarPermisosNuevos(
+        array $permisosActuales, 
+        array $permisosNuevos, 
+        int $usuario_id
+    ): void {
+        $permisosAAgregar = array_diff(
+            array_map('json_encode', $permisosNuevos),
+            array_map('json_encode', $permisosActuales)
+        );
+
+        if (empty($permisosAAgregar)) {
+            return;
+        }
+
+        $datosInsertar = [];
+        foreach (array_map('json_decode', $permisosAAgregar) as $permiso) {
+            $datosInsertar[] = [
+                'nav_id' => $permiso[0],
+                'vista_id' => $permiso[1],
+                'boton_id' => $permiso[2],
+                'usuario_id' => $usuario_id,
+                'created_at' => now(),
+                'updated_at' => now()
+            ];
+        }
+
+        // Inserción masiva más eficiente
+        Permiso::insert($datosInsertar);
+    }
 }

@@ -4,7 +4,7 @@ namespace App\Services\agenda;
 
 use App\Models\agenda\Agenda;
 use App\Models\cliente\Usuario_sector;
-use App\Models\At_cl\Usuario;
+use App\Models\usuarios_y_permisos\Usuario;
 use App\Models\agenda\Notas;
 use App\Models\At_cl\Propiedad;
 use App\Models\cliente\clientes;
