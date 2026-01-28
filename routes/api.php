@@ -15,6 +15,10 @@ Route::prefix('v1')->group(function () {
             Route::post('refresh', [AuthController::class, 'refresh']);
             Route::get('me', [AuthController::class, 'me']);
             Route::get('nav', [PermisoService::class, 'getMenuData']);
+            Route::get('permisos-navegacion', [PermisoService::class, 'getPermisosNavegacion']);
+            Route::get('nombres-de-usuarios', [UsuarioService::class, 'getNombresDeUsuarios']);
+            Route::get('datos-generales/{id_usuario}', [UsuarioService::class, 'getDatosGenerales']);
+            Route::put('update-datos-generales/{id_usuario}', [UsuarioService::class, 'updateDatosGenerales']);
            
         });
     });

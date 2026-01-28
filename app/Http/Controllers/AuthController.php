@@ -4,14 +4,19 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\usuarios_y_permisos\Usuario;
+use App\Models\usuarios_y_permisos\Permiso;
 use Illuminate\Http\Response;
 use App\Http\Controllers\Controller;
+use App\Models\agenda\Agenda;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\TokenInvalidException;
 use Exception;
+use Illuminate\Support\Facades\Log;
+use App\Services\usuarios_y_permisos\PermisoService;
+use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
@@ -69,6 +74,7 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
+
         /* 
          * Se crea el validador para comprobar que los campos requeridos
          * existan y cumplan con las reglas de longitud y tipo
@@ -173,16 +179,41 @@ class AuthController extends Controller
      */
     public function register(Request $request)
     {
-        /*
-         * Se validan los campos obligatorios para la creación
-         * del usuario
-         */
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string',
-            'username' => 'required|string',
-            'password' => 'required|string',
-            'admin' => 'required|boolean'
-        ]);
+        DB::beginTransaction();
+        $validator = Validator::make(
+            $request->all(),
+            [
+                'name' => 'required|string|min:3|max:50',
+                'username' => 'required|string|min:3|max:50',
+                'password' => 'required|string|min:3|max:50',
+                'telf_interno' => 'nullable|integer|min:3',
+                'telf_laboral' => 'nullable|integer|min:10',
+                'fecha_nac' => 'nullable|date',
+                'email_interno' => 'nullable|string|max:30',
+                'email_externo' => 'nullable|string|max:30',
+            ],
+            [
+                'name.required' => 'El campo nombre es obligatorio',
+                'username.required' => 'El campo usuario es obligatorio',
+                'password.required' => 'El campo contraseña es obligatorio',
+
+                'fecha_nac.date' => 'El campo fecha de nacimiento debe ser una fecha valida',
+
+                'name.min' => 'El campo nombre debe tener al menos 3 caracteres',
+                'username.min' => 'El campo usuario debe tener al menos 3 caracteres',
+                'password.min' => 'El campo contraseña debe tener al menos 3 caracteres',
+                'telf_interno.min' => 'El campo telefono interno debe tener al menos 10 caracteres',
+                'telf_laboral.min' => 'El campo telefono laboral debe tener al menos 10 caracteres',
+
+                'telf_interno.max' => 'El campo telefono interno debe tener como maximo 30 caracteres',
+                'telf_laboral.max' => 'El campo telefono laboral debe tener como maximo 30 caracteres',
+                'username.max' => 'El campo usuario debe tener como maximo 50 caracteres',
+                'password.max' => 'El campo contraseña debe tener como maximo 50 caracteres',
+                'email_interno.max' => 'El campo email interno debe tener como maximo 30 caracteres',
+                'email_externo.max' => 'El campo email externo debe tener como maximo 30 caracteres',
+                'name.max' => 'El campo nombre debe tener como maximo 50 caracteres',
+            ]
+        );
 
         /*
          * Si la validación falla, se retorna un error con
@@ -197,33 +228,52 @@ class AuthController extends Controller
          */
         $exists = Usuario::where('username', $request->input('username'))->first();
 
+
         if (!$exists) {
-            /*
+            try {
+                /*
              * Se crea el nuevo usuario con los datos recibidos
              */
-            $new = Usuario::create([
-                'name' => $request->input('name'),
-                'username' => $request->input('username'),
-                'password' => $request->input('password'),
-                'admin' => $request->input('admin'),
-            ]);
 
-            /*
+                $new = Usuario::create([
+                    'name' => $request->input('name'),
+                    'username' => $request->input('username'),
+                    'password' => $request->input('password'),
+                    'admin' => 0,
+                    'telf_interno' => $request->input('telf_interno'),
+                    'telf_laboral' => $request->input('telf_laboral'),
+                    'fecha_nac' => $request->input('fecha_nac'),
+                    'email_interno' => $request->input('email_interno') ?? null,
+                    'email_externo' => $request->input('email_externo') ?? null
+                ]);
+
+
+
+                /*
              * Si la creación falla, se devuelve un error interno
              */
-            if (!$new) {
-                return response()->json(['error' => 'error al crear el usuario'], response::HTTP_INTERNAL_SERVER_ERROR);
-            }
+                if (!$new) {
+                    return response()->json(['error' => 'error al crear el usuario'], response::HTTP_INTERNAL_SERVER_ERROR);
+                }
 
-            /*
+                /*
+             * Procesar los permisos del usuario
+             */
+                $permisos = $request->input('permisos', []);
+
+                if (!empty($permisos)) {
+                    (new PermisoService())->asignarPermisos($new->id, $permisos);
+                }
+                DB::commit();
+
+                /*
              * Usuario creado correctamente
              */
-            return response()->json(['message' => 'usuario creado correctamente'], response::HTTP_CREATED);
-        } else {
-            /*
-             * El usuario ya existe en el sistema
-             */
-            return response()->json(['error' => 'usuario ya existe'], response::HTTP_BAD_REQUEST);
+                return response()->json(['message' => 'usuario creado correctamente'], response::HTTP_CREATED);
+            } catch (\Throwable $e) {
+                DB::rollback();
+                return response()->json(['error' => 'Error al crear el usuario'], response::HTTP_INTERNAL_SERVER_ERROR);
+            }
         }
     }
 

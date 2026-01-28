@@ -21,8 +21,8 @@ class Usuario extends Authenticatable implements JWTSubject
         'username',
         'password',
         'admin',
-        'telefono_laboral',
-        'telefono_interno',
+        'telf_interno',
+        'telf_laboral',
         'fecha_nac',
         'email_interno',
         'email_externo'
