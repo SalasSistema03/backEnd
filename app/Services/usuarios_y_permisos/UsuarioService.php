@@ -61,9 +61,9 @@ class UsuarioService
 
 
 
-   public function updateDatosGenerales(Request $request, $id_usuario)
+    public function updateDatosGenerales(Request $request, $id_usuario)
     {
-       $usuario = Usuario::where('id', $id_usuario)->first();
+        $usuario = Usuario::where('id', $id_usuario)->first();
 
         if (!$usuario) {
             return response()->json(['error' => 'Usuario no encontrado'], 404);
@@ -71,7 +71,7 @@ class UsuarioService
 
         // Actualizar datos básicos del usuario
         $datosActualizar = $this->prepararDatosActualizacion($request);
-        
+
         if (empty($datosActualizar)) {
             return response()->json(['error' => 'No hay datos para actualizar'], 400);
         }
@@ -81,7 +81,7 @@ class UsuarioService
         // Delegar la gestión de permisos al servicio correspondiente
         if ($request->has('permisos')) {
             (new PermisoService())->sincronizarPermisos(
-                $request->input('permisos'), 
+                $request->input('permisos'),
                 $id_usuario
             );
         }
@@ -113,9 +113,9 @@ class UsuarioService
         }
 
         // Hash de contraseña si viene
-        if (isset($datosActualizar['password'])) {
+        /* if (isset($datosActualizar['password'])) {
             $datosActualizar['password'] = bcrypt($datosActualizar['password']);
-        }
+        } */
 
         return $datosActualizar;
     }

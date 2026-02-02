@@ -6,71 +6,92 @@ use App\Models\turnos\Turno;
 use App\Models\turnos\Sector;
 use Illuminate\Http\Request;
 use App\Services\accessService;
-
+use App\Services\turno\SectoresService;
+use App\Services\turno\TurnoService;
+use Exception;
+use Illuminate\Support\Facades\Log;
 
 class TurnoController
 {
 
-    public function index()
-    {
-        $turnos = Turno::whereNull('fecha_llamado')->orderBy('created_at', 'asc')->get();
-        return view('turnos.index', compact('turnos'));
-    }
 
-    public function create()
+    public function getSectores()
     {
-        $usuario_id = session('usuario_id'); // Obtener el id del usuario actual desde la sesión
-        $vistaNombre = 'turnos.create';
-        // Crear una instancia del servicio de permisos
-        $permisoService = new accessService($usuario_id);
-        // Verificar si el usuario tiene acceso a la vista
-        if (!$permisoService->tieneAccesoAVista($vistaNombre)) {
-            // Redirigir o mostrar un mensaje de error si no tiene acceso
-            return redirect()->route('home')->with('error', 'No tienes acceso a esta vista.');
+        try {
+            $sectores = (new SectoresService())->getSectoresOrdenados();
+            return response()->json($sectores);
+        } catch (Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
         }
-        $sectores = Sector::all();
-        $turnos = Turno::where('activo', 1)
-            ->whereDate('fecha_carga', now()->toDateString())
-            ->with('sector')
-            ->orderBy('fecha_carga', 'desc')
-            ->get();
-        $turnosLlamados = Turno::where('activo', 2)
-            ->whereDate('fecha_carga', now()->toDateString())
-            ->with('sector')
-            ->orderBy('fecha_carga', 'desc')
-            ->get();
-        $turnosInactivos = Turno::where('activo', 0)
-            ->whereDate('fecha_carga', now()->toDateString())
-            ->with('sector')
-            ->orderBy('fecha_carga', 'desc')
-            ->get();
-
-        /* $turnos = Turno::whereNull('fecha_llamado')
-        ->orderBy('fecha_carga')->get(); */
-        $fecha_carga = now()->format('Y-m-d H:i:s'); // Fecha y hora actual
-        return view('turnos.create', compact('turnos', 'sectores', 'fecha_carga', 'turnosLlamados', 'turnosInactivos'));
     }
 
-    public function store(Request $request)
+
+    public function getTurnosPendientes()
     {
-        $usuario_id = session('usuario_id');
-        $validated = $request->validate([
-            'numero_identificador' => 'required|string',
-            'tipo_identificador' => 'required|in:DNI,Folio',
-            'sector' => 'required|string',
-            'fecha_carga' => 'required|date'
-        ]);
-        
-        // Agrega el usuario_id al array validado
-        $validated['usuario_id'] = $usuario_id;
-        Turno::create($validated);
-
-        return redirect()->route('turnos.create')->with('success', 'Turno registrado exitosamente');
+        try {
+            $turnos = (new TurnoService())->getTurnosPendientes();
+            return response()->json($turnos);
+        } catch (Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
     }
+
+    public function getTurnosLlamados()
+    {
+        try {
+            $turnos = (new TurnoService())->getTurnosLlamados();
+            return response()->json($turnos);
+        } catch (Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function getTurnosCompletados()
+    {
+        try {
+            $turnos = (new TurnoService())->getTurnosCompletados();
+            return response()->json($turnos);
+        } catch (Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function postCargarTurnoController(Request $request)
+    {
+        try {
+            $turno = (new TurnoService())->postCargarTurno($request->all());
+            return response()->json($turno);
+        } catch (Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function finalizarturno($id)
+    {
+        //Log::info('finalizarturno', ['id' => $id]);
+        try{
+            $turno = (new TurnoService())->putFinalizarTurno($id);
+            return response()->json($turno);
+        }catch(Exception $e){
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
 
     public function llamado(Request $request)
     {
-        
+
         $sectores = Sector::all();
         $turnosPendientes = collect();
         $turnosInactivos2 = collect();
@@ -113,8 +134,6 @@ class TurnoController
             ->get();
         return view('turnos.llamado', compact('sectores', 'turnosPendientes', 'turnosInactivos2', 'turnosInactivosFalse', 'sectorSeleccionado', 'ultimosLlamados', 'turnos'));
     }
-
-
 
 
     public function llamar(Request $request)
@@ -173,16 +192,6 @@ class TurnoController
         return view('turnos.componentes._form_llamarTurnosAFinalizar', compact('turnosPendientes'));
     }
 
-
-
-
-
-
-
-
-
-
-
     public function mostrar()
     {
         $usuario_id = session('usuario_id'); // Obtener el id del usuario actual desde la sesión
@@ -202,15 +211,5 @@ class TurnoController
             ->get();
 
         return view('turnos.mostrar', compact('turno', 'sectores'));
-    }
-
-    public function finalizar($id)
-    {
-        $turno = Turno::findOrFail($id);
-        $turno->activo = 0;
-        $turno->fecha_llamado = now();
-        /* $turno->usuario_id = auth()->id(); */
-        $turno->save();
-        return redirect()->route('turnos.llamado', ['sector' => $turno->sector])->with('success', 'Turno finalizado');
     }
 }

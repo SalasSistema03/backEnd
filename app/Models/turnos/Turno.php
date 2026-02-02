@@ -3,7 +3,7 @@
 namespace App\Models\turnos;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Models\At_cl\Usuario;
+use App\Models\usuarios_y_permisos\Usuario;
 
 class Turno extends Model
 {
@@ -37,4 +37,6 @@ class Turno extends Model
     {
         return $this->sector ? $this->sector->nombre : null;
     }
+
+    
 }
