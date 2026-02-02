@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\contable\sellado\SelladoController;
 use App\Services\usuarios_y_permisos\PermisoService;
 use App\Services\usuarios_y_permisos\UsuarioService;
 
@@ -19,9 +20,10 @@ Route::prefix('v1')->group(function () {
             Route::get('nombres-de-usuarios', [UsuarioService::class, 'getNombresDeUsuarios']);
             Route::get('datos-generales/{id_usuario}', [UsuarioService::class, 'getDatosGenerales']);
             Route::put('update-datos-generales/{id_usuario}', [UsuarioService::class, 'updateDatosGenerales']);
-           
         });
     });
+    //CONTABLE - SELLADO
+            Route::get('sellado', [SelladoController::class, 'getDatosSelladoController']);
 });
 
 
