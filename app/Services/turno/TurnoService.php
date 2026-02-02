@@ -53,19 +53,16 @@ class TurnoService
         return $enviaTurno;
     }
 
-    public function putLlamarTurno($id){
-        Log::info('turno', ['turno_id' => $id]);
+    public function putLlamarTurno($id, $idUsuario = null){
         $turno = Turno::findOrFail($id);
-        //$turno->tomo_usuario_id = $tomo_usuario_id;
+        $turno->tomo_usuario_id = $idUsuario;
         $turno->fecha_llamado = now();
         $turno->activo = 2;
         $turno->save();
-        $turno->save();
+        return $turno;
     }
 
     public function putFinalizarTurno($turno){
-        //Log::info('turno', ['turno_id' => $turno]);
-        
         $turnoModel = Turno::findOrFail($turno);
         $turnoModel->activo = 0;
         $turnoModel->fecha_llamado = now();
