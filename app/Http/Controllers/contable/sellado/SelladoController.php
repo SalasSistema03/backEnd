@@ -47,9 +47,46 @@ class SelladoController extends Controller
         $this->valorSellado_service = $valorSellado;
         $this->valorDatosRegistrales_service = $valorDatosRegistrales;
         $this->usuario_id = session('usuario_id'); // Obtener el id del usuario actual desde la sesión
-        $this->usuario = Usuario::find($this->usuario_id);
         $this->accessService = new PermitirAccesoSelladoService($this->usuario_id);
     }
+
+
+    //Este controlador retorna la infromacion del sellado
+    public function getDatosSelladoController(Request $request)
+    {
+        // 2. Recopilación de Permisos de Botones
+        $botones = [
+            'datosDeCalculo' => $this->accessService->tieneAcceso('datosDeCalculo'),
+            'acciones'       => $this->accessService->tieneAcceso('acciones'),
+            'guardar'        => $this->accessService->tieneAcceso('guardar')
+        ];
+
+        // 3. Obtención de Datos
+        $valores = Registro_sellado::latest()->get();
+        $valor_registro_extra = Valor_registro_extra::first()->valor_extra ?? 0;
+
+        $otrosValores = [
+            'valorGastoAdministrativo' => $this->valorGastoAdminitrativo_service->getAllValorGastoAdministrativo(),
+            'valorHoja'                => $this->valorHoja_service->getAllValorHoja(),
+            'valorSellado'             => $this->valorSellado_service->getAllValorSellado(),
+            'valorDatosRegistrales'    => $this->valorDatosRegistrales_service->getAllValorDatosRegistrales()
+        ];
+        // 4. Respuesta JSON estructurada
+        return response()->json([
+            'data' => [
+                'registros' => $valores,
+                'configuracion' => [
+                    'valor_extra' => $valor_registro_extra,
+                    'otros' => $otrosValores
+                ]
+            ],
+            'permissions' => $botones // El frontend usará esto para mostrar/ocultar botones
+        ], 200);
+    
+        
+    }
+
+
  
     // Método para listar todos los registros
     public function index()

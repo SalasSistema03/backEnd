@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\contable\sellado\SelladoController;
 use App\Services\usuarios_y_permisos\PermisoService;
 use App\Services\usuarios_y_permisos\UsuarioService;
 use App\Http\Controllers\turnos\TurnoController;
@@ -29,6 +30,8 @@ Route::prefix('v1')->group(function () {
             Route::put('turnos/llamar/{id}', [TurnoController::class, 'putLlamarTurno']);
         });
     });
+    //CONTABLE - SELLADO
+            Route::get('sellado', [SelladoController::class, 'getDatosSelladoController']);
 });
 
 
