@@ -60,9 +60,11 @@ class TurnoController
     {
         try {
             $turno = (new TurnoService())->postCargarTurno($request->all());
-            return response()->json($turno);
-        } catch (Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'Turno creado exitosamente', 'data' => $turno]);
+        }  catch (\InvalidArgumentException $e) {
+        // Error de validación - status 422 con mensaje específico
+        Log::info($e->getMessage());
+        return response()->json(['error' => $e->getMessage()], 422);
         }
     }
 
