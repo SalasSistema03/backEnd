@@ -2,94 +2,203 @@
 
 namespace App\Http\Controllers\contable\sellado;
 
-use App\Http\Controllers\Controller; // Asegúrate de importar correctamente la clase base Controller
-use App\Models\At_cl\Usuario;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-
 use App\Models\contable\sellado\Registro_sellado;
-use App\Models\usuarios_y_permisos\Permiso;
+use App\Models\contable\sellado\Valor_registro_extra;
 use App\Services\contable\sellado\RegistroSelladoService;
 use App\Services\contable\sellado\ValorDatosRegistralesService;
 use App\Services\contable\sellado\ValorGastoAdminitrativoService;
 use App\Services\contable\sellado\ValorHojaService;
-/* use App\Models\Contable\Sellado\Valor_hoja;
-
-use App\Models\Contable\Sellado\Valor_datos_registrales;
-use App\Models\Contable\Sellado\Valor_gasto_administrativo; */
 use App\Services\contable\sellado\ValorSelladoService;
 use App\Services\contable\sellado\PermitirAccesoSelladoService;
-use App\Models\contable\sellado\Valor_registro_extra;
-
 
 class SelladoController extends Controller
 {
-    private RegistroSelladoService $registro_sellado;
-
+    // Definimos las propiedades para que estén disponibles en toda la clase
     protected $valorGastoAdminitrativo_service;
-
     protected $valorHoja_service;
-
     protected $valorSellado_service;
-
     protected $valorDatosRegistrales_service;
 
-    protected $usuario;
-
-    protected $usuario_id;
-
-    protected $accessService;
-
-    public function __construct(RegistroSelladoService $registro_sellado, ValorGastoAdminitrativoService $valorGastoAdminitrativo, ValorHojaService $valorHoja, ValorSelladoService $valorSellado, ValorDatosRegistralesService $valorDatosRegistrales)
-    {
-        $this->registro_sellado = $registro_sellado;
+    public function __construct(
+       protected RegistroSelladoService $registro_sellado,
+        ValorGastoAdminitrativoService $valorGastoAdminitrativo,
+        ValorHojaService $valorHoja,
+        ValorSelladoService $valorSellado,
+        ValorDatosRegistralesService $valorDatosRegistrales
+    ) {
         $this->valorGastoAdminitrativo_service = $valorGastoAdminitrativo;
         $this->valorHoja_service = $valorHoja;
         $this->valorSellado_service = $valorSellado;
         $this->valorDatosRegistrales_service = $valorDatosRegistrales;
-        $this->usuario_id = session('usuario_id'); // Obtener el id del usuario actual desde la sesión
-        $this->accessService = new PermitirAccesoSelladoService($this->usuario_id);
     }
 
-
-    //Este controlador retorna la infromacion del sellado
-    public function getDatosSelladoController(Request $request)
+    public function getDatosSelladoController()
     {
-        // 2. Recopilación de Permisos de Botones
-        $botones = [
-            'datosDeCalculo' => $this->accessService->tieneAcceso('datosDeCalculo'),
-            'acciones'       => $this->accessService->tieneAcceso('acciones'),
-            'guardar'        => $this->accessService->tieneAcceso('guardar')
-        ];
-
-        // 3. Obtención de Datos
-        $valores = Registro_sellado::latest()->get();
-        $valor_registro_extra = Valor_registro_extra::first()->valor_extra ?? 0;
-
-        $otrosValores = [
-            'valorGastoAdministrativo' => $this->valorGastoAdminitrativo_service->getAllValorGastoAdministrativo(),
-            'valorHoja'                => $this->valorHoja_service->getAllValorHoja(),
-            'valorSellado'             => $this->valorSellado_service->getAllValorSellado(),
-            'valorDatosRegistrales'    => $this->valorDatosRegistrales_service->getAllValorDatosRegistrales()
-        ];
-        // 4. Respuesta JSON estructurada
-        return response()->json([
-            'data' => [
-                'registros' => $valores,
-                'configuracion' => [
-                    'valor_extra' => $valor_registro_extra,
-                    'otros' => $otrosValores
-                ]
-            ],
-            'permissions' => $botones // El frontend usará esto para mostrar/ocultar botones
-        ], 200);
-    
+        try {
+            // 1. Obtener el ID del usuario autenticado vía JWT/Token
+            $usuario_id = auth('api')->id();
+            // 2. Instanciar el servicio de permisos localmente
+            $accessService = new PermitirAccesoSelladoService($usuario_id);
+            // 3. Recopilación de Permisos de Botones
+            $botones = [
+                'datosDeCalculo' => $accessService->tieneAcceso('datosDeCalculo'),
+                'acciones'       => $accessService->tieneAcceso('acciones'),
+                'guardar'        => $accessService->tieneAcceso('guardar')
+            ];
+            $resultado = $this->registro_sellado->getRegistroSellado();
+            return response()->json([
+                'status' => 'success',
+                'data' => $resultado,
+                'permisos' => $botones
+            ], 200);
+        } catch (\Exception $e) {
+            // Si algo falla (conexión, base de datos, etc.), esto te dirá QUÉ es en Postman
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al obtener los datos de sellado',
+                'debug' => $e->getMessage(), // Esto te dirá el error real de la DB
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ], 500);
+        }
         
     }
 
 
- 
+    public function getDatosSelladoController2()
+    {
+        try {
+            // 1. Obtener el ID del usuario autenticado vía JWT/Token
+            $usuario_id = auth('api')->id();
+
+            // 2. Instanciar el servicio de permisos localmente
+            $accessService = new PermitirAccesoSelladoService($usuario_id);
+
+            // 3. Recopilación de Permisos de Botones
+            $botones = [
+                'datosDeCalculo' => $accessService->tieneAcceso('datosDeCalculo'),
+                'acciones'       => $accessService->tieneAcceso('acciones'),
+                'guardar'        => $accessService->tieneAcceso('guardar')
+            ];
+
+            // 4. Obtención de Datos
+            // CAMBIO: Usamos orderBy porque latest() busca 'created_at' y da error 500 si no existe.
+            $valores = Registro_sellado::orderBy('id_registro_sellado', 'desc')->get();
+
+            $valor_registro_extra = Valor_registro_extra::first()->valor_extra ?? 0;
+
+            $otrosValores = [
+                'valorGastoAdministrativo' => $this->valorGastoAdminitrativo_service->getAllValorGastoAdministrativo(),
+                'valorHoja'                => $this->valorHoja_service->getAllValorHoja(),
+                'valorSellado'             => $this->valorSellado_service->getAllValorSellado(),
+                'valorDatosRegistrales'    => $this->valorDatosRegistrales_service->getAllValorDatosRegistrales()
+            ];
+
+            // 5. Respuesta JSON
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'registros' => $valores,
+                    'configuracion' => [
+                        'valor_extra' => $valor_registro_extra,
+                        'otros' => $otrosValores
+                    ]
+                ],
+                'permissions' => $botones
+            ], 200);
+        } catch (\Exception $e) {
+            // Si algo falla (conexión, base de datos, etc.), esto te dirá QUÉ es en Postman
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al obtener los datos de sellado',
+                'debug' => $e->getMessage(), // Esto te dirá el error real de la DB
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ], 500);
+        }
+    }
+
+
+    public function getDatosSelladoController3()
+    {
+        try {
+            // El servicio de acceso debería ser inyectado o resuelto por el contenedor, no con 'new'
+            $usuario_id = auth('api')->id();
+            $accessService = app(PermitirAccesoSelladoService::class, ['usuario_id' => $usuario_id]);
+
+            // Centralizamos la lógica en un solo servicio de orquestación
+            $data = $this->registro_sellado->getRegistroSellado();
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $data,
+                'permissions' => [
+                    'datosDeCalculo' => $accessService->tieneAcceso('datosDeCalculo'),
+                    'acciones'       => $accessService->tieneAcceso('acciones'),
+                    'guardar'        => $accessService->tieneAcceso('guardar')
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            // Usa Log para guardar el error real y no lo expongas todo al cliente en producción
+
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al obtener los datos',
+                'debug' => config('app.debug') ? $e->getMessage() : null // Solo mostrar debug en desarrollo
+            ], 500);
+        }
+    }
+
+
+    public function guardarDatosCalculoController(Request $request)
+    {
+        $mensajes = [];
+
+        try {
+            // En Vue, enviarás un objeto: { check_registro: true, precio1: 100, ... }
+            if ($request->boolean('check_registro')) { // boolean() es más limpio que == 1
+                $valoresRegistrales = [
+                    ['id_valor_datos_registrales' => 1, 'precio' => $request->input('precio1'), 'valor_limite' => $request->input('valor_limite1')],
+                    ['id_valor_datos_registrales' => 2, 'precio' => $request->input('precio2'), 'valor_limite' => $request->input('valor_limite2')],
+                    ['id_valor_datos_registrales' => 3, 'precio' => $request->input('precio3'), 'valor_limite' => $request->input('valor_limite3')],
+                ];
+                $this->valorDatosRegistrales_service->modificarValoresRegistrales($valoresRegistrales);
+
+                Valor_registro_extra::query()->update([
+                    'valor_extra' => $request->input('valor_registro_extra')
+                ]);
+
+                $mensajes[] = 'Valores registrales actualizados correctamente.';
+            }
+
+            // ... el resto de tus IFs siguen igual (pero usa $request->boolean() si puedes) ...
+
+            if (empty($mensajes)) {
+                return response()->json(['message' => 'No se seleccionó ninguna opción para actualizar.'], 400);
+            }
+
+            // RESPUESTA PARA VUE
+            return response()->json([
+                'status' => 'success',
+                'message' => implode(' ', $mensajes)
+            ], 200);
+        } catch (\Exception $e) {
+            // Si algo falla (conexión, base de datos, etc.), esto te dirá QUÉ es en Postman
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al guardar los datos de calculo',
+                'debug' => $e->getMessage(), // Esto te dirá el error real de la DB
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ], 500);
+        }
+    }
+
     // Método para listar todos los registros
-    public function index()
+    /*     public function index()
     {
         $vistaNombre = 'sellado';
 
@@ -117,13 +226,13 @@ class SelladoController extends Controller
         // Recorremos cada nombre de botón
         foreach ($btnNombres as $btnNombre) {
             // Verificamos si el usuario tiene acceso a cada botón y almacenamos el resultado en el array de accesos
-            $accesos[$btnNombre] = $this->accessService->tieneAcceso($btnNombre);
+        //    $accesos[$btnNombre] = $this->accessService->tieneAcceso($btnNombre);
         }
         // Asignamos el acceso a 'editarPadron'
-         $tieneAccesoAcciones = $accesos['acciones']; 
-         $tieneAccesoDatosDeCalculo = $accesos['datosDeCalculo']; 
-         $tieneAccesoGuardar = $accesos['guardar'];
-         $valor_registro_extra = Valor_registro_extra::all()->first()->valor_extra;
+        $tieneAccesoAcciones = $accesos['acciones'];
+        $tieneAccesoDatosDeCalculo = $accesos['datosDeCalculo'];
+        $tieneAccesoGuardar = $accesos['guardar'];
+        $valor_registro_extra = Valor_registro_extra::all()->first()->valor_extra;
 
         $otrosValores = [
             'valorGastoAdminitrativo' => $this->valorGastoAdminitrativo_service->getAllValorGastoAdministrativo(),
@@ -136,12 +245,12 @@ class SelladoController extends Controller
 
         // Obtener los registros de sellado ordenados por los más recientes primero
         $valores = $this->registro_sellado->getAllRegistroSellado();
-        
-        return view('contable.sellado.index', compact('valores','valor_registro_extra', 'otrosValores','tieneAccesoAcciones','tieneAccesoDatosDeCalculo','tieneAccesoGuardar'));
-    }
+
+        return view('contable.sellado.index', compact('valores', 'valor_registro_extra', 'otrosValores', 'tieneAccesoAcciones', 'tieneAccesoDatosDeCalculo', 'tieneAccesoGuardar'));
+    } */
 
 
-    public function guardarDatosCalculo(Request $request)
+    /* public function guardarDatosCalculo(Request $request)
     {
         $mensajes = [];
 
@@ -150,15 +259,15 @@ class SelladoController extends Controller
                 ['id_valor_datos_registrales' => 1, 'precio' => $request->input('precio1'), 'valor_limite' => $request->input('valor_limite1')],
                 ['id_valor_datos_registrales' => 2, 'precio' => $request->input('precio2'), 'valor_limite' => $request->input('valor_limite2')],
                 ['id_valor_datos_registrales' => 3, 'precio' => $request->input('precio3'), 'valor_limite' => $request->input('valor_limite3')],
-            ];           
+            ];
             $this->valorDatosRegistrales_service->modificarValoresRegistrales($valoresRegistrales);
-            
+
             $valor_registro_extra = $request->input('valor_registro_extra');
             Valor_registro_extra::query()->update([
                 'valor_extra' => $valor_registro_extra
             ]);
-            
-            
+
+
             $mensajes[] = 'Valores registrales actualizados correctamente.';
         }
 
@@ -196,5 +305,5 @@ class SelladoController extends Controller
         }
 
         return back(); // Esto recarga la misma página sin redirigir a otra
-    }
+    } */
 }

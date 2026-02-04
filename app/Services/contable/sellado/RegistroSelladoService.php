@@ -14,45 +14,43 @@ use App\Models\contable\sellado\Valor_registro_extra;
 
 class RegistroSelladoService
 {
-    protected $valorGastoAdminitrativo_service;
-
-    protected $valorHoja_service;
-
-    protected $valorSellado_service;
-
-    protected $valorDatosRegistrales_service;
 
     public function __construct(
-        ValorGastoAdminitrativoService $valorGastoAdminitrativo,
-        ValorHojaService $valorHoja,
-        ValorSelladoService $valorSellado,
-        ValorDatosRegistralesService $valorDatosRegistrales
-    ) {
-        $this->valorGastoAdminitrativo_service = $valorGastoAdminitrativo;
-        $this->valorHoja_service = $valorHoja;
-        $this->valorSellado_service = $valorSellado;
-        $this->valorDatosRegistrales_service = $valorDatosRegistrales;
+        protected ValorGastoAdminitrativoService $valorGastoAdminitrativo,
+        protected ValorHojaService $valorHoja,
+        protected ValorSelladoService $valorSellado,
+        protected ValorDatosRegistralesService $valorDatosRegistrales,
+        protected DatosCalculoService $datosCalculoService
+    ) {}
+
+
+    //Este metodo a parte de todos lo registros de sellado - se encarga de mostrar los datos de calculo
+    public function getRegistroSellado(): array
+    {
+        return [
+            'registros' => $this->getRegistroSelladoOrenados(),
+            'configuracion' => [
+                'valores_datos_registrales' => $this->datosCalculoService->getAllValorDatosRegistrales(),
+                'valores_gasto_administrativo' => $this->datosCalculoService->getAllValorGastoAdministrativo(),
+                'valores_hoja' => $this->datosCalculoService->getAllValorHoja(),
+                'valores_sellado' => $this->datosCalculoService->getAllValorSellado(),
+                'valor_registro_extra' => $this->datosCalculoService->getValorRegistroExtra(),
+            ]
+        ];
     }
 
-    public function getAllRegistroSellado()
-    {   
-        
-        
-        return Registro_sellado::orderBy('id_registro_sellado', 'desc')
-            ->get()
-            ->map(function ($registro) {
-                $registro->usuario = Usuario::find($registro->usuario_id);
-                return $registro;
-            });
+    protected function getRegistroSelladoOrenados(): array{
+        return Registro_sellado::orderBy('id_registro_sellado', 'desc')->get()->toArray();
     }
-    
 
 
-    public function calculoRegistroSelladoResultado(array $data){
+
+    public function calculoRegistroSelladoResultado(array $data)
+    {
         $monto_documento = $data['monto_documento'] ?? 0;
         $monto_contrato = $data['monto_contrato'] ?? 0;
         $cantidad_meses = $data['cantidad_meses'] ?? 0;
-        
+
         // Calcula los valores adicionales
         $gasto_administrativo = $this->calculateGastoAdministrativo(
             $data['monto_alquiler'],
@@ -125,7 +123,7 @@ class RegistroSelladoService
     public function calculateGastoAdministrativo($monto_alquiler, $monto_documento, $tipo_contrato, $meses)
     {
         $g_adm = 0;
-        $valor_adm = $this->valorGastoAdminitrativo_service->getAllValorGastoAdministrativo();
+        $valor_adm = $this->valorGastoAdminitrativo->getAllValorGastoAdministrativo();
 
         //dd(json_encode($valor_adm));
 
@@ -172,8 +170,8 @@ class RegistroSelladoService
 
     public function sellado($meses, $monto_a, $tipo_c, $hojas, $inq_prop, $monto_c)
     {
-        $valor_hojas = $this->valorHoja_service->getAllValorHoja();
-        $valor_tipos = $this->valorSellado_service->getAllValorSellado();
+        $valor_hojas = $this->valorHoja->getAllValorHoja();
+        $valor_tipos = $this->valorSellado->getAllValorSellado();
 
 
         $valor = 0;
@@ -213,7 +211,7 @@ class RegistroSelladoService
 
     public function valor_informe($informe, $cantidad_informe, $monto_a, $monto_d)
     {
-        $valor_registral = $this->valorDatosRegistrales_service->getAllValorDatosRegistrales();
+        $valor_registral = $this->valorDatosRegistrales->getAllValorDatosRegistrales();
 
         $monto_informe = 0;
         $a_sumar = 0;

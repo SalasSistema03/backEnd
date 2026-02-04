@@ -61,7 +61,7 @@ return [
             'synchronous' => null,
         ],
 
-         'mysql' => [
+        'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
@@ -79,31 +79,28 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
-        ], 
-         'mysql2' => [ // Segunda conexión
+        ],
+        'mysql2' => [ // Segunda conexión
             'driver' => 'mysql',
             'host' => env('DB_HOST_2', '10.10.10.190'),
             'port' => env('DB_PORT_2', '3306'),
             'database' => env('DB_DATABASE_2', 'desarrollo'),
             'username' => env('DB_USERNAME_2', 'root'),
-            'password' => env('DB_PASSWORD_2', 'aopen'), 
+            'password' => env('DB_PASSWORD_2', 'aopen'),
             /* 'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci', */
-            'charset' => 'utf8', 
+            'charset' => 'utf8',
             'collation' => 'utf8_unicode_ci', // puedes usar 'utf8_general_ci' también
             'prefix' => '',
             'strict' => true,
             'engine' => null,
-        ], 
+        ],
         'mysql3' => [ //Tercer conexion
             'driver' => 'mysql',
-            'url' => env('DB_URL'),
-            'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT', '3306'),
-            'database' => env('DB_DATABASE3', 'sistema_sellado'),
-            'username' => env('DB_USERNAME', 'root'),
-            'password' => env('DB_PASSWORD', ''),
-            'unix_socket' => env('DB_SOCKET', ''),
+            'host'     => env('DB_HOST_SELLADO'),     // Busca específicamente esta
+            'database' => env('DB_DATABASE_SELLADO'), // Busca específicamente esta
+            'username' => env('DB_USERNAME_SELLADO'), // Busca específicamente esta
+            'password' => env('DB_PASSWORD_SELLADO'), // Busca específicamente esta'unix_socket' => env('DB_SOCKET', ''),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
             'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
             'prefix' => '',
@@ -172,7 +169,7 @@ return [
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
-        'mysql6' => [ 
+        'mysql6' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
@@ -191,7 +188,7 @@ return [
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
-        'mysql7' => [ 
+        'mysql7' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
@@ -210,7 +207,7 @@ return [
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
-        'mysql9' => [ 
+        'mysql9' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
