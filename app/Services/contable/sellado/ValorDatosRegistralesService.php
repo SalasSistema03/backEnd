@@ -6,8 +6,7 @@ use App\Models\Contable\Sellado\Valor_datos_registrales;
 class ValorDatosRegistralesService
 {
     public function getAllValorDatosRegistrales(){
-        $valor_gastos_registrales = Valor_datos_registrales::all();
-        return $valor_gastos_registrales;
+        return Valor_datos_registrales::all();
     }
 
     // Método para actualizar los valores de los datos registrales
