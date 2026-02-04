@@ -23,7 +23,6 @@ Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login']);
         Route::post('register', [AuthController::class, 'register']);
-<<<<<<< HEAD
         Route::middleware('auth:api')->group(function(){
             Route::get('logout', [AuthController::class, 'logout'])->name('logout');
             Route::post('refresh', [AuthController::class, 'refresh']);
@@ -55,9 +54,6 @@ Route::prefix('v1')->group(function () {
     //CONTABLE - SELLADO
             Route::get('sellado', [SelladoController::class, 'getDatosSelladoController']);
 });
-=======
-    }); // <--- AQUÍ TERMINA EL PREFIJO /auth/
->>>>>>> nuevoNico
 
     // 2. GRUPO PROTEGIDO (URL: api/v1/...)
     // Requieren Token, pero NO llevan "auth" en la URL
