@@ -7,6 +7,14 @@ use App\Http\Controllers\contable\sellado\SelladoController;
 use App\Services\usuarios_y_permisos\PermisoService;
 use App\Services\usuarios_y_permisos\UsuarioService;
 use App\Http\Controllers\turnos\TurnoController;
+use App\Http\Controllers\At_cl\CalleController;
+use App\Http\Controllers\At_cl\Tipo_inmuebleController;
+use App\Http\Controllers\At_cl\ZonaController;
+use App\Http\Controllers\At_cl\ProvinciaController;
+use App\Http\Controllers\At_cl\EstadoGeneralController;
+use App\Http\Controllers\At_cl\EstadoVentaController;
+use App\Http\Controllers\At_cl\UsuariosController;
+use App\Http\Controllers\At_cl\EstadoAlquilerController;
 
 Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function(){
@@ -28,6 +36,16 @@ Route::prefix('v1')->group(function () {
             Route::post('turnos/cargar', [TurnoController::class, 'postCargarTurnoController']);
             Route::put('turnos/finalizar/{id}', [TurnoController::class, 'finalizarturno']);
             Route::put('turnos/llamar/{id}', [TurnoController::class, 'putLlamarTurno']);
+            //calles
+            Route::get('calles', [CalleController::class, 'getCalles']);
+            Route::get('tipos-inmueble', [Tipo_inmuebleController::class, 'getTiposInmueble']);
+            Route::get('zonas', [ZonaController::class, 'getZonas']);
+            Route::get('provincias', [ProvinciaController::class, 'getProvincias']);
+            Route::get('estado-general', [EstadoGeneralController::class, 'getEstadoGeneral']);
+            Route::get('estado-venta', [EstadoVentaController::class, 'getEstadoVenta']);
+            Route::get('captador-interno', [UsuariosController::class, 'getCaptadorInterno']);
+            Route::get('asesor', [UsuariosController::class, 'getAsesor']);
+            Route::get('estado-alquiler', [EstadoAlquilerController::class, 'getEstadoAlquiler']);
         });
     });
     //CONTABLE - SELLADO

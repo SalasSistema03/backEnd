@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use App\Services\agenda\AgendaService;
 use App\Services\usuarios_y_permisos\PermisoService;
+use App\Models\cliente\Usuario_sector;
 
 class UsuarioService
 {
@@ -59,7 +60,22 @@ class UsuarioService
         ]);
     }
 
+    public function getCaptadorInterno()
+    {
+        $captador_interno = Usuario::select('id', 'username')->get();
+        return response()->json($captador_interno);
+    }
 
+    public function getAsesor(){
+        $usuarioAsesor = Usuario_sector::where('venta', 'S')->get('id_usuario');
+        
+        foreach ($usuarioAsesor as $usuarioTot) {
+            $username = Usuario::where('id', $usuarioTot->id_usuario)->value('username');
+            $usuarioTot->username = $username;
+        }
+        
+        return $usuarioAsesor;
+    }
 
     public function updateDatosGenerales(Request $request, $id_usuario)
     {
@@ -111,11 +127,6 @@ class UsuarioService
                 $datosActualizar[$columna] = $request->input($campo);
             }
         }
-
-        // Hash de contraseña si viene
-        /* if (isset($datosActualizar['password'])) {
-            $datosActualizar['password'] = bcrypt($datosActualizar['password']);
-        } */
 
         return $datosActualizar;
     }
