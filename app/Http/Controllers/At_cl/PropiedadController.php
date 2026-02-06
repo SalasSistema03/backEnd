@@ -27,7 +27,7 @@ use Illuminate\Support\Facades\Log;
 use App\Http\Requests\StorePropiedadRequest;
 use App\Models\At_cl\Documentacion;
 use App\Models\At_cl\Empresas_propiedades;
-use App\Models\At_cl\Usuario;
+use App\Models\usuarios_y_permisos\Usuario;
 use App\Models\At_cl\Video;
 use App\Models\cliente\Usuario_sector;
 use App\Services\At_cl\documentacionService;
@@ -59,7 +59,7 @@ class PropiedadController
 {
 
 
-public function 
+
 
 
 
@@ -200,6 +200,127 @@ public function
         $this->mediaService = $mediaService;
         $this->empresaPropiedadService = $empresaPropiedadService;
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    public function guardarPropiedad(Request $request, $id)
+    {
+         Log::info($request->all());
+        Log::info($id); 
+        // Decodificar el JSON de comodidades
+        $comodidades = json_decode($request->comodidades, true);
+        $descripcion = json_decode($request->descripcion, true);
+        $venta = json_decode($request->venta, true);
+        $alquiler = json_decode($request->alquiler, true);
+        $condicionAlquiler = json_decode($request->condicion_alquiler, true);
+
+
+log::info('antes de crear propiedad');
+
+        $propiedad_creada = Propiedad::create([
+            'id_calle' => $request->calle_id,
+            'numero_calle' => $request->altura,
+            'ph' => $request->ph,
+            'piso' => $request->piso,
+            'departamento' => $request->dto,
+            'id_inmueble' => $request->inmueble_id,
+            'id_zona' => $request->zona_id,
+            'id_provincia' => $request->provincia_id,
+            'llave' => $request->llave,
+            'comentario_llave' => $request->observaciones_llave,
+            'cartel' => $request->cartel,
+            'comentario_cartel' => $request->observaciones_cartel,
+            'id_estado_general' => $comodidades['estado_general'] ?? null,
+            'cantidad_dormitorios' => $comodidades['dormitorios'] ?? null,
+            'banios' => $comodidades['banios'] ?? null,
+            'mLote' => $comodidades['lotes'] ?? null,
+            'mCubiertos' => $comodidades['lote_cubierto'] ?? null,
+            'cochera' => $comodidades['cochera'] ?? null,
+            'numero_cochera' => $comodidades['numero_cochera'] ?? null,
+            'asfalto' => $comodidades['asfalto'] ?? null,
+            'gas' => $comodidades['gas'] ?? null,
+            'cloaca' => $comodidades['cloaca'] ?? null,
+            'agua' => $comodidades['agua'] ?? null,
+            'descipcion_propiedad' => $descripcion['texto'] ?? null,
+            'cod_venta' => $venta['cod_venta'] ?? null,
+            'id_estado_venta' => $venta['estado_venta'] ?? null,
+            'exclusividad_venta' => $venta['exclusividad_venta'] ?? null,
+            'comparte_venta' => $venta['comparte_venta'] ?? null,
+            'condicionado_venta' => $venta['condicionado_venta'] ?? null,
+            'venta_fecha_alta' => $venta['venta_fecha_alta'] ?? null,
+            'fecha_autorizacion_venta' => $venta['fecha_autorizacion_venta'] ?? null,
+            'comentario_autorizacion' => $venta['comentario_autorizacion'] ?? null,
+            'zona_prop' => $venta['zona_prop'] ?? null,
+            'flyer' => $venta['flyer'] ?? null ?? null,
+            'reel' => $venta['reel'] ?? null,
+            'web' => $venta['web'] ?? null,
+            'captador_int' => $venta['captador_int'] ?? null,
+            'asesor' => $venta['asesor'] ?? null,
+            'cod_alquiler' => $alquiler['cod_alquiler'] ?? null,
+            'id_estado_alquiler' => $alquiler['estado_alquiler'] ?? null,
+            'autorizacion_alquiler' => $alquiler['autorizacion_alquiler'] ?? null,
+            'fecha_autorizacion_alquiler' => $alquiler['fecha_autorizacion_alquiler'] ?? null,
+            'exclusividad_alquiler' => $alquiler['exclusividad_alquiler'] ?? null,
+            'clausula_de_venta' => $alquiler['clausula_de_venta'] ?? null,
+            'tiempo_clausula' => $alquiler['tiempo_clausula'] ?? null,
+            'alquiler_fecha_alta' => $alquiler['alquiler_fecha_alta'] ?? null,
+            'mascota' => $alquiler['mascota'] ?? null,
+            'condicion' => $condicionAlquiler['condicion'] ?? null,
+            'last_modified_by' => $id,
+        ]);
+
+        Log::info('Propiedad creada');
+        /* ---------------------------------------------
+         * Creación de la tasación asociada
+         * ---------------------------------------------
+         */
+        $this->tasacionService->crearDesdeRequest(
+            $venta,
+            $propiedad_creada->id
+        );
+        Log::info('Tasación creada');
+
+        $precioService = new PrecioService();
+        $precioService->crearDesdeRequest($venta, $alquiler, $propiedad_creada->id);
+        Log::info('Precio creado');
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     /**
@@ -414,13 +535,13 @@ public function
              * ------------------------------------------------
              */
             $propiedad = Propiedad::create([
-                'id_calle' => $request->calle,
-                'numero_calle' => $request->numero_calle,
-                'piso' => $request->piso,
-                'departamento' => $request->depto,
-                'id_zona' => $request->zona,
-                'id_provincia' => $request->provincia,
-                'id_inmueble' => $request->tipo_inmueble,
+                //'id_calle' => $request->calle,
+                //'numero_calle' => $request->numero_calle,
+                //'piso' => $request->piso,
+                //'departamento' => $request->depto,
+                //'id_zona' => $request->zona,
+                //'id_provincia' => $request->provincia,
+                //'id_inmueble' => $request->tipo_inmueble,
                 'id_estado_general' => $request->estado_general,
                 'cantidad_dormitorios' => $request->dormitorios,
                 'banios' => $request->banios,
@@ -428,10 +549,10 @@ public function
                 'mLote' => $request->m_Lote,
                 'mCubiertos' => $request->m_Cubiertos,
                 'notes' => $request->notes,
-                'llave' => $request->llave,
-                'comentario_llave' => $request->observacion_llave,
-                'cartel' => $request->cartel,
-                'comentario_cartel' => $request->observacion_cartel,
+                //'llave' => $request->llave,
+                //'comentario_llave' => $request->observacion_llave,
+                //'cartel' => $request->cartel,
+                //'comentario_cartel' => $request->observacion_cartel,
                 'numero_cochera' => $request->numero_cochera,
                 'cod_venta' => $request->cod_venta,
                 'id_estado_venta' => $request->estado_venta,
@@ -476,17 +597,17 @@ public function
              * Creación de la tasación asociada
              * ---------------------------------------------
              */
-            $this->tasacionService->crearDesdeRequest(
+            /* $this->tasacionService->crearDesdeRequest(
                 $request,
                 $propiedad->id
-            );
+            ); */
 
             /* ---------------------------------------------
              * Creación del precio de venta/alquiler
              * ---------------------------------------------
              */
-            $precioService = new PrecioService();
-            $precioService->crearDesdeRequest($request, $propiedad->id);
+           /*  $precioService = new PrecioService();
+            $precioService->crearDesdeRequest($request, $propiedad->id); */
 
             /* Guardar el ID de la propiedad en sesión */
             session(['propiedad_id' => $propiedad->id]);
@@ -513,7 +634,7 @@ public function
 
                 $this->empresaPropiedadService->asociarNuevoFolio(array($folios), $propiedad->id);
             }
-            
+
             DB::commit();
             session()->save();
 
@@ -768,7 +889,7 @@ public function
     }
     public function updatedatos(Request $request, $id)
     {
-       
+
         //Se llama al servicio de historial de estados que esta en propiedadService
 
         $this->propiedadService->guardarHistorialEstadosSerbive(

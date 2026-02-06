@@ -4,6 +4,7 @@ namespace App\Services\At_cl;
 
 use App\Models\At_cl\Tasacion;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class TasacionService
 {
@@ -42,32 +43,34 @@ class TasacionService
      * @return \App\Models\Tasacion|null instancia de la tasación creada o null si no aplica
      * @access public
      */
-    public function crearDesdeRequest(Request $request, int $propiedadId): ?Tasacion
+    public function crearDesdeRequest(Array $venta, int $propiedadId): ?Tasacion
     {
+         Log::info($venta);
+        Log::info($propiedadId);
         /* Verifica que el request contenga el valor de tasación de venta */
-        if (!$request->filled('tasacion_venta')) {
+        if (!isset($venta['tasacion_venta'])) {
             return null;
         }
 
         /* Datos base de la tasación */
         $data = [
-            'fecha_tasacion' => $request->fecha_tasacion_venta,
+            'fecha_tasacion' => $venta['fecha_tasacion_venta'],
             'propiedad_id'   => $propiedadId,
         ];
 
         /* Determina la moneda de la tasación
        Moneda: 1 = Pesos / otro valor = Dólar */
-        if ($request->moneda_venta == '1') {
+        if ($venta['moneda_venta'] == '1') {
 
             /* Tasación expresada en pesos */
-            $data['tasacion_pesos_venta'] = $request->tasacion_venta;
+            $data['tasacion_pesos_venta'] = $venta['tasacion_venta'];
             $data['tasacion_dolar_venta'] = null;
             $data['moneda']               = '0';
         } else {
 
             /* Tasación expresada en dólares */
             $data['tasacion_pesos_venta'] = null;
-            $data['tasacion_dolar_venta'] = $request->tasacion_venta;
+            $data['tasacion_dolar_venta'] = $venta['tasacion_venta'];
             $data['moneda']               = '1';
         }
 
