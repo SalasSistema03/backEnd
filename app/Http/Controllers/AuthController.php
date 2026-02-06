@@ -94,13 +94,14 @@ class AuthController extends Controller
                 'password.max' => 'El campo contraseña debe tener como maximo 50 caracteres',
             ]
         );
-
+      
         /*
          * Si la validación falla, se retorna una respuesta JSON
          * con los errores y un código HTTP 400 (Bad Request)
          */
         if ($validator->fails()) {
             /* return response()->json(['error' => $validator->errors()], response::HTTP_BAD_REQUEST); */
+           
             return response()->json([
                 'message' => 'Error de validación',
                 'errors' => $validator->errors(),

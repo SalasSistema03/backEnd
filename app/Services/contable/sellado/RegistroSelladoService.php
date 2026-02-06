@@ -39,88 +39,124 @@ class RegistroSelladoService
         ];
     }
 
-    protected function getRegistroSelladoOrenados(): array{
+    protected function getRegistroSelladoOrenados(): array
+    {
         return Registro_sellado::orderBy('id_registro_sellado', 'desc')->get()->toArray();
     }
 
 
-
-    public function calculoRegistroSelladoResultado(array $data)
+    public function calcularSellado(array $data)
     {
+        // 1. Extraer valores con valores por defecto
         $monto_documento = $data['monto_documento'] ?? 0;
-        $monto_contrato = $data['monto_contrato'] ?? 0;
-        $cantidad_meses = $data['cantidad_meses'] ?? 0;
+        $monto_contrato  = $data['monto_contrato'] ?? 0;
+        $cantidad_meses  = $data['cantidad_meses'] ?? 0;
+        $monto_alquiler  = $data['monto_alquiler'] ?? 0;
 
-        // Calcula los valores adicionales
-        $gasto_administrativo = $this->calculateGastoAdministrativo(
-            $data['monto_alquiler'],
+        // 2. Ejecutar cálculos internos
+        $gasto_adm_calc = $this->calculateGastoAdministrativo(
+            $monto_alquiler,
             $monto_documento,
             $data['tipo_contrato'],
             $cantidad_meses
         );
 
-        $prop_alquiler = $this->proporcional_alquiler(
-            $data['monto_alquiler'],
+        $prop_alq_calc = $this->proporcional_alquiler(
+            $monto_alquiler,
             $monto_documento,
             $data['fecha_inicio']
         );
 
-        $sellado = $this->sellado(
+        $sellado_calc = $this->sellado(
             $cantidad_meses,
-            $data['monto_alquiler'],
+            $monto_alquiler,
             $data['tipo_contrato'],
             $data['hojas'],
             $data['inq_prop'],
             $monto_contrato
         );
 
-        $valor_informe = $this->valor_informe(
+        $inf_calc = $this->valor_informe(
             $data['informe'],
             $data['cantidad_informes'],
-            $data['monto_alquiler'],
+            $monto_alquiler,
             $monto_documento
         );
 
-        $monto_alquiler = $this->montoAlquilerComercialVivienda(
+        $monto_tipo_calc = $this->montoAlquilerComercialVivienda(
             $data['tipo_contrato'],
-            $data['monto_alquiler']
+            $monto_alquiler
         );
-        $usuario_id =  session('usuario_id');
 
-        // Retornar solo los cálculos sin guardar en la base de datos
+        // 3. Retornar el array de resultados
         return [
-            'folio'                 => $data['folio'],
-            'nombre'                => $data['nombre'],
-            'cantidad_meses'        => $data['cantidad_meses'],
-            'monto_alquiler'        => $data['monto_alquiler'],
-            'monto_documento'       => $data['monto_documento'],
-            'monto_contrato'        => $data['monto_contrato'],
-            'hojas'                 => $data['hojas'],
-            'informe'               => $data['informe'],
-            'cantidad_informes'     => $data['cantidad_informes'],
-            'tipo_contrato'         => $data['tipo_contrato'],
-            'inq_prop'              => $data['inq_prop'],
-            'fecha_inicio'          => $data['fecha_inicio'],
-            'gasto_administrativo'  => $gasto_administrativo['g_adm'],
-            'prop_alquiler'         => $prop_alquiler['monto_alquiler'],
-            'sellado'               => $sellado['total_sellado_con_hojas'],
-            'valor_informe'         => $valor_informe,
-            'iva_gasto_adm'         => $gasto_administrativo['iva_g_adm_o'],
-            'monto_alquiler_comercial' => $monto_alquiler['monto_alquiler_comercial'],
-            'monto_alquiler_vivienda'  => $monto_alquiler['monto_alquiler_vivienda'],
-            'prop_doc'              => $prop_alquiler['monto_documento'],
-            'total_contrato'        => $sellado['total_alquiler'],
-            'fecha_carga'           => now()->toDateString(),
-            'usuario_id'           => $usuario_id,
-
+            'folio'             => $data['folio'] ?? '',
+            'nombre'            => $data['nombre'] ?? '',
+            'cantidad_meses'    => $cantidad_meses,
+            'monto_alquiler'    => $monto_alquiler,
+            'monto_documento'   => $monto_documento,
+            'monto_contrato'    => $monto_contrato,
+            'hojas'             => $data['hojas'] ?? 0,
+            'informe'           => $data['informe'] ?? 0,
+            'cantidad_informes' => $data['cantidad_informes'] ?? 0,
+            'tipo_contrato'     => $data['tipo_contrato'],
+            'inq_prop'          => $data['inq_prop'],
+            'fecha_inicio'      => $data['fecha_inicio'],
+            'gasto_administrativo' => $gasto_adm_calc['g_adm'] ?? 0,
+            'prop_alquiler'     => $prop_alq_calc['monto_alquiler'] ?? 0,
+            'sellado'           => $sellado_calc['total_sellado_con_hojas'] ?? 0,
+            'valor_informe'     => $inf_calc,
+            'iva_gasto_adm'     => $gasto_adm_calc['iva_g_adm_o'] ?? 0,
+            'monto_alquiler_comercial' => $monto_tipo_calc['monto_alquiler_comercial'] ?? 0,
+            'monto_alquiler_vivienda'  => $monto_tipo_calc['monto_alquiler_vivienda'] ?? 0,
+            'prop_doc'          => $prop_alq_calc['monto_documento'] ?? 0,
+            'total_contrato'    => $sellado_calc['total_alquiler'] ?? 0,
+            'fecha_carga'       => now()->toDateString(),
         ];
+    }
+
+    public function guardarSellado(array $data)
+    {
+        //Obtiene el id del usuario actual
+        
+        return DB::transaction(function () use ($data) {
+            // Primero obtenemos los resultados del cálculo para estar seguros de qué guardamos
+            $resultados = $this->calcularSellado($data);
+
+            // Insertamos en la tabla (Ajusta los nombres de las columnas a tu BD)
+            return Registro_sellado::create([
+                'cantidad_informes'       => $resultados['cantidad_informes'],
+                'cantidad_meses'          => $resultados['cantidad_meses'],
+                'fecha_inicio'            => $resultados['fecha_inicio'],
+                'folio'                   => $resultados['folio'],
+                'gasto_administrativo'    => $resultados['gasto_administrativo'],
+                'hojas'                   => $resultados['hojas'],
+                'informe'                 => $resultados['informe'],
+                'inq_prop'                => $resultados['inq_prop'],
+                'iva_gasto_adm'           => $resultados['iva_gasto_adm'],
+                'monto_alquiler_comercial' => $resultados['monto_alquiler_comercial'],
+                'monto_alquiler_vivienda'  => $resultados['monto_alquiler_vivienda'],
+                'monto_contrato'          => $resultados['monto_contrato'],
+                'monto_documento'         => $resultados['monto_documento'],
+                'nombre'                  => $resultados['nombre'],
+                'prop_alquiler'           => $resultados['prop_alquiler'],
+                'prop_doc'                => $resultados['prop_doc'],
+                'sellado'                 => $resultados['sellado'],
+                'tipo_contrato'           => $resultados['tipo_contrato'],
+                'total_contrato'          => $resultados['total_contrato'],
+                'valor_informe'           => $resultados['valor_informe'],
+                'fecha_carga'             => $resultados['fecha_carga'],
+                'usuario_id'              => session('usuario_id') ?? 1,
+            ]);
+        });
     }
 
 
 
 
+
     //En esta seccion se creara la logica para calcular el registro sellado
-    public function calculateGastoAdministrativo($monto_alquiler, $monto_documento, $tipo_contrato, $meses)
+    protected function calculateGastoAdministrativo($monto_alquiler, $monto_documento, $tipo_contrato, $meses)
     {
         $g_adm = 0;
         $valor_adm = $this->valorGastoAdminitrativo->getAllValorGastoAdministrativo();
@@ -149,7 +185,7 @@ class RegistroSelladoService
         ];
     }
 
-    public function proporcional_alquiler($monto_a, $monto_d, $fecha_i)
+    protected function proporcional_alquiler($monto_a, $monto_d, $fecha_i)
     {
         $dia_i = date('j', strtotime($fecha_i)); // Obtiene el día del mes
 
@@ -168,7 +204,7 @@ class RegistroSelladoService
         ];
     }
 
-    public function sellado($meses, $monto_a, $tipo_c, $hojas, $inq_prop, $monto_c)
+    protected function sellado($meses, $monto_a, $tipo_c, $hojas, $inq_prop, $monto_c)
     {
         $valor_hojas = $this->valorHoja->getAllValorHoja();
         $valor_tipos = $this->valorSellado->getAllValorSellado();
@@ -200,7 +236,7 @@ class RegistroSelladoService
         ];
     }
 
-    public function iva($inq_prop, $tipo_c, $monto_a)
+    protected function iva($inq_prop, $tipo_c, $monto_a)
     {
         if ($monto_a <= 1500 || $inq_prop == "SI" || $tipo_c == "Vivienda") {
             return 1;
@@ -209,7 +245,7 @@ class RegistroSelladoService
     }
 
 
-    public function valor_informe($informe, $cantidad_informe, $monto_a, $monto_d)
+    protected function valor_informe($informe, $cantidad_informe, $monto_a, $monto_d)
     {
         $valor_registral = $this->valorDatosRegistrales->getAllValorDatosRegistrales();
 
@@ -245,7 +281,7 @@ class RegistroSelladoService
         }
     }
 
-    public function montoAlquilerComercialVivienda($tipo_c, $monto_alquiler)
+    protected function montoAlquilerComercialVivienda($tipo_c, $monto_alquiler)
     {
         $monto_alquiler_comercial = 0;
         $monto_alquiler_vivienda = 0;

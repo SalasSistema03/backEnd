@@ -39,14 +39,19 @@ class DatosCalculoService
     public function getValorRegistroExtra()
     {
         return Valor_registro_extra::first()->valor_extra ?? 0;
-    }   
+    }
 
 
     // Método para actualizar los valores de los datos registrales
     public function setValoresRegistrales($data)
     {
-        // $data es un array con las claves necesarias
-        foreach ($data as $valor) {
+        $valoresParaTablaRegistros = [
+            ['id_valor_datos_registrales' => 1, 'precio' => $data['valor_registro_extra1'], 'valor_limite' => $data['valor_limite1']],
+            ['id_valor_datos_registrales' => 2, 'precio' => $data['valor_registro_extra2'], 'valor_limite' => $data['valor_limite2']],
+            ['id_valor_datos_registrales' => 3, 'precio' => $data['valor_registro_extra3'], 'valor_limite' => $data['valor_limite3']],
+        ];
+
+        foreach ($valoresParaTablaRegistros as $valor) {
             Valor_datos_registrales::where('id_valor_datos_registrales', $valor['id_valor_datos_registrales'])
                 ->update([
                     'precio' => $valor['precio'],
@@ -57,10 +62,15 @@ class DatosCalculoService
 
 
     // Método para actualizar los valores de los gastos administrativos
-    public function setValoresgastoAdministrativo($data)
+    public function setValoresgastoAdministrativo(array $data)
     {
-        // $data es un array con las claves necesarias
-        foreach ($data as $valor) {
+        $valoresGastpoAdministrativo = [
+            ['id_valor_gasto_administrativo' => 1, 'tipo' => 1, 'valor' => $data['valor_gasto_administrativo1']],
+            ['id_valor_gasto_administrativo' => 2, 'tipo' => 3, 'valor' => $data['valor_gasto_administrativo2']],
+            ['id_valor_gasto_administrativo' => 3, 'tipo' => 0, 'valor' => $data['valor_gasto_administrativo3']],
+        ];
+
+        foreach ($valoresGastpoAdministrativo as $valor) {
             Valor_gasto_administrativo::where('id_valor_gasto_administrativo', $valor['id_valor_gasto_administrativo'])
                 ->update([
                     'tipo' => $valor['tipo'],
@@ -73,12 +83,10 @@ class DatosCalculoService
     public function setValoresHoja($data)
     {
         // $data es un array con las claves necesarias
-        foreach ($data as $valor) {
-            Valor_hoja::where('id_valor_hoja', $valor['id_valor_hoja'])
-                ->update([
-                    'precio' => $valor['precio'],
-                ]);
-        }
+        Valor_hoja::where('id_valor_hoja', $data['id_valor_hoja'])
+            ->update([
+                'precio' => $data['precio']
+            ]);
     }
 
     // Método para actualizar los valores del sellado
@@ -92,5 +100,15 @@ class DatosCalculoService
                     'valor' => $valor['valor'],
                 ]);
         }
+    }
+
+    //Este valor modifica el valor de "valor_registro_extra" en la tabla
+    public function setValorRegistroExtra($valor_registro_extra)
+    {
+        $valor_registro_extra = $valor_registro_extra;
+        Valor_registro_extra::where('id_registro_extra', 1)
+            ->update([
+                'valor_extra' => $valor_registro_extra
+            ]);
     }
 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\contable\sellado\Registro_sellado;
 use App\Models\contable\sellado\Valor_registro_extra;
+use App\Services\contable\sellado\DatosCalculoService;
 use App\Services\contable\sellado\RegistroSelladoService;
 use App\Services\contable\sellado\ValorDatosRegistralesService;
 use App\Services\contable\sellado\ValorGastoAdminitrativoService;
@@ -21,8 +22,10 @@ class SelladoController extends Controller
     protected $valorSellado_service;
     protected $valorDatosRegistrales_service;
 
+
     public function __construct(
-       protected RegistroSelladoService $registro_sellado,
+        protected RegistroSelladoService $registro_sellado,
+        protected DatosCalculoService   $datosCalculoService,
         ValorGastoAdminitrativoService $valorGastoAdminitrativo,
         ValorHojaService $valorHoja,
         ValorSelladoService $valorSellado,
@@ -63,56 +66,23 @@ class SelladoController extends Controller
                 'line' => $e->getLine()
             ], 500);
         }
-        
     }
 
-
-    public function getDatosSelladoController2()
+    //Esta funcion guarda/modifica el valor de "valor_registro_extra" en la tabla
+    public function guardarValorRegistroExtraController(Request $request)
     {
         try {
-            // 1. Obtener el ID del usuario autenticado vía JWT/Token
-            $usuario_id = auth('api')->id();
+            $this->datosCalculoService->setValorRegistroExtra($request->all()['valor_extra']);
+            $this->datosCalculoService->setValoresRegistrales($request->all());
 
-            // 2. Instanciar el servicio de permisos localmente
-            $accessService = new PermitirAccesoSelladoService($usuario_id);
-
-            // 3. Recopilación de Permisos de Botones
-            $botones = [
-                'datosDeCalculo' => $accessService->tieneAcceso('datosDeCalculo'),
-                'acciones'       => $accessService->tieneAcceso('acciones'),
-                'guardar'        => $accessService->tieneAcceso('guardar')
-            ];
-
-            // 4. Obtención de Datos
-            // CAMBIO: Usamos orderBy porque latest() busca 'created_at' y da error 500 si no existe.
-            $valores = Registro_sellado::orderBy('id_registro_sellado', 'desc')->get();
-
-            $valor_registro_extra = Valor_registro_extra::first()->valor_extra ?? 0;
-
-            $otrosValores = [
-                'valorGastoAdministrativo' => $this->valorGastoAdminitrativo_service->getAllValorGastoAdministrativo(),
-                'valorHoja'                => $this->valorHoja_service->getAllValorHoja(),
-                'valorSellado'             => $this->valorSellado_service->getAllValorSellado(),
-                'valorDatosRegistrales'    => $this->valorDatosRegistrales_service->getAllValorDatosRegistrales()
-            ];
-
-            // 5. Respuesta JSON
             return response()->json([
                 'status' => 'success',
-                'data' => [
-                    'registros' => $valores,
-                    'configuracion' => [
-                        'valor_extra' => $valor_registro_extra,
-                        'otros' => $otrosValores
-                    ]
-                ],
-                'permissions' => $botones
+                'message' => 'Valor de "valor_registro_extra" guardado correctamente.',
             ], 200);
         } catch (\Exception $e) {
-            // Si algo falla (conexión, base de datos, etc.), esto te dirá QUÉ es en Postman
             return response()->json([
                 'status' => 'error',
-                'message' => 'Error al obtener los datos de sellado',
+                'message' => 'Ocurrió un error al guardar el valor de "valor_registro_extra"',
                 'debug' => $e->getMessage(), // Esto te dirá el error real de la DB
                 'file' => $e->getFile(),
                 'line' => $e->getLine()
@@ -120,37 +90,106 @@ class SelladoController extends Controller
         }
     }
 
-
-    public function getDatosSelladoController3()
+    //Este metodo guarda/modifica los registros de la tabla "valor_gasto_administrativo"
+    public function guardarValorGastoAdministrativoController(Request $request)
     {
         try {
-            // El servicio de acceso debería ser inyectado o resuelto por el contenedor, no con 'new'
-            $usuario_id = auth('api')->id();
-            $accessService = app(PermitirAccesoSelladoService::class, ['usuario_id' => $usuario_id]);
-
-            // Centralizamos la lógica en un solo servicio de orquestación
-            $data = $this->registro_sellado->getRegistroSellado();
+            $this->datosCalculoService->setValoresGastoAdministrativo($request->all());
 
             return response()->json([
                 'status' => 'success',
-                'data' => $data,
-                'permissions' => [
-                    'datosDeCalculo' => $accessService->tieneAcceso('datosDeCalculo'),
-                    'acciones'       => $accessService->tieneAcceso('acciones'),
-                    'guardar'        => $accessService->tieneAcceso('guardar')
-                ]
+                'message' => 'Valores de "valor_gasto_administrativo" guardado correctamente.',
             ], 200);
         } catch (\Exception $e) {
-            // Usa Log para guardar el error real y no lo expongas todo al cliente en producción
-
-
             return response()->json([
                 'status' => 'error',
-                'message' => 'Error al obtener los datos',
-                'debug' => config('app.debug') ? $e->getMessage() : null // Solo mostrar debug en desarrollo
+                'message' => 'Ocurrió un error al guardar los valores de "valor_gasto_administrativo"',
+                'debug' => $e->getMessage(), // Esto te dirá el error real de la DB
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
             ], 500);
         }
     }
+
+    //Este metodo guarda/modifica los registros de la tabla "valor_hoja"
+    public function guardarValorHojaController(Request $request)
+    {
+        try {
+            //Llama al servicio datosCalculoService para guardar los valores de "valor_hoja"
+            $this->datosCalculoService->setValoresHoja($request->all());
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Valores de "valor_hoja" guardado correctamente.',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Ocurrió un error al guardar los valores de "valor_hoja"',
+                'debug' => $e->getMessage(), // Esto te dirá el error real de la DB
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ], 500);
+        }
+    }
+
+    //Este metodo calcula el registro sellado (solo es el calculo, no guarda en la base de datos)
+    public function calcularSelladoController(Request $request)
+    {
+        // 1. Validar la entrada (muy importante para evitar errores 500)
+        /*  $validated = $request->validate([
+            'monto_alquiler' => 'required|numeric',
+            'tipo_contrato'  => 'required',
+            'fecha_inicio'   => 'required|date',
+            'informe'        => 'required',
+            'cantidad_informes' => 'required|integer',
+            'inq_prop'       => 'required',
+            'hojas'          => 'required|integer',
+            // Agrega aquí todas las validaciones necesarias
+        ]);
+ */
+        try {
+            // 2. Llamar al servicio
+            $resultado = $this->registro_sellado->calcularSellado($request->all());
+
+            // 3. Retornar respuesta JSON para Vue.js
+            return response()->json([
+                'status' => 'success',
+                'data'   => $resultado
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al procesar el cálculo: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // 2. Para cuando el usuario hace clic en "Confirmar y Guardar"
+    public function guardarSelladoController(Request $request)
+    {
+        try {
+            $registro = $this->registro_sellado->guardarSellado($request->all());
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Registro guardado correctamente',
+                'data' => $registro
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => 'Error al guardar: ' . $e->getMessage()], 500);
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
 
 
     public function guardarDatosCalculoController(Request $request)
