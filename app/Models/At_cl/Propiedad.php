@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use App\Models\At_cl\Foto;
 use App\Models\At_cl\Empresas;
+use App\Models\usuarios_y_permisos\Usuario;
 
 
 class Propiedad extends Model
@@ -98,6 +99,7 @@ class Propiedad extends Model
         'web',
         'captador_int',
         'asesor',
+        'mascota',
 
     ];
 

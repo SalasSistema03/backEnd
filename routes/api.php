@@ -15,6 +15,7 @@ use App\Http\Controllers\At_cl\EstadoGeneralController;
 use App\Http\Controllers\At_cl\EstadoVentaController;
 use App\Http\Controllers\At_cl\UsuariosController;
 use App\Http\Controllers\At_cl\EstadoAlquilerController;
+use App\Http\Controllers\At_cl\PropiedadController;
 
 Route::prefix('v1')->group(function () {
 
@@ -49,6 +50,7 @@ Route::prefix('v1')->group(function () {
             Route::get('captador-interno', [UsuariosController::class, 'getCaptadorInterno']);
             Route::get('asesor', [UsuariosController::class, 'getAsesor']);
             Route::get('estado-alquiler', [EstadoAlquilerController::class, 'getEstadoAlquiler']);
+            Route::post('propiedad/guardar/{id}', [PropiedadController::class, 'guardarPropiedad']);
         });
     });
     //CONTABLE - SELLADO
