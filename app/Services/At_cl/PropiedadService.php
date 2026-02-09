@@ -40,50 +40,50 @@ class PropiedadService
         return Empresas_propiedades::where('propiedad_id', $id)->get();
     }
 
-    
-/**
- * Obtiene el folio con el vencimiento de contrato más grande y su fecha de inicio.
- *
- * @param int|string $id ID de la propiedad
- * @return object|null Objeto con folio, inicio_contrato y vencimiento_contrato
- */
-public function obtenerContratoMasReciente($id)
-{
-    // Obtener los folios de la propiedad
-    $folios = Empresas_propiedades::where('propiedad_id', $id)->pluck('folio');
-    
-    if ($folios->isEmpty()) {
-        return null;
+
+    /**
+     * Obtiene el folio con el vencimiento de contrato más grande y su fecha de inicio.
+     *
+     * @param int|string $id ID de la propiedad
+     * @return object|null Objeto con folio, inicio_contrato y vencimiento_contrato
+     */
+    public function obtenerContratoMasReciente($id)
+    {
+        // Obtener los folios de la propiedad
+        $folios = Empresas_propiedades::where('propiedad_id', $id)->pluck('folio');
+
+        if ($folios->isEmpty()) {
+            return null;
+        }
+
+        // Obtener los id_casa de esos folios
+        $idCasas = Propiedades_sys::whereIn('carpeta', $folios)->pluck('id_casa');
+
+        if ($idCasas->isEmpty()) {
+            return null;
+        }
+
+        // Obtener el contrato con mayor vencimiento
+        $contrato = Contratos_cabecera_sys::whereIn('id_casa', $idCasas)
+            ->where('id_empresa', 1)
+            ->orderBy('rescicion', 'desc')
+            ->first();
+
+
+        if (!$contrato) {
+            return null;
+        }
+
+        // Obtener el folio de ese contrato
+        $propiedad = Propiedades_sys::where('id_casa', $contrato->id_casa)->first();
+
+        return (object) [
+            'folio' => $propiedad->carpeta,
+            'inicio_contrato' => $contrato->comienza,
+            'vencimiento_contrato' => $contrato->rescicion,
+            'id_casa' => $contrato->id_casa,
+        ];
     }
-    
-    // Obtener los id_casa de esos folios
-    $idCasas = Propiedades_sys::whereIn('carpeta', $folios)->pluck('id_casa');
-    
-    if ($idCasas->isEmpty()) {
-        return null;
-    }
-    
-    // Obtener el contrato con mayor vencimiento
-    $contrato = Contratos_cabecera_sys::whereIn('id_casa', $idCasas)
-        ->where('id_empresa', 1)
-        ->orderBy('rescicion', 'desc')
-        ->first();
-  
-    
-    if (!$contrato) {
-        return null;
-    }
-    
-    // Obtener el folio de ese contrato
-    $propiedad = Propiedades_sys::where('id_casa', $contrato->id_casa)->first();
-    
-    return (object) [
-        'folio' => $propiedad->carpeta,
-        'inicio_contrato' => $contrato->comienza,
-        'vencimiento_contrato' => $contrato->rescicion,
-        'id_casa' => $contrato->id_casa,
-    ];
-}
 
 
 
@@ -99,7 +99,7 @@ public function obtenerContratoMasReciente($id)
     public function obtenerAlquiler($idCasas, $folio)
     {
         $empresaId = Empresas_propiedades::where('folio', $folio)->value('empresa_id');
-  
+
         $id_contrato_cabecera = Contratos_cabecera_sys::where('id_casa', $idCasas)
             ->where('id_empresa', $empresaId)
             ->where('documentos', 'N')
@@ -294,5 +294,69 @@ public function obtenerContratoMasReciente($id)
         return HistorialEstadosAlquiler::where('id_propiedad', $id_propiedad)
             ->orderBy('id', 'desc')
             ->first(); // devuelve el último registro guardado
+    }
+
+    public function crearPropiedad(array $datos, int $userId): Propiedad
+    {
+        try {
+            return Propiedad::create([
+                'id_calle' => $datos['calle_id'],
+                'numero_calle' => $datos['altura'],
+                'ph' => $datos['ph'],
+                'piso' => $datos['piso'],
+                'departamento' => $datos['dto'],
+                'id_inmueble' => $datos['inmueble_id'],
+                'id_zona' => $datos['zona_id'],
+                'id_provincia' => $datos['provincia_id'],
+                'llave' => $datos['llave'],
+                'comentario_llave' => $datos['observaciones_llave'],
+                'cartel' => $datos['cartel'],
+                'comentario_cartel' => $datos['observaciones_cartel'],
+                'id_estado_general' => $datos['comodidades']['estado_general'] ?? null,
+                'cantidad_dormitorios' => $datos['comodidades']['dormitorios'] ?? null,
+                'banios' => $datos['comodidades']['banios'] ?? null,
+                'mLote' => $datos['comodidades']['lotes'] ?? null,
+                'mCubiertos' => $datos['comodidades']['lote_cubierto'] ?? null,
+                'cochera' => $datos['comodidades']['cochera'] ?? null,
+                'numero_cochera' => $datos['comodidades']['numero_cochera'] ?? null,
+                'asfalto' => $datos['comodidades']['asfalto'] ?? null,
+                'gas' => $datos['comodidades']['gas'] ?? null,
+                'cloaca' => $datos['comodidades']['cloaca'] ?? null,
+                'agua' => $datos['comodidades']['agua'] ?? null,
+                'descipcion_propiedad' => $datos['descripcion']['texto'] ?? null,
+                'cod_venta' => $datos['venta']['cod_venta'] ?? null,
+                'id_estado_venta' => $datos['venta']['estado_venta'] ?? null,
+                'exclusividad_venta' => $datos['venta']['exclusividad_venta'] ?? null,
+                'comparte_venta' => $datos['venta']['comparte_venta'] ?? null,
+                'condicionado_venta' => $datos['venta']['condicionado_venta'] ?? null,
+                'venta_fecha_alta' => $datos['venta']['venta_fecha_alta'] ?? null,
+                'fecha_autorizacion_venta' => $datos['venta']['fecha_autorizacion_venta'] ?? null,
+                'comentario_autorizacion' => $datos['venta']['comentario_autorizacion'] ?? null,
+                'zona_prop' => $datos['venta']['zona_prop'] ?? null,
+                'flyer' => $datos['venta']['flyer'] ?? null,
+                'reel' => $datos['venta']['reel'] ?? null,
+                'web' => $datos['venta']['web'] ?? null,
+                'captador_int' => $datos['venta']['captador_int'] ?? null,
+                'asesor' => $datos['venta']['asesor'] ?? null,
+                'cod_alquiler' => $datos['alquiler']['cod_alquiler'] ?? null,
+                'id_estado_alquiler' => $datos['alquiler']['estado_alquiler'] ?? null,
+                'autorizacion_alquiler' => $datos['alquiler']['autorizacion_alquiler'] ?? null,
+                'fecha_autorizacion_alquiler' => $datos['alquiler']['fecha_autorizacion_alquiler'] ?? null,
+                'exclusividad_alquiler' => $datos['alquiler']['exclusividad_alquiler'] ?? null,
+                'clausula_de_venta' => $datos['alquiler']['clausula_de_venta'] ?? null,
+                'tiempo_clausula' => $datos['alquiler']['tiempo_clausula'] ?? null,
+                'alquiler_fecha_alta' => $datos['alquiler']['alquiler_fecha_alta'] ?? null,
+                'mascota' => $datos['alquiler']['mascota'] ?? null,
+                'condicion' => $datos['condicionAlquiler']['condicion'] ?? null,
+                'last_modified_by' => $userId,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al crear propiedad: ' . $e->getMessage(), [
+                'user_id' => $userId,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            throw new \Exception('No se pudo crear la propiedad: ' . $e->getMessage());
+        }
     }
 }

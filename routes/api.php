@@ -16,6 +16,8 @@ use App\Http\Controllers\At_cl\EstadoVentaController;
 use App\Http\Controllers\At_cl\UsuariosController;
 use App\Http\Controllers\At_cl\EstadoAlquilerController;
 use App\Http\Controllers\At_cl\PropiedadController;
+use App\Services\At_cl\PadronService;
+use App\Http\Controllers\At_cl\PadronController;
 
 Route::prefix('v1')->group(function () {
 
@@ -40,7 +42,7 @@ Route::prefix('v1')->group(function () {
             Route::post('turnos/cargar', [TurnoController::class, 'postCargarTurnoController']);
             Route::put('turnos/finalizar/{id}', [TurnoController::class, 'finalizarturno']);
             Route::put('turnos/llamar/{id}', [TurnoController::class, 'putLlamarTurno']);
-            //calles
+            //rutas que se usan a services/Api/Atcl/atclApi
             Route::get('calles', [CalleController::class, 'getCalles']);
             Route::get('tipos-inmueble', [Tipo_inmuebleController::class, 'getTiposInmueble']);
             Route::get('zonas', [ZonaController::class, 'getZonas']);
@@ -51,11 +53,12 @@ Route::prefix('v1')->group(function () {
             Route::get('asesor', [UsuariosController::class, 'getAsesor']);
             Route::get('estado-alquiler', [EstadoAlquilerController::class, 'getEstadoAlquiler']);
             Route::post('propiedad/guardar/{id}', [PropiedadController::class, 'guardarPropiedad']);
+            Route::get('padron/buscar', [PadronService::class, 'BuscarPadron']);
+            Route::post('padron/cargar', [PadronController::class, 'CargarPadron']);
+
         });
     });
     //CONTABLE - SELLADO
-            Route::get('sellado', [SelladoController::class, 'getDatosSelladoController']);
-});
 
     // 2. GRUPO PROTEGIDO (URL: api/v1/...)
     // Requieren Token, pero NO llevan "auth" en la URL

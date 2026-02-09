@@ -22,6 +22,7 @@ use App\Models\sys\Propiedades_sys;
 use App\Models\sys\Contratos_cabecera_sys;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Validator;
 use App\Models\At_cl\Padron;
 use Illuminate\Support\Facades\Log;
 use App\Http\Requests\StorePropiedadRequest;
@@ -205,122 +206,141 @@ class PropiedadController
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     public function guardarPropiedad(Request $request, $id)
     {
-         Log::info($request->all());
-        Log::info($id); 
-        // Decodificar el JSON de comodidades
-        $comodidades = json_decode($request->comodidades, true);
-        $descripcion = json_decode($request->descripcion, true);
-        $venta = json_decode($request->venta, true);
-        $alquiler = json_decode($request->alquiler, true);
-        $condicionAlquiler = json_decode($request->condicion_alquiler, true);
+
+        $comodidades = $this->cleanArray(json_decode($request->comodidades, true) ?? []);
+        $descripcion = $this->cleanArray(json_decode($request->descripcion, true) ?? []);
+        $venta = $this->cleanArray(json_decode($request->venta, true) ?? []);
+        $alquiler = $this->cleanArray(json_decode($request->alquiler, true) ?? []);
+        $condicionAlquiler = $this->cleanArray(json_decode($request->condicion_alquiler, true) ?? []);
+        $propietario = $this->cleanArray(json_decode($request->propietario, true) ?? []);
 
 
-log::info('antes de crear propiedad');
+        //Validaciones basicas para el guardado de la propiedad
 
-        $propiedad_creada = Propiedad::create([
-            'id_calle' => $request->calle_id,
-            'numero_calle' => $request->altura,
+        $validator = Validator::make(
+            [
+                'cod_venta'      => $venta['cod_venta'] ?? null,
+                'cod_alquiler'   => $alquiler['cod_alquiler'] ?? null,
+                'calle_id'       => $request->calle_id,
+                'numero_calle'   => $request->altura,
+                'piso'           => $request->piso,
+                'departamento'   => $request->dto,
+                'llave'          => $request->llave,
+                'dormitorios'    => $comodidades['dormitorios'] ?? null,
+                'banios'         => $comodidades['banios'] ?? null,
+                'lotes'          => $comodidades['lotes'] ?? null,
+                'lote_cubierto'  => $comodidades['lote_cubierto'] ?? null,
+                'numero_cochera' => $comodidades['numero_cochera'] ?? null,
+                'monto_venta'    => $venta['monto_venta'] ?? null,
+                'folio_central'      => $alquiler['FCentral'] ?? null,
+                'folio_candioti'     => $alquiler['FCandioti'] ?? null,
+                'folio_tribunales'   => $alquiler['FTribunales'] ?? null,
+            ],
+            [
+                'cod_venta' => ['nullable', 'required_without:cod_alquiler', 'unique:propiedades,cod_venta'],
+                'cod_alquiler' => ['nullable', 'required_without:cod_venta', 'unique:propiedades,cod_alquiler'],
+                'calle_id' => 'exists:calle,id',
+                'numero_calle' => ['nullable', 'regex:/^[0-9]+$/', 'digits_between:1,11'],
+                'piso' => ['nullable', 'regex:/^[0-9]+$/', 'digits_between:1,11'],
+                'departamento' => ['nullable', 'regex:/^[A-Za-z0-9]+$/'],
+                'llave' => ['nullable', 'digits_between:1,11'],
+                'dormitorios' => ['nullable', 'digits_between:1,11'],
+                'banios' => ['nullable', 'digits_between:1,11'],
+                'lotes' => ['nullable', 'digits_between:1,11'],
+                'lote_cubierto' => ['nullable', 'digits_between:1,11'],
+                'numero_cochera' => ['nullable', 'digits_between:1,11'],
+                'monto_venta' => ['nullable', 'numeric', 'min:0'],
+                'folio_central'    => ['nullable', 'regex:/^[0-9]+$/'],
+                'folio_candioti'   => ['nullable', 'regex:/^[0-9]+$/'],
+                'folio_tribunales' => ['nullable', 'regex:/^[0-9]+$/'],
+            ],
+            [
+                'cod_venta.required_without' => 'Debe ingresar un código de venta o de alquiler.',
+                'cod_alquiler.required_without' => 'Debe ingresar un código de venta o de alquiler.',
+                'cod_venta.unique' => 'El código de venta ya se encuentra en uso.',
+                'cod_alquiler.unique' => 'El código de alquiler ya se encuentra en uso.',
+                'calle_id.exists' => 'La calle seleccionada no existe.',
+                'numero_calle.regex' => 'El número de la calle no puede contener decimales.',
+                'numero_calle.digits_between' => 'El número de calle debe tener entre 1 y 11 dígitos.',
+                'piso.regex' => 'El piso no puede contener decimales.',
+                'piso.digits_between' => 'El piso debe tener entre 1 y 11 dígitos.',
+                'departamento.regex' => 'El departamento no puede contener caracteres especiales.',
+                'llave.digits_between' => 'La llave debe tener entre 1 y 11 dígitos.',
+                'dormitorios.digits_between' => 'Los dormitorios deben tener entre 1 y 11 dígitos.',
+                'banios.digits_between' => 'Los baños deben tener entre 1 y 11 dígitos.',
+                'lotes.digits_between' => 'Los lotes deben tener entre 1 y 11 dígitos.',
+                'lote_cubierto.digits_between' => 'El lote cubierto debe tener entre 1 y 11 dígitos.',
+                'numero_cochera.digits_between' => 'El número de cochera debe tener entre 1 y 11 dígitos.',
+                'monto_venta.numeric' => 'El monto de venta debe ser un número válido.',
+                'monto_venta.min' => 'El monto de venta debe ser mayor o igual a 0.',
+                'folio_central.regex' => 'El folio de Central debe ser un número entero.',
+                'folio_candioti.regex' => 'El folio de Candioti debe ser un número entero.',
+                'folio_tribunales.regex' => 'El folio de Tribunales debe ser un número entero.',
+            ]
+        );
+
+        if ($validator->fails()) {
+            return response()->json(['message' => $validator->errors()->first(), 'errors' => $validator->errors()], 422);
+        }
+
+        // Preparar datos para el servicio
+        $datos = [
+            'calle_id' => $request->calle_id,
+            'altura' => $request->altura,
             'ph' => $request->ph,
             'piso' => $request->piso,
-            'departamento' => $request->dto,
-            'id_inmueble' => $request->inmueble_id,
-            'id_zona' => $request->zona_id,
-            'id_provincia' => $request->provincia_id,
+            'dto' => $request->dto,
+            'inmueble_id' => $request->inmueble_id,
+            'zona_id' => $request->zona_id,
+            'provincia_id' => $request->provincia_id,
             'llave' => $request->llave,
-            'comentario_llave' => $request->observaciones_llave,
+            'observaciones_llave' => $request->observaciones_llave,
             'cartel' => $request->cartel,
-            'comentario_cartel' => $request->observaciones_cartel,
-            'id_estado_general' => $comodidades['estado_general'] ?? null,
-            'cantidad_dormitorios' => $comodidades['dormitorios'] ?? null,
-            'banios' => $comodidades['banios'] ?? null,
-            'mLote' => $comodidades['lotes'] ?? null,
-            'mCubiertos' => $comodidades['lote_cubierto'] ?? null,
-            'cochera' => $comodidades['cochera'] ?? null,
-            'numero_cochera' => $comodidades['numero_cochera'] ?? null,
-            'asfalto' => $comodidades['asfalto'] ?? null,
-            'gas' => $comodidades['gas'] ?? null,
-            'cloaca' => $comodidades['cloaca'] ?? null,
-            'agua' => $comodidades['agua'] ?? null,
-            'descipcion_propiedad' => $descripcion['texto'] ?? null,
-            'cod_venta' => $venta['cod_venta'] ?? null,
-            'id_estado_venta' => $venta['estado_venta'] ?? null,
-            'exclusividad_venta' => $venta['exclusividad_venta'] ?? null,
-            'comparte_venta' => $venta['comparte_venta'] ?? null,
-            'condicionado_venta' => $venta['condicionado_venta'] ?? null,
-            'venta_fecha_alta' => $venta['venta_fecha_alta'] ?? null,
-            'fecha_autorizacion_venta' => $venta['fecha_autorizacion_venta'] ?? null,
-            'comentario_autorizacion' => $venta['comentario_autorizacion'] ?? null,
-            'zona_prop' => $venta['zona_prop'] ?? null,
-            'flyer' => $venta['flyer'] ?? null ?? null,
-            'reel' => $venta['reel'] ?? null,
-            'web' => $venta['web'] ?? null,
-            'captador_int' => $venta['captador_int'] ?? null,
-            'asesor' => $venta['asesor'] ?? null,
-            'cod_alquiler' => $alquiler['cod_alquiler'] ?? null,
-            'id_estado_alquiler' => $alquiler['estado_alquiler'] ?? null,
-            'autorizacion_alquiler' => $alquiler['autorizacion_alquiler'] ?? null,
-            'fecha_autorizacion_alquiler' => $alquiler['fecha_autorizacion_alquiler'] ?? null,
-            'exclusividad_alquiler' => $alquiler['exclusividad_alquiler'] ?? null,
-            'clausula_de_venta' => $alquiler['clausula_de_venta'] ?? null,
-            'tiempo_clausula' => $alquiler['tiempo_clausula'] ?? null,
-            'alquiler_fecha_alta' => $alquiler['alquiler_fecha_alta'] ?? null,
-            'mascota' => $alquiler['mascota'] ?? null,
-            'condicion' => $condicionAlquiler['condicion'] ?? null,
-            'last_modified_by' => $id,
-        ]);
+            'observaciones_cartel' => $request->observaciones_cartel,
+            'comodidades' => $comodidades,
+            'descripcion' => $descripcion,
+            'venta' => $venta,
+            'alquiler' => $alquiler,
+            'condicionAlquiler' => $condicionAlquiler,
+        ];
 
-        Log::info('Propiedad creada');
-        /* ---------------------------------------------
-         * Creación de la tasación asociada
-         * ---------------------------------------------
-         */
-        $this->tasacionService->crearDesdeRequest(
-            $venta,
-            $propiedad_creada->id
-        );
-        Log::info('Tasación creada');
+        // Crear la propiedad usando el servicio
+        $propiedad_creada = (new PropiedadService())->crearPropiedad($datos, $id);
 
-        $precioService = new PrecioService();
-        $precioService->crearDesdeRequest($venta, $alquiler, $propiedad_creada->id);
-        Log::info('Precio creado');
+
+        (new TasacionService())->crearDesdeRequest($venta,$propiedad_creada->id);
+ 
+
+        (new PrecioService())->crearDesdeRequest($venta, $alquiler, $propiedad_creada->id);
+        
+        // Carga de archivos multimedia
+             
+        (new PropiedadMediaService())->subirDesdeRequest($request,$propiedad_creada->id);
+
+       // Asociación de la propiedad a empresas
+             
+        $folios = [
+            1 => $alquiler['FCentral'] ?? null,
+            2 => $alquiler['FCandioti'] ?? null,
+            3 => $alquiler['FTribunales'] ?? null,
+        ];
+        
+        if (($alquiler['FCentral'] ?? null) != null || ($alquiler['FCandioti'] ?? null) != null || ($alquiler['FTribunales'] ?? null) != null) {
+          
+            (new EmpresaPropiedadService())->asociarNuevoFolio(array($folios), $propiedad_creada->id);
+        }
+        //Asociacion de la propiedad con los propietarios
+
+        if (!empty($propietario)) {
+            foreach ($propietario as $propietario_item) {
+                if (isset($propietario_item['persona']['id'])) {
+                    $this->propiedad_padronService->vincular($propiedad_creada->id, $propietario_item['persona']['id']);
+                }
+            }
+        }
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     /**
@@ -440,220 +460,7 @@ log::info('antes de crear propiedad');
         ]);
     }
 
-    /**
-     * Almacena una nueva propiedad junto con toda su información asociada
-     *
-     * Este método valida permisos de acceso del usuario, verifica unicidad
-     * de códigos de venta y alquiler, valida archivos multimedia, y dentro
-     * de una transacción crea la propiedad, su tasación, precios, medios,
-     * asociaciones con empresas y relaciones auxiliares.
-     *
-     * @param StorePropiedadRequest $request request validado con los datos de la propiedad
-     *
-     * @return \Illuminate\Http\RedirectResponse respuesta de redirección según el resultado
-     * @throws \Exception si ocurre un error durante la transacción
-     * @access public
-     */
-    public function store(StorePropiedadRequest $request)
-    {
-        /* Nombre de la vista a validar para permisos de acceso */
-        $vistaNombre = 'propiedadPadronCargar';
-
-        /* ----------------------------------------------------
-         * Validación de permisos del usuario autenticado
-         * ----------------------------------------------------
-         * Se instancia el servicio de permisos y se valida si
-         * el usuario puede acceder a la vista de carga.
-         */
-        $permisoService = new PermitirAccesoPropiedadService($this->usuario->id);
-
-        if (!$permisoService->tieneAccesoAVista($vistaNombre)) {
-            return redirect()
-                ->route('home')
-                ->with('error', 'No tienes acceso a esta vista.');
-        }
-
-        /* ----------------------------------------------------
-         * Validación de unicidad del código de venta
-         * ----------------------------------------------------
-         * Se evita duplicar propiedades con el mismo código.
-         */
-        if ($request->filled('cod_venta')) {
-            $propiedadExistente = Propiedad::where('cod_venta', $request->cod_venta)->first();
-            if ($propiedadExistente) {
-                return redirect()
-                    ->back()
-                    ->with('error', 'El código de venta ya se encuentra en uso.')
-                    ->withInput();
-            }
-        }
-
-        /* ----------------------------------------------------
-         * Validación de unicidad del código de alquiler
-         * ----------------------------------------------------
-         */
-        if ($request->filled('cod_alquiler')) {
-            $propiedadExistente = Propiedad::where('cod_alquiler', $request->cod_alquiler)->first();
-            if ($propiedadExistente) {
-                return redirect()
-                    ->back()
-                    ->with('error', 'El código de alquiler ya se encuentra en uso.')
-                    ->withInput();
-            }
-        }
-
-        /* ----------------------------------------------------
-         * Validación de archivos multimedia
-         * ----------------------------------------------------
-         * Se permiten únicamente formatos definidos.
-         */
-        if ($request->hasFile('fotos')) {
-            foreach ($request->file('fotos') as $foto) {
-                $extension = strtolower($foto->getClientOriginalExtension());
-                if (!in_array($extension, ['jpeg', 'jpg', 'pdf', 'mov', 'mp4'])) {
-                    return redirect()
-                        ->back()
-                        ->with(
-                            'error',
-                            'Formato de archivo no válido. Solo se permiten: JPEG, JPG, PDF, MOV y MP4.'
-                        )
-                        ->withInput();
-                }
-            }
-        }
-
-        /* ----------------------------------------------------
-         * Inicio de transacción de base de datos
-         * ----------------------------------------------------
-         */
-        DB::beginTransaction();
-
-        try {
-
-            /* ------------------------------------------------
-             * Creación del registro principal de la propiedad
-             * ------------------------------------------------
-             */
-            $propiedad = Propiedad::create([
-                //'id_calle' => $request->calle,
-                //'numero_calle' => $request->numero_calle,
-                //'piso' => $request->piso,
-                //'departamento' => $request->depto,
-                //'id_zona' => $request->zona,
-                //'id_provincia' => $request->provincia,
-                //'id_inmueble' => $request->tipo_inmueble,
-                'id_estado_general' => $request->estado_general,
-                'cantidad_dormitorios' => $request->dormitorios,
-                'banios' => $request->banios,
-                'cochera' => $request->cochera,
-                'mLote' => $request->m_Lote,
-                'mCubiertos' => $request->m_Cubiertos,
-                'notes' => $request->notes,
-                //'llave' => $request->llave,
-                //'comentario_llave' => $request->observacion_llave,
-                //'cartel' => $request->cartel,
-                //'comentario_cartel' => $request->observacion_cartel,
-                'numero_cochera' => $request->numero_cochera,
-                'cod_venta' => $request->cod_venta,
-                'id_estado_venta' => $request->estado_venta,
-                'comparte_venta' => $request->comparte_venta,
-                'autorizacion_venta' => $request->autorizacion_venta,
-                'fecha_autorizacion_venta' => $request->fecha_autorizacion_venta,
-                'exclusividad_venta' => $request->exclusividad_venta,
-                'condicionado_venta' => $request->condicionado_venta,
-                'cod_alquiler' => $request->cod_alquiler,
-                'id_estado_alquiler' => $request->estado_alquiler,
-                'autorizacion_alquiler' => $request->autorizacion_alquiler,
-                'fecha_autorizacion_alquiler' => $request->fecha_autorizacion_alquiler,
-                'exclusividad_alquiler' => $request->exclusividad_alquiler,
-                'clausula_de_venta' => $request->clausula_de_venta,
-                'tiempo_clausula' => $request->tiempo_clausula,
-                'descipcion_propiedad' => $request->descripcion,
-                'gas' => $request->gas,
-                'asfalto' => $request->asfalto,
-                'cloaca' => $request->cloaca,
-                'agua' => $request->agua,
-                'ph' => $request->ph,
-                'last_modified_by' => $request->usuario_id,
-                'condicion' => $request->condicion,
-                'comentario_autorizacion' => $request->comentario_autorizacion,
-                'venta_fecha_alta' => $request->venta_fecha_alta,
-                'alquiler_fecha_alta' => $request->alquiler_fecha_alta,
-                'zona_prop' => $request->zona_prop,
-                'flyer' => $request->flyer,
-                'reel' => $request->reel,
-                'web' => $request->web,
-                'captador_int' => $request->captador_int,
-                'asesor' => $request->asesor
-            ]);
-            /* //Buscamos el nombre del asesor
-            $asesorUsername = Usuario::where('id', $request->asesor)->first()->username;
-            //Asignamos el nombre del asesor a la propiedad
-            $propiedad->asesor = $asesorUsername;
-            //Guardamos la propiedad
-            $propiedad->save(); */
-
-            /* ---------------------------------------------
-             * Creación de la tasación asociada
-             * ---------------------------------------------
-             */
-            /* $this->tasacionService->crearDesdeRequest(
-                $request,
-                $propiedad->id
-            ); */
-
-            /* ---------------------------------------------
-             * Creación del precio de venta/alquiler
-             * ---------------------------------------------
-             */
-           /*  $precioService = new PrecioService();
-            $precioService->crearDesdeRequest($request, $propiedad->id); */
-
-            /* Guardar el ID de la propiedad en sesión */
-            session(['propiedad_id' => $propiedad->id]);
-
-            /* ---------------------------------------------
-             * Carga de archivos multimedia
-             * ---------------------------------------------
-             */
-            $this->mediaService->subirDesdeRequest(
-                $request,
-                $propiedad->id
-            );
-
-            /* ---------------------------------------------
-             * Asociación de la propiedad a empresas
-             * ---------------------------------------------
-             */
-            $folios = [
-                1 => $request->FCentral,
-                2 => $request->FCandioti,
-                3 => $request->FTribunales,
-            ];
-            if ($request->FCentral != null || $request->FCandioti != null || $request->FTribunales != null) {
-
-                $this->empresaPropiedadService->asociarNuevoFolio(array($folios), $propiedad->id);
-            }
-
-            DB::commit();
-            session()->save();
-
-            return redirect()
-                ->route('propiedad_padron.index')
-                ->with('success', 'Propiedad creada correctamente.');
-        } catch (\Exception $e) {
-
-            /* Revertir cambios ante cualquier error */
-            DB::rollBack();
-
-            Log::error('Error al crear propiedad: ' . $e->getMessage());
-
-            return redirect()
-                ->back()
-                ->with('error', 'Hubo un error al crear la propiedad:' . $e->getMessage())
-                ->withInput();
-        }
-    }
+    
 
 
     /**
@@ -1366,5 +1173,28 @@ log::info('antes de crear propiedad');
             'Content-Type' => 'application/zip',
             'Content-Disposition' => 'attachment; filename="' . $zipFileName . '"'
         ]);
+    }
+
+    /**
+     * Función recursiva para limpiar valores vacíos en arrays
+     *
+     * @param mixed $data Datos a limpiar
+     * @return mixed Datos limpios
+     */
+    private function cleanArray($data)
+    {
+        if (!is_array($data)) {
+            return $data === '' ? null : $data;
+        }
+
+        $cleaned = [];
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                $cleaned[$key] = $this->cleanArray($value);
+            } else {
+                $cleaned[$key] = $value === '' ? null : $value;
+            }
+        }
+        return $cleaned;
     }
 }

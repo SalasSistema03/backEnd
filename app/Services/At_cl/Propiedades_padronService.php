@@ -4,7 +4,7 @@ namespace App\Services\At_cl;
 
 use App\Models\At_cl\Propiedades_padron;
 use Illuminate\Support\Facades\DB;
-
+use Illuminate\Support\Facades\Log;
 class Propiedades_padronService
 {
     /**
@@ -28,5 +28,32 @@ class Propiedades_padronService
                 'propiedades_padron.observaciones_baja'
             )
             ->get();
+    }
+
+
+    public function vincular($propiedad_id, $padron_id)
+    {
+        DB::beginTransaction(); // Iniciar transacción
+
+        try {
+            // Crear la relación en la tabla intermedia
+            Propiedades_padron::create([
+                'propiedad_id' => $propiedad_id,
+                'padron_id' => $padron_id,
+                // Aquí podrías agregar last_modified_by si tenés autenticación
+            ]);
+
+            DB::commit(); // Confirmar la operación
+            return response()->json([
+                'success' => true,
+                'message' => 'Persona vinculada correctamente a la propiedad.'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack(); // Revertir cambios si algo falla
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error al vincular.'
+            ], 500);
+        }
     }
 }

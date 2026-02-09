@@ -37,8 +37,8 @@ class PropiedadMediaService
      */
     public function subirDesdeRequest(Request $request, int $propiedadId): void
     {
-        /* Verificar si existen archivos cargados */
-        if (!$request->hasFile('fotos')) {
+        /* Verificar si existen archivos cargados en cualquier formato */
+        if (!$request->hasFile('images') && !$request->hasFile('videos') && !$request->hasFile('pdfs')) {
             return;
         }
 
@@ -52,46 +52,37 @@ class PropiedadMediaService
             'videos'     => "\\\\10.10.10.153\\compartida\\VIDEOS\\{$idFolder}",
         ];
 
-        /* Recorrer todos los archivos cargados */
-        foreach ($request->file('fotos') as $index => $file) {
+        /* Procesar imágenes */
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $index => $file) {
+                $descripcion = $request->input("images_comments.{$index}");
+                $extension = strtolower($file->getClientOriginalExtension());
+                $fileName = "propiedad_{$propiedadId}_" . time() . "{$index}.{$extension}";
+                
+                $this->guardarImagen($file, $paths['imagenes'], $fileName, $propiedadId, $idFolder, $descripcion);
+            }
+        }
 
-            /* Obtener descripción asociada al archivo */
-            $descripcion = $request->input("notes.{$index}.descripcion");
+        /* Procesar videos */
+        if ($request->hasFile('videos')) {
+            foreach ($request->file('videos') as $index => $file) {
+                $descripcion = $request->input("videos_comments.{$index}");
+                $extension = strtolower($file->getClientOriginalExtension());
+                $fileName = "propiedad_{$propiedadId}_" . time() . "{$index}.{$extension}";
+                
+                $this->guardarVideo($file, $paths['videos'], $fileName, $propiedadId, $idFolder, $descripcion);
+            }
+        }
 
-            /* Obtener extensión del archivo */
-            $extension = strtolower($file->getClientOriginalExtension());
-
-            /* Generar nombre único del archivo */
-            $fileName = "propiedad_{$propiedadId}_" . time() . "_{$index}.{$extension}";
-
-            /* Determinar tipo de archivo y guardarlo */
-            match ($extension) {
-                'pdf'         => $this->guardarDocumento(
-                    $file,
-                    $paths['documentos'],
-                    $fileName,
-                    $propiedadId,
-                    $idFolder,
-                    $descripcion
-                ),
-                'jpg', 'jpeg' => $this->guardarImagen(
-                    $file,
-                    $paths['imagenes'],
-                    $fileName,
-                    $propiedadId,
-                    $idFolder,
-                    $descripcion
-                ),
-                'mp4', 'mov'. 'MOV'  => $this->guardarVideo(
-                    $file,
-                    $paths['videos'],
-                    $fileName,
-                    $propiedadId,
-                    $idFolder,
-                    $descripcion
-                ),
-                default       => null,
-            };
+        /* Procesar documentos PDFs */
+        if ($request->hasFile('pdfs')) {
+            foreach ($request->file('pdfs') as $index => $file) {
+                $descripcion = $request->input("pdfs_comments.{$index}");
+                $extension = strtolower($file->getClientOriginalExtension());
+                $fileName = "propiedad_{$propiedadId}_" . time() . "{$index}.{$extension}";
+                
+                $this->guardarDocumento($file, $paths['documentos'], $fileName, $propiedadId, $idFolder, $descripcion);
+            }
         }
     }
 
