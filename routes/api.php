@@ -56,6 +56,9 @@ Route::prefix('v1')->group(function () {
             Route::get('padron/buscar', [PadronService::class, 'BuscarPadron']);
             Route::post('padron/cargar', [PadronController::class, 'CargarPadron']);
 
+            //Filtrado
+            Route::get('propiedad/buscar', [PropiedadController::class, 'buscaPropiedad']);
+
         });
     });
     //CONTABLE - SELLADO

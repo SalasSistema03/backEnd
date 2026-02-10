@@ -58,104 +58,13 @@ use App\Services\At_cl\EmpresaPropiedadService;
  */
 class PropiedadController
 {
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     protected $tipo_inmueble, $zona, $calle, $estado_alquileres, $estado_general,
         $estado_venta, $localidad, $barrio, $Propiedades, $contrato_cabecera, $observaciones_propiedades, $provincia,
         $padron, $precio,  $usuario_id, $accessService, $propiedadService, $precioService, $observacionesPropiedadesService,
         $usuario, $fotoService, $documentacionService, $historialFechasService, $tasacionService, $propiedad_padronService,
         $videoService, $filtroPropiedadService, $mediaService, $empresaPropiedadService;
 
-    /**
-     * Constructor del controlador.
-     * Inicializa colecciones base, obtiene el usuario autenticado, prepara
-     * servicios relacionados y deja preprocesado el contexto para cualquier método.
-     *
-     * @param PropiedadService $propiedadService
-     * @param PrecioService $precioService
-     * @param ObservacionesPropiedadesService $observacionesService
-     * @param FotosService $fotoService
-     * @param documentacionService $documentacionService
-     * @param HistorialFechasService $historialFechasService
-     * @param TasacionService $tasacionService
-     * @param Propiedades_padronService $propiedad_padronService
-     * @param VideosService $videoService
-     * @param FiltroPropiedadService $filtroPropiedadService
-     */
+
     public function __construct(
         FiltroPropiedadService $filtroPropiedadService,
         PropiedadService $propiedadService,
@@ -310,25 +219,25 @@ class PropiedadController
         $propiedad_creada = (new PropiedadService())->crearPropiedad($datos, $id);
 
 
-        (new TasacionService())->crearDesdeRequest($venta,$propiedad_creada->id);
- 
+        (new TasacionService())->crearDesdeRequest($venta, $propiedad_creada->id);
+
 
         (new PrecioService())->crearDesdeRequest($venta, $alquiler, $propiedad_creada->id);
-        
-        // Carga de archivos multimedia
-             
-        (new PropiedadMediaService())->subirDesdeRequest($request,$propiedad_creada->id);
 
-       // Asociación de la propiedad a empresas
-             
+        // Carga de archivos multimedia
+
+        (new PropiedadMediaService())->subirDesdeRequest($request, $propiedad_creada->id);
+
+        // Asociación de la propiedad a empresas
+
         $folios = [
             1 => $alquiler['FCentral'] ?? null,
             2 => $alquiler['FCandioti'] ?? null,
             3 => $alquiler['FTribunales'] ?? null,
         ];
-        
+
         if (($alquiler['FCentral'] ?? null) != null || ($alquiler['FCandioti'] ?? null) != null || ($alquiler['FTribunales'] ?? null) != null) {
-          
+
             (new EmpresaPropiedadService())->asociarNuevoFolio(array($folios), $propiedad_creada->id);
         }
         //Asociacion de la propiedad con los propietarios
@@ -342,73 +251,63 @@ class PropiedadController
         }
     }
 
+   
 
-    /**
-     * Muestra el listado de propiedades filtradas según los criterios ingresados.
-     *
-     * Este método:
-     *  - Verifica si el usuario tiene permiso para acceder a la vista.
-     *  - Prepara los filtros recibidos desde el formulario.
-     *  - Delega el filtrado al servicio FiltroPropiedadService.
-     *  - Retorna la vista con los resultados.
-     *
-     * @param FiltrarPropiedadRequest $request Datos validados para filtrar propiedades.
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse
-     */
-    public function index(FiltrarPropiedadRequest $request)
+    public function buscaPropiedad(Request $request, FiltroPropiedadService $filtroService)
     {
-        // Nombre de la vista correspondiente en la base de datos
-        $vistaNombre = 'propiedadBuscar';
+        //Log::info($request->all());
 
-        // Verificar que  el usuario tenga permisos para ver esta pantalla
-        $permisoService = new PermitirAccesoPropiedadService($this->usuario->id);
-        if (!$permisoService->tieneAccesoAVista($vistaNombre)) {
-            return redirect()->route('home')->with('error', 'No tienes acceso a esta vista.');
+        // Preparar filtros para el servicio
+        $filtros = [
+            'busqueda' => $request->busqueda,
+            'codigo' => $request->codigo,
+            'calle_id' => $request->calle_id,
+            'inmuebles' => $request->inmuebles,
+            'zonas' => $request->zonas,
+            'cochera' => $request->cochera,
+            'mascotas' => $request->mascotas,
+            'habitaciones' => $request->habitaciones,
+            'desde' => $request->desde,
+            'hasta' => $request->hasta,
+            'orden' => $request->orden,
+            'oferta' => $request->busqueda, // Para que el servicio sepa si es venta o alquiler
+            'tipo_inmueble' => $request->inmuebles,
+            'ampliar' => $request->ampliar,
+        ];
+
+        // El servicio se encarga de todo: filtrado + ordenamiento
+        $propiedades = $filtroService->filtrarPropiedades($filtros);
+       /*  Log::info($propiedades); */
+
+        //quiero enviar el name de la calle
+        foreach ($propiedades as $propiedad) {
+            $propiedad->calle->name ?? null;
+            $propiedad->zona->name ?? null;
+            $propiedad->tipoInmueble->inmueble ?? null;
+            $propiedad->precioActual ?? null;
         }
 
-        // Preparar y limpia los filtros recibidos desde el request
-        $filtros = $this->prepararFiltros($request);
-
-        // Obtiene propiedades filtradas desde el servicio especializado
-        $propiedad = $this->filtroPropiedadService->filtrarPropiedades($filtros);
-
-        // Retornar la vista de busqueda con los datos necesarios
-        return view('atencionAlCliente.propiedad.propiedadBusqueda', [
-            'propiedad' => $propiedad,
-            'tipo_inmueble' => $this->tipo_inmueble,
-            'zona' => $this->zona,
-            'calle' => $this->calle,
-        ]);
+        $resultado = $propiedades->map(function ($propiedad) {
+            return [
+                'id' => $propiedad->id,
+                'cod_venta' => $propiedad->cod_venta,
+                'cod_alquiler' => $propiedad->cod_alquiler,
+                'calle' => $propiedad->calle?->name,
+                'numero_calle' => $propiedad->numero_calle,
+                'zona' => $propiedad->zona?->name,
+                'tipo' => $propiedad->tipoInmueble?->inmueble,
+                'cantidad_dormitorios' => $propiedad->cantidad_dormitorios,
+                'banios' => $propiedad->banios,
+                'cochera' => $propiedad->cochera,
+                'mascota' => $propiedad->mascota,
+                'precio_alquiler' => $propiedad->precioActual?->moneda_alquiler_pesos ?? $propiedad->precioActual?->moneda_alquiler_dolar,
+                'precio_venta' => $propiedad->precioActual?->moneda_venta_dolar ?? $propiedad->precioActual?->moneda_venta_pesos,
+            ];
+        });
+        /* Log::info($resultado); */
+        return response()->json($resultado);
     }
-
-    /**
-     * Prepara y normaliza los filtros provenientes del request.
-     *
-     * - Toma todos los datos del request.
-     * - Limpia y filtra las zonas (elimina null, vacíos, etc.).
-     * - Devuelve un array listo para ser procesado por el servicio de filtrado.
-     *
-     * @param FiltrarPropiedadRequest $request
-     * @return array Filtros limpios y listos para usar.
-     */
-    private function prepararFiltros(FiltrarPropiedadRequest $request): array
-    {
-        // Toma todos los datos enviados por el formulario (ya validado)
-        $filtros = $request->all();
-
-        // Limpia la lista de zonas: elimina vacios y nulls
-        $zonas = array_values(array_filter(
-            (array) $request->input('zona', []),
-            fn($v) => $v !== null && $v !== ''
-        ));
-
-        // Agrega el filtro solo si realmente hay zonas seleccionadas
-        if (!empty($zonas)) {
-            $filtros['zonas'] = $zonas;
-        }
-
-        return $filtros;
-    }
+    
 
     /**
      * Muestra el formulario de creación de una propiedad
@@ -460,7 +359,7 @@ class PropiedadController
         ]);
     }
 
-    
+
 
 
     /**

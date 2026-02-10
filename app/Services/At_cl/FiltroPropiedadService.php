@@ -4,6 +4,7 @@ namespace App\Services\At_cl;
 
 use App\Models\At_cl\Propiedad;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Servicio encargado de aplicar filtros y ordenamientos avanzados
@@ -172,6 +173,7 @@ class FiltroPropiedadService
      */
     private function ordenarPorPrecio(array $filtros, string $direccion): Collection
     {
+        /* Log::info($direccion); */
         // Primero traemos propiedades con filtro + relación de precio
         $propiedades = Propiedad::filtrar($filtros)
             ->with('ultimoPrecio')
@@ -180,21 +182,22 @@ class FiltroPropiedadService
             ->filter(fn($propiedad) => $this->tienePrecioValido($propiedad, $filtros));
 
         // Si no se especificó tipo de oferta (1 venta / 2 alquiler)
-        if (empty($filtros['oferta'])) {
+        if (empty($filtros['busqueda'])) {
             return $propiedades;
         }
 
         // Determinar método dinámico de ordenamiento
         $sortMethod = $direccion === 'asc' ? 'sortBy' : 'sortByDesc';
-
+/* Log::info($filtros['busqueda']); */
         // Oferta 1 = venta
-        if ($filtros['oferta'] == 1) {
-            return $propiedades->$sortMethod(fn($p) => $this->obtenerPrecioVenta($p, $direccion));
+        if ($filtros['busqueda'] == 1) {
+            return $propiedades->$sortMethod(fn($p) => $this->obtenerPrecioVenta($p, $direccion))->values();
         }
+        
 
         // Oferta 2 = alquiler
-        if ($filtros['oferta'] == 2) {
-            return $propiedades->$sortMethod(fn($p) => $this->obtenerPrecioAlquiler($p, $direccion));
+        if ($filtros['busqueda'] == 2) {
+            return $propiedades->$sortMethod(fn($p) => $this->obtenerPrecioAlquiler($p, $direccion))->values();
         }
 
         return $propiedades;
@@ -241,6 +244,7 @@ class FiltroPropiedadService
      */
     private function obtenerPrecioVenta($propiedad, string $direccion): float|int
     {
+        
         $precio = $propiedad->ultimoPrecio;
 
         // ASC y pesos → moverlos al final mediante un valor muy alto
