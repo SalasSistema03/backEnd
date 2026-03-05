@@ -3,6 +3,9 @@
 namespace App\Services\At_cl;
 
 use App\Models\At_cl\Padron;
+use Illuminate\Http\Request;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class PadronService
 {
@@ -13,26 +16,50 @@ class PadronService
      * @param string|null $dni       DNI a buscar.
      * @return \Illuminate\Support\Collection
      */
-    public function BuscarPadron($apellido, $dni)
+    public function BuscarPadron(Request $request)
     {
-        // Si no se proporciona ni apellido ni DNI, devolver una colección vacía
+        $apellido = $request->query('apellido');
+        $dni = $request->query('dni');
+
         if (!$apellido && !$dni) {
-            $personas = collect(); // Devuelve una colección vacía
-        } else {
-            // Crear consulta sobre el modelo Padron, cargando la relación 'telefonos'
-            $personas = Padron::with('telefonos') // Cargar la relación del teléfono
-                ->where(function ($query) use ($apellido, $dni) {
-                    // Si se proporcionó un apellido, agregar condición LIKE
-                    if ($apellido) {
-                        $query->where('apellido', 'like', '%' . $apellido . '%');
-                    }
-                    // Si se proporcionó un DNI, agregar condición OR LIKE
-                    if ($dni) {
-                        $query->orWhere('documento', 'like', '%' . $dni . '%');
-                    }
-                })->get();
+            return response()->json([]);
         }
-        // Retornar la colección de personas encontradas (o vacía si no había filtros)
-        return $personas;
+
+        $personas = Padron::with('telefonos')
+            ->when($apellido, function ($q) use ($apellido) {
+                $q->where('apellido', 'like', "%{$apellido}%");
+            })
+            ->when($dni, function ($q) use ($dni) {
+                $q->where('documento', 'like', "%{$dni}%");
+            })
+            ->get();
+
+
+        foreach ($personas as $persona) {
+            $persona->fecha_nacimiento = Carbon::parse($persona->fecha_nacimiento)->format('d/m/Y');
+        }
+
+        return response()->json($personas);
+    }
+
+    public function CargarPadron($padron)
+    {
+        $padronCreado = Padron::create([
+            'nombre' => strtoupper($padron->nombre),
+            'apellido' => strtoupper($padron->apellido),
+            'documento' => $padron->dni,
+            'fecha_nacimiento' => $padron->fecha_nacimiento,
+            'calle' => strtoupper($padron->calle),
+            'numero_calle' => $padron->numero_calle,
+            'piso_departamento' => $padron->piso,
+            'ciudad' => strtoupper($padron->ciudad),
+            'provincia' => strtoupper($padron->ciudad),
+            'notes' => strtoupper($padron->comentarios),
+            'last_modified_by' => $padron->usuario_id,
+
+        ]);
+
+        $padronTelefonosService = new PadronTelefonosService();
+        $padronTelefonosService->CargarTelefonos($padron, $padronCreado->id); 
     }
 }

@@ -45,8 +45,8 @@ class TasacionService
      */
     public function crearDesdeRequest(Array $venta, int $propiedadId): ?Tasacion
     {
-         Log::info($venta);
-        Log::info($propiedadId);
+         
+        
         /* Verifica que el request contenga el valor de tasación de venta */
         if (!isset($venta['tasacion_venta'])) {
             return null;

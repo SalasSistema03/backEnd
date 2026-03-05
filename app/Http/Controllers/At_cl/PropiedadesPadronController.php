@@ -40,7 +40,7 @@ class PropiedadesPadronController
     public function destroy(string $id) {}
 
 
-    public function vincular(Request $request)
+    /* public function vincular(Request $request)
     {
         DB::beginTransaction(); // Iniciar transacción
 
@@ -64,7 +64,7 @@ class PropiedadesPadronController
                 'message' => 'Ocurrió un error al vincular.'
             ], 500);
         }
-    }
+    } */
 
 
     public function desvincular(Request $request)
