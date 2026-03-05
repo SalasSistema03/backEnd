@@ -83,24 +83,25 @@ class DatosCalculoService
     public function setValoresHoja($data)
     {
         // $data es un array con las claves necesarias
-        Valor_hoja::where('id_valor_hoja', $data['id_valor_hoja'])
+        Valor_hoja::where('id_valor_hoja', 1 )
             ->update([
                 'precio' => $data['precio']
             ]);
     }
 
     // Método para actualizar los valores del sellado
-    public function setValoresSellado($data)
-    {
-        // $data es un array con las claves necesarias
-        foreach ($data as $valor) {
-            Valor_sellado::where('id_valor_sellado', $valor['id_valor_sellado'])
-                ->update([
-                    'tipo' => $valor['tipo'],
-                    'valor' => $valor['valor'],
-                ]);
-        }
+   public function setValoresSellado($data)
+{
+    // Si no es un array multidimensional, lo envolvemos en uno
+    if (!isset($data[0])) {
+        $data = [$data];
     }
+
+    foreach ($data as $valor) {
+        Valor_sellado::where('tipo', $valor['tipo'])
+            ->update(['valor' => $valor['valor']]);
+    }
+}
 
     //Este valor modifica el valor de "valor_registro_extra" en la tabla
     public function setValorRegistroExtra($valor_registro_extra)

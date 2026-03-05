@@ -44,11 +44,14 @@ Route::prefix('v1')->group(function () {
 
         // CONTABLE - SELLADO (URL: api/v1/sellado)
         Route::get('sellado', [SelladoController::class, 'getDatosSelladoController']);
+        Route::get('sellado/datos-calculo', [SelladoController::class, 'getDatosCalculo']);
         Route::post('sellado/guardar-valor-registro-extra', [SelladoController::class, 'guardarValorRegistroExtraController']);
         Route::post('sellado/guardar-valor-gasto-administrativo', [SelladoController::class, 'guardarValorGastoAdministrativoController']);
         Route::post('sellado/guardar-valor-hoja', [SelladoController::class, 'guardarValorHojaController']);
+        Route::post('sellado/guardar-valor-sellado', [SelladoController::class, 'guardarValorSelladoController']);
         Route::post('sellado/calcular', [SelladoController::class, 'calcularSelladoController']);
         Route::post('sellado/guardar', [SelladoController::class, 'guardarSelladoController']);
+        Route::delete('sellado/eliminar', [SelladoController::class, 'eliminarRegistroSelladoController']);
         //Route::post('sellado/guardar-datos-calculo', [SelladoController::class, 'guardarDatosCalculoController']);
         
     }); // <--- Aquí cierra el middleware

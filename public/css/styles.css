@@ -1635,13 +1635,15 @@ span {
   max-height: 100vh;
   overflow-y: auto;
   font-size: 80%;
-  border: 1px solid rgba(0, 175, 154, 0.96);
-  border-radius: 15px;
-  margin: 1rem;
 }
 .card-salas-registro label {
   font-size: 100%;
   color: rgb(0, 85, 185);
+}
+.card-salas-registro {
+  border: 1px solid rgba(0, 175, 154, 0.96);
+  border-radius: 15px;
+  margin: 1rem;
 }
 .card-salas-registro .card-body {
   padding: 1rem;

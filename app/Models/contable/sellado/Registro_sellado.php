@@ -46,4 +46,9 @@ class Registro_sellado extends Model
         'usuario_id',
     ];
 
+    //Esta funcion trae los datos del usuario
+    public function usuario(){
+        return $this->belongsTo('App\Models\usuarios_y_permisos\Usuario', 'usuario_id');
+    }
+
 }

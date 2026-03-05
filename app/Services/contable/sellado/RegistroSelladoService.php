@@ -9,7 +9,6 @@ use App\Services\contable\sellado\ValorGastoAdminitrativoService;
 use App\Services\contable\sellado\ValorHojaService;
 use App\Services\contable\sellado\ValorSelladoService;
 use App\Services\contable\sellado\ValorDatosRegistralesService;
-use Illuminate\Container\Attributes\Log;
 use App\Models\contable\sellado\Valor_registro_extra;
 
 class RegistroSelladoService
@@ -27,6 +26,7 @@ class RegistroSelladoService
     //Este metodo a parte de todos lo registros de sellado - se encarga de mostrar los datos de calculo
     public function getRegistroSellado(): array
     {
+
         return [
             'registros' => $this->getRegistroSelladoOrenados(),
             'configuracion' => [
@@ -39,10 +39,14 @@ class RegistroSelladoService
         ];
     }
 
-    protected function getRegistroSelladoOrenados(): array
-    {
-        return Registro_sellado::orderBy('id_registro_sellado', 'desc')->get()->toArray();
-    }
+protected function getRegistroSelladoOrenados(): array
+{
+    // IMPORTANTE: El 'id' debe estar presente para que Laravel pueda unir las tablas
+    return Registro_sellado::with('usuario') 
+        ->orderBy('id_registro_sellado', 'desc')
+        ->get()
+        ->toArray();
+}
 
 
     public function calcularSellado(array $data)
@@ -118,11 +122,13 @@ class RegistroSelladoService
     public function guardarSellado(array $data)
     {
         //Obtiene el id del usuario actual
-        
+
         return DB::transaction(function () use ($data) {
             // Primero obtenemos los resultados del cálculo para estar seguros de qué guardamos
             $resultados = $this->calcularSellado($data);
-
+            //Llama el id del usuario actual
+            $usuario_id = auth('api')->id();
+            
             // Insertamos en la tabla (Ajusta los nombres de las columnas a tu BD)
             return Registro_sellado::create([
                 'cantidad_informes'       => $resultados['cantidad_informes'],
@@ -146,11 +152,29 @@ class RegistroSelladoService
                 'total_contrato'          => $resultados['total_contrato'],
                 'valor_informe'           => $resultados['valor_informe'],
                 'fecha_carga'             => $resultados['fecha_carga'],
-                'usuario_id'              => session('usuario_id') ?? 1,
+                'usuario_id'              => $usuario_id
             ]);
         });
     }
 
+
+
+    //Este metodo es para eliminar registros de la tabla "registro_sellado" y consumir en vuejs
+    public function eliminarRegistro(){
+        try {
+            Registro_sellado::truncate(); // Elimina todos los registros de la tabla
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Registros eliminados correctamente',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al eliminar registros: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 
 
 
@@ -255,7 +279,7 @@ class RegistroSelladoService
 
         $valor_registro_extra = Valor_registro_extra::all()->first()->valor_extra;
 
-        if ($informe == "SI") {
+        if ($informe > 0) {
             $monto = floatval($monto_a) + floatval($monto_d);
 
             if ($monto < $valor_registral[0]->valor_limite) {
