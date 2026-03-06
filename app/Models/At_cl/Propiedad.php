@@ -7,7 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use App\Models\At_cl\Foto;
 use App\Models\At_cl\Empresas;
+use App\Models\cliente\Usuario_sector;
 use App\Models\usuarios_y_permisos\Usuario;
+use App\Models\sys\Propiedades_sys;
+use App\Models\sys\Contratos_detalle_sys;
 
 
 class Propiedad extends Model
@@ -92,7 +95,6 @@ class Propiedad extends Model
         'publicado',
         'venta_fecha_alta',
         'alquiler_fecha_alta',
-        'fecha_publicacion_ig',
         'zona_prop',
         'flyer',
         'reel',
@@ -131,6 +133,16 @@ class Propiedad extends Model
     {
         return $this->belongsTo(Calle::class, 'id_calle');
     }
+
+    public function usuarioAsesor()
+    {
+        return $this->belongsTo(Usuario::class, 'asesor', 'id');
+    }
+    public function usuarioCaptadorInt()
+    {
+        return $this->belongsTo(Usuario::class, 'captador_int', 'id');
+    }
+
 
     /**
      * Relación con el modelo `EstadoGeneral`.
@@ -262,7 +274,7 @@ class Propiedad extends Model
     }
     public function tasaciones()
     {
-        return $this->hasMany(Tasacion::class, 'propiedad_id');
+        return $this->hasMany(Tasacion::class, 'propiedad_id')->latest();
     }
 
 
@@ -283,7 +295,7 @@ class Propiedad extends Model
         return $this->belongsTo(Usuario::class, 'last_modified_by', 'id');
     }
 
-    
+
 
     public function scopeFiltrar($query, array $filtros)
     {
@@ -331,8 +343,11 @@ class Propiedad extends Model
         }
 
         // Habitaciones
-        if (!empty($filtros['habitaciones'])) {
+        /* if (!empty($filtros['habitaciones'])) {
             $query->where('cantidad_dormitorios', $filtros['habitaciones']);
+        } */
+        if (isset($filtros['cantidad_dormitorios']) && $filtros['cantidad_dormitorios'] !== '') {
+            $query->where('cantidad_dormitorios', $filtros['cantidad_dormitorios']);
         }
 
         // Rango de precios
@@ -385,7 +400,7 @@ class Propiedad extends Model
 
         return $query;
     }
-    // En el modelo Propiedad
+
     public static function getPropertyDetails(string $id)
     {
         return self::with(['calle', 'zona', 'tipoInmueble', 'precio'])
@@ -396,7 +411,8 @@ class Propiedad extends Model
     {
         return $this->belongsToMany(Padron::class, 'propiedades_padron', 'propiedad_id', 'padron_id')
             ->withPivot('observaciones', 'baja', 'fecha_baja', 'observaciones_baja', 'last_modified_by')
-            ->withTimestamps();
+            ->withTimestamps()
+            ->with('telefonos');
     }
 
     public function empresasPropiedad()
@@ -408,4 +424,92 @@ class Propiedad extends Model
     {
         return $this->hasMany(Empresas_propiedades::class, 'propiedad_id');
     }
+
+    public function observacionesPropiedades()
+    {
+        return $this->hasMany(Observaciones_propiedades::class, 'propiedad_id');
+    }
+
+    public function buscarCasa()
+    {
+        $datos = [];
+
+        foreach ($this->folios as $folio) {
+            if ($folio->folio != null) {
+
+                $casasConContrato = Propiedades_sys::select('propiedades.id_casa')
+                    ->join('contratos_cabecera as c', 'propiedades.id_casa', '=', 'c.id_casa')
+                    ->where('propiedades.carpeta', $folio->folio)
+                    ->where('c.id_empresa', $folio->empresa_id)
+                    ->distinct()
+                    ->get();
+
+                if ($casasConContrato->count() > 0) {
+                    $datos[] = [
+                        'id_casa' => $casasConContrato->pluck('id_casa')->toArray(),
+                        'carpeta' => $folio->folio,
+                        'empresa_id' => $folio->empresa_id
+                    ];
+                }
+            }
+        }
+
+        return $datos;
+    }
+
+    public function buscarContratoMasReciente()
+    {
+        $datos = [];
+        $contratoMasAlto = null;
+
+        foreach ($this->folios as $folio) {
+            if ($folio->folio != null) {
+                // Obtener el contrato más alto para este folio
+                $contrato = Propiedades_sys::select('propiedades.id_casa', 'c.id_contrato_cabecera','c.comienza', 'c.rescicion')
+                    ->join('contratos_cabecera as c', 'propiedades.id_casa', '=', 'c.id_casa')
+                    ->where('propiedades.carpeta', $folio->folio)
+                    ->where('c.id_empresa', $folio->empresa_id)
+                    ->orderBy('c.id_contrato_cabecera', 'desc')
+                    ->first();
+
+                if ($contrato) {
+                    // Si es el primer contrato o es más alto que el actual
+                    if ($contratoMasAlto === null || $contrato->id_contrato_cabecera > $contratoMasAlto->id_contrato_cabecera) {
+                        $contratoMasAlto = $contrato;
+                        $datos = [
+                            'id_casa' => $contrato->id_casa,
+                            'carpeta' => $folio->folio,
+                            'empresa_id' => $folio->empresa_id,
+                            'id_contrato_cabecera' => $contrato->id_contrato_cabecera,
+                            'comienza' => $contrato->comienza,
+                            'rescicion' => $contrato->rescicion
+                        ];
+                    }
+                }
+            }
+        }
+
+        return $datos;
+    }
+
+    public function buscarDetalleContratoMasAlto($id_contrato_cabecera)
+    {
+        $detalle = Contratos_detalle_sys::select('monto_alquiler', 'hasta_fecha')
+            ->where('id_contrato_cabecera', $id_contrato_cabecera)
+            ->orderBy('monto_alquiler', 'desc')
+            ->first();
+
+        return $detalle ? [
+            'monto_alquiler' => $detalle->monto_alquiler,
+            'hasta_fecha' => $detalle->hasta_fecha
+        ] : null;
+    }
+
+
+
+    /*  public function FolioAxctiov(){
+        foreach($this->buscarFolioActivo() as $folio){
+            $folio
+        }
+    } */
 }

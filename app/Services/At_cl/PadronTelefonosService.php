@@ -12,16 +12,33 @@ class PadronTelefonosService
 {
     public function CargarTelefonos($padron, $padronId)
     {
-       
+
         $telefonos = json_decode($padron->telefonos, true);
         $usuario = json_decode($padron->usuario_id, true);
-        
+
         if (is_array($telefonos)) {
             foreach ($telefonos as $telefono) {
                 Padron_telefonos::create([
                     'phone_number' => $telefono['phone_number'],
                     'notes' => $telefono['notes'] ?? null,
                     'last_modified_by' => $usuario,
+                    'padron_id' => $padronId,
+                ]);
+            }
+        }
+    }
+
+    public function actualizarTelefonos($telefonos, $padronId)
+    {
+        // Eliminar teléfonos existentes del padrón
+        Padron_telefonos::where('padron_id', $padronId)->delete();
+
+        // Cargar los nuevos teléfonos
+        if (is_array($telefonos)) {
+            foreach ($telefonos as $telefono) {
+                Padron_telefonos::create([
+                    'phone_number' => $telefono['phone_number'],
+                    'notes' => $telefono['notes'] ?? null,
                     'padron_id' => $padronId,
                 ]);
             }

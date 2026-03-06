@@ -17,7 +17,7 @@
                     </div>
                      @php
                         $central = $empresaPropiedad->firstWhere('empresa_id', 1);
-                    @endphp 
+                    @endphp
 
                     <div class="col-md-2 px-1">
                         <label class="text-center">F.Central</label>
@@ -25,7 +25,7 @@
                             value="{{ $central ? $central->folio : '-' }}"  >
                     </div>
 
-                    @php    
+                    @php
                         $candioti = $empresaPropiedad->firstWhere('empresa_id', 2);
                     @endphp
                     <div class="col-md-2 px-1">
@@ -36,7 +36,7 @@
 
                      @php
                         $tribunales = $empresaPropiedad->firstWhere('empresa_id', 3);
-                    @endphp 
+                    @endphp
                     <div class="col-md-2 px-1">
                         <label class="text-center">F.Tribunales</label>
                         <input type="text" class="form-control text-center" name="FTribunales"
@@ -138,13 +138,7 @@
                             value="{{ session('alquiler_fecha_alta', $propiedad->alquiler_fecha_alta) }}"
                             name="alquiler_fecha_alta" id="alquiler_fecha_alta">
                     </div>
-                    <div class="col-md-2 ">
-                        <label class="text-center" id="basic-addon1">Fecha Pub.</label>
-                        <input type="date"
-                            class="form-control text-center @error('fecha_publicacion_ig') is-invalid @enderror"
-                            value="{{ session('fecha_publicacion_ig', $propiedad->fecha_publicacion_ig) }}"
-                            name="fecha_publicacion_ig" id="fecha_publicacion_ig">
-                    </div>
+
 
                        <div class="col-md-8 d-none" id="descripcion_container_alquiler">
                         <label for="descripcion_alquiler" class="text-center" id="basic-addon1">Descripción</label>
@@ -214,9 +208,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Ejecutar cada vez que cambie el select
     if (estadoSelect) {
-        
+
         estadoSelect.addEventListener("change", toggleDescripcion);
-        
+
     }
 });
 </script>

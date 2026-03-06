@@ -34,4 +34,16 @@ class ObservacionesPropiedadesService
             ->where('tipo_ofera', 'A')
             ->get();
     }
+
+    public function guardarObservaciones($novedades, $propiedadId, $userId){
+        foreach($novedades as $novedad){
+            Observaciones_propiedades::create([
+                'propiedad_id' => $propiedadId,
+                'tipo_ofera' => $novedad['tipo_ofera'],
+                'notes' => $novedad['notes'],
+                'last_modified_by' => $userId,
+                'created_at' => now(),
+            ]);
+        }
+    }
 }

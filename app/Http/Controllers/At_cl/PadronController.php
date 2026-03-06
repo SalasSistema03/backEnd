@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Class PadronController
- * 
+ *
  * Este controlador gestiona todas las operaciones CRUD (Crear, Leer, Actualizar, Eliminar)
  * relacionadas con el modelo Padron.
  */
@@ -43,8 +43,13 @@ class PadronController
 
     public function CargarPadron(Request $request)
     {
-        
-        $padron = $this->padronService->CargarPadron($request);
+        if ($request->has('id')) {
+            $padron = $this->padronService->editaPadron($request);
+        } else {
+            Log::info('CargarPadron', $request->all());
+            $padron = $this->padronService->CargarPadron($request);
+        }
+
         return response()->json($padron);
     }
 

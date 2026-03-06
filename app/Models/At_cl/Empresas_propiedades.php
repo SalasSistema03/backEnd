@@ -11,7 +11,7 @@ class Empresas_propiedades extends Model
     //Asociacion con la tabla calle de la BD
     protected $table = 'empresa_propiedad';
 
-    public $timestamps = false; // 👈 CLAVE
+    public $timestamps = false;
     protected $fillable = [
         'propiedad_id',
         'empresa_id',
@@ -20,5 +20,5 @@ class Empresas_propiedades extends Model
 
 
 
- 
+
 }

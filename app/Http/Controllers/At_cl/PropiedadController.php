@@ -124,6 +124,9 @@ class PropiedadController
         $alquiler = $this->cleanArray(json_decode($request->alquiler, true) ?? []);
         $condicionAlquiler = $this->cleanArray(json_decode($request->condicion_alquiler, true) ?? []);
         $propietario = $this->cleanArray(json_decode($request->propietario, true) ?? []);
+        $novedades = $this->cleanArray(json_decode($request->novedades, true) ?? []);
+        //Log::info('propieatios: ' . json_encode($propietario));
+        Log::info($request);
 
 
         //Validaciones basicas para el guardado de la propiedad
@@ -191,68 +194,99 @@ class PropiedadController
         );
 
         if ($validator->fails()) {
-            return response()->json(['message' => $validator->errors()->first(), 'errors' => $validator->errors()], 422);
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+                'errors'  => $validator->errors(),
+            ], 422);
         }
 
-        // Preparar datos para el servicio
-        $datos = [
-            'calle_id' => $request->calle_id,
-            'altura' => $request->altura,
-            'ph' => $request->ph,
-            'piso' => $request->piso,
-            'dto' => $request->dto,
-            'inmueble_id' => $request->inmueble_id,
-            'zona_id' => $request->zona_id,
-            'provincia_id' => $request->provincia_id,
-            'llave' => $request->llave,
-            'observaciones_llave' => $request->observaciones_llave,
-            'cartel' => $request->cartel,
-            'observaciones_cartel' => $request->observaciones_cartel,
-            'comodidades' => $comodidades,
-            'descripcion' => $descripcion,
-            'venta' => $venta,
-            'alquiler' => $alquiler,
-            'condicionAlquiler' => $condicionAlquiler,
-        ];
+        try {
+            DB::beginTransaction();
+            // Preparar datos para el servicio
+            $datos = [
+                'calle_id' => $request->calle_id,
+                'altura' => $request->altura,
+                'ph' => $request->ph,
+                'piso' => $request->piso,
+                'dto' => $request->dto,
+                'inmueble_id' => $request->inmueble_id,
+                'zona_id' => $request->zona_id,
+                'provincia_id' => $request->provincia_id,
+                'llave' => $request->llave,
+                'comentario_llave' => $request->observaciones_llaves,
+                'cartel' => $request->cartel,
+                'observaciones_cartel' => $request->observaciones_cartel,
+                'comodidades' => $comodidades,
+                'descripcion' => $descripcion,
+                'venta' => $venta,
+                'alquiler' => $alquiler,
+                'condicionAlquiler' => $condicionAlquiler,
+            ];
 
-        // Crear la propiedad usando el servicio
-        $propiedad_creada = (new PropiedadService())->crearPropiedad($datos, $id);
+            //Log::info($datos);
+            // Crear la propiedad usando el servicio
+            $propiedad_creada = (new PropiedadService())->crearPropiedad($datos, $id);
 
 
-        (new TasacionService())->crearDesdeRequest($venta, $propiedad_creada->id);
+            (new TasacionService())->crearDesdeRequest($venta, $propiedad_creada->id);
 
 
-        (new PrecioService())->crearDesdeRequest($venta, $alquiler, $propiedad_creada->id);
+            (new PrecioService())->crearDesdeRequest($venta, $alquiler, $propiedad_creada->id);
 
-        // Carga de archivos multimedia
+            // Carga de archivos multimedia
 
-        (new PropiedadMediaService())->subirDesdeRequest($request, $propiedad_creada->id);
+            (new PropiedadMediaService())->subirDesdeRequest($request, $propiedad_creada->id);
 
-        // Asociación de la propiedad a empresas
+            // Asociación de la propiedad a empresas
 
-        $folios = [
-            1 => $alquiler['FCentral'] ?? null,
-            2 => $alquiler['FCandioti'] ?? null,
-            3 => $alquiler['FTribunales'] ?? null,
-        ];
+            $folios = [
+                1 => $alquiler['FCentral'] ?? null,
+                2 => $alquiler['FCandioti'] ?? null,
+                3 => $alquiler['FTribunales'] ?? null,
+            ];
 
-        if (($alquiler['FCentral'] ?? null) != null || ($alquiler['FCandioti'] ?? null) != null || ($alquiler['FTribunales'] ?? null) != null) {
+            if (($alquiler['FCentral'] ?? null) != null || ($alquiler['FCandioti'] ?? null) != null || ($alquiler['FTribunales'] ?? null) != null) {
 
-            (new EmpresaPropiedadService())->asociarNuevoFolio(array($folios), $propiedad_creada->id);
-        }
-        //Asociacion de la propiedad con los propietarios
+                (new EmpresaPropiedadService())->asociarNuevoFolio(array($folios), $propiedad_creada->id);
+            }
+            //Asociacion de la propiedad con los propietarios
 
-        if (!empty($propietario)) {
-            foreach ($propietario as $propietario_item) {
-                if (isset($propietario_item['persona']['id'])) {
-                    $this->propiedad_padronService->vincular($propiedad_creada->id, $propietario_item['persona']['id']);
+            if (!empty($propietario)) {
+                // Verificar si ya es un array o si necesita decodificación
+                $propietario_decoded = is_array($propietario) ? $propietario : json_decode($propietario, true);
+
+                if ($propietario_decoded) {
+                    foreach ($propietario_decoded as $propietario_item) {
+                        if (isset($propietario_item['id'])) {
+                            // Usar el método vincularActualizacion que maneja los datos del pivot
+                            $this->propiedad_padronService->vincularActualizacion($propiedad_creada->id, [$propietario_item]);
+                        }
+                    }
                 }
             }
+
+
+            DB::commit();
+            return response()->json([
+                'success'  => true,
+                'message'  => 'Propiedad guardada correctamente.',
+                'data'     => [
+                    'id' => $propiedad_creada->id,
+                ],
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("Error al guardar propiedad: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error al guardar la propiedad.'
+            ], 500);
         }
     }
-
-   
-
+    /**
+     * ESTO CORRESPONDE AL FILTRADO
+    **/
     public function buscaPropiedad(Request $request, FiltroPropiedadService $filtroService)
     {
         //Log::info($request->all());
@@ -277,7 +311,7 @@ class PropiedadController
 
         // El servicio se encarga de todo: filtrado + ordenamiento
         $propiedades = $filtroService->filtrarPropiedades($filtros);
-       /*  Log::info($propiedades); */
+        /*  Log::info($propiedades); */
 
         //quiero enviar el name de la calle
         foreach ($propiedades as $propiedad) {
@@ -307,242 +341,280 @@ class PropiedadController
         /* Log::info($resultado); */
         return response()->json($resultado);
     }
-    
 
-    /**
-     * Muestra el formulario de creación de una propiedad
-     *
-     * Verifica si el usuario tiene permisos para acceder a la vista de carga de propiedades.
-     * Si no cuenta con acceso, redirige al inicio con un mensaje de error. En caso contrario,
-     * retorna la vista con los datos necesarios para cargar una nueva propiedad.
-     *
-     * @param  Request $request instancia de la solicitud HTTP recibida
-     *
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse vista de carga de propiedad o redirección si no hay permisos
-     */
-    public function create(Request $request)
+    public function MuestraPropiedad(Request $request)
     {
-        // Nombre de la vista correspondiente en la base de datos
-        $vistaNombre = 'propiedadCargar';
+        $propiedad = Propiedad::with([
+            'calle',
+            'zona',
+            'tipoInmueble',
+            'precioActual',
+            'provincia',
+            'estadoGeneral',
+            'estadoAlquiler',
+            'estadoVenta',
+            'precioActual',
+            'tasaciones',
+            'usuarioAsesor',
+            'usuarioCaptadorInt',
+            'folios',
+            'fotos',
+            'video',
+            'documentacion',
+            'propietarios',
+            'observacionesPropiedades',
 
-        // Crear una instancia del servicio de permisos
-        $permisoService = new PermitirAccesoPropiedadService($this->usuario->id);
+        ])->find($request->id);
 
-        // Verificar si el usuario tiene acceso a la vista
-        if (!$permisoService->tieneAccesoAVista($vistaNombre)) {
-            // Redirigir o mostrar un mensaje de error si no tiene acceso
-            return redirect()->route('home')->with('error', 'No tienes acceso a esta vista.');
+        // Llamar al método manualmente
+        $foliosActivos = $propiedad ? $propiedad->buscarCasa() : [];
+        $contratoMasReciente = $propiedad ? $propiedad->buscarContratoMasReciente() : [];
+
+        // Obtener el detalle del contrato más alto
+        $detalleContrato = null;
+        if (!empty($contratoMasReciente) && isset($contratoMasReciente['id_contrato_cabecera'])) {
+            $detalleContrato = $propiedad->buscarDetalleContratoMasAlto($contratoMasReciente['id_contrato_cabecera']);
         }
 
-        $usuariosTotales = Usuario::all();
-        $usuarioAsesor = Usuario_sector::where('venta', 'S')->get('id_usuario');
-        foreach ($usuarioAsesor as $usuarioTot) {
-            $username = Usuario::where('id', $usuarioTot->id_usuario)->get('username');
-            $usuarioTot->username = $username;
-        }
+        // Ver qué retorna
+        Log::info('Folios activos encontrados: ', $foliosActivos);
+        Log::info('Contrato más reciente: ', $contratoMasReciente);
+        Log::info('Detalle del contrato: ', $detalleContrato);
 
-        return view('atencionAlCliente.propiedad.cargarPropiedad', [
-            'zona' => $this->zona,
-            'calle' => $this->calle,
-            'barrio' => $this->barrio,
-            'estado_alquileres' => $this->estado_alquileres,
-            'estado_general' => $this->estado_general,
-            'estado_venta' => $this->estado_venta,
-            'localidad' => $this->localidad,
-            'tipo_inmueble' => $this->tipo_inmueble,
-            'provincia' => $this->provincia,
-            'padron' => $this->padron,
-            'usuario' => $this->usuario,
-            'usuariosTotales' => $usuariosTotales,
-            'usuarioAsesor' => $usuarioAsesor,
+        // Convertir a array y eliminar valores null
+        $propiedadArray = $propiedad->toArray();
+        $propiedadArray['buscarFolioActivo'] = $foliosActivos;
+        $propiedadArray['buscarContratoMasReciente'] = $contratoMasReciente; // Agregar resultado manualmente
+        $propiedadArray['detalleContrato'] = $detalleContrato;
 
-        ]);
+        $propiedadFiltrada = array_filter($propiedadArray, function ($value) {
+            return $value !== null;
+        });
+
+        return response()->json($propiedadFiltrada);
     }
 
-
-
-
-    /**
-     * Muestra la vista detallada de una propiedad
-     *
-     * Obtiene los datos completos de una propiedad según su ID, junto con información
-     * relacionada como fotos, documentos, videos, propietarios, precios, contratos
-     * y accesos del usuario a diferentes secciones. Además, verifica si el usuario
-     * tiene permiso para acceder a la vista antes de mostrarla.
-     *
-     * @param  string $id identificador único de la propiedad a mostrar
-     *
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse vista con la información de la propiedad o redirección si no hay permisos
-     * @access public
-     */
-    public function show(string $id)
+    public function actualizarPropiedad(Request $request)
     {
+        Log::info('Entrando a actualizarPropiedad');
+        Log::info($request->all());
 
-
-        // Definimos un array con los nombres de los botones
-        $btnNombres = [
-
-            'propietario',
-            'informacion_venta',
-            'informacion_alquiler',
-            'modificar'
-        ];
-        // Inicializamos un array vacío para almacenar los accesos
-        $accesos = [];
-        // Recorremos cada nombre de botón
-        foreach ($btnNombres as $btnNombre) {
-            // Verificamos si el usuario tiene acceso a cada botón y almacenamos el resultado en el array de accesos
-            $accesos[$btnNombre] = $this->accessService->tieneAcceso($btnNombre);
+        $propiedad = Propiedad::find($request->id);
+        if (!$propiedad) {
+            return response()->json(['message' => 'Propiedad no encontrada'], 404);
         }
 
-        // Asignamos el acceso a 'propietario' a una variable
-        $tieneAccesoPropietario = $accesos['propietario'];
-        // Asignamos el acceso a 'InformacionVenta' a una variable
-        $tieneAccesoInformacionVenta = $accesos['informacion_venta'];
-        // Asignamos el acceso a 'InformacionAlquiler' a una variable
-        $tieneAccesoInformacionAlquiler = $accesos['informacion_alquiler'];
-        // Asignamos el acceso a 'modificar' a una propiedad
-        $tieneAccesoModificar = $accesos['modificar'];
-        // Definimos el nombre de la vista
-        $vistaNombre = 'propiedad';
-
-        // Crear una instancia del servicio de permisos
-        $permisoService = new PermitirAccesoPropiedadService($this->usuario->id);
-
-        // Verificar si el usuario tiene acceso a la vista
-        if (!$permisoService->tieneAccesoAVista($vistaNombre)) {
-            // Redirigir o mostrar un mensaje de error si no tiene acceso
-            return redirect()->route('home')->with('error', 'No tienes acceso a esta vista.');
+        // Decodificar las comodidades si vienen en formato JSON y limpiar el array
+        $comodidades = [];
+        if ($request->has('comodidades')) {
+            $comodidades = $this->cleanArray(json_decode($request->comodidades, true) ?? []);
         }
 
+        $descripcion = [];
+        if ($request->has('descripcion')) {
+            $descripcion = $this->cleanArray(json_decode($request->descripcion, true) ?? []);
+        }
 
-        $usuario = $this->usuario;
-        $propiedad = $this->propiedadService->obtenerPropiedadConId($id);
-        $empresaPropiedad = $this->propiedadService->obtenerEmpresaPropiedad($id);
-        $contratoMasNuevo = $this->propiedadService->obtenerContratoMasReciente($id);
-        $idCasas = $contratoMasNuevo->id_casa ?? null;
-        $folio = $contratoMasNuevo->folio ?? null;
-        $vencimiento_contratos = $contratoMasNuevo->vencimiento_contrato ?? null;
-        $inicio_contrato = $contratoMasNuevo->inicio_contrato ?? null;
-        $propietarios = $this->propiedadService->obtenerPropietarios($id);
-        $ultimoPrecio = $this->precioService->obtenerUltimoPrecio($id);
-        $precio = $ultimoPrecio;
-        $observaciones_propiedades_venta = $this->observacionesPropiedadesService->obtenerObservacionesVenta($id);
-        $observaciones_propiedades_alquiler = $this->observacionesPropiedadesService->obtenerObservacionesAlquiler($id);
-        $fotos = $this->fotoService->obtenerFotos($id);
-        $documentos = $this->documentacionService->obtenerDocumento($id);
-        $videos = $this->videoService->obtenerVideos($id);
-        $historialFecha = $this->historialFechasService->obtenerHistorialFecha($id);
-        $tasacion = $this->tasacionService->obtenerUltimaTasacion($id);
-        $padrones = $this->propiedad_padronService->obtenerPropietarios($id);
-        $alquiler = $this->propiedadService->obtenerAlquiler($idCasas, $folio);
-        $username_asesor = Usuario::where('id', $propiedad->asesor)->first()->username ?? null;
+        $venta = [];
+        if ($request->has('venta')) {
+            $venta = $this->cleanArray(json_decode($request->venta, true) ?? []);
+        }
 
-        return view(
-            'atencionAlCliente.propiedad.propiedad',
-            compact(
-                'propiedad',
-                'historialFecha',
-                'vencimiento_contratos',
-                'inicio_contrato',
-                'observaciones_propiedades_venta',
-                'observaciones_propiedades_alquiler',
-                'precio',
-                'fotos',
-                'propietarios',
-                'documentos',
-                'tasacion',
-                'usuario',
-                'tieneAccesoPropietario',
-                'tieneAccesoInformacionVenta',
-                'tieneAccesoInformacionAlquiler',
-                'tieneAccesoModificar',
-                'padrones',
-                'videos',
-                'alquiler',
-                'empresaPropiedad',
-                'username_asesor',
-                'folio'
+        $alquiler = [];
+        if ($request->has('alquiler')) {
+            $alquiler = $this->cleanArray(json_decode($request->alquiler, true) ?? []);
+        }
 
-            )
-        );
+        $condicion_alquiler = [];
+        if ($request->has('condicion_alquiler')) {
+            $condicion_alquiler = $this->cleanArray(json_decode($request->condicion_alquiler, true) ?? []);
+        }
+
+        $propiedad->update([
+            'id_calle'                    => $request->calle_id ?? null,
+            'numero_calle'                => $request->numero_calle ?? null,
+            'piso'                        => $request->piso ?? null,
+            'departamento'                => $request->departamento ?? null,
+            'ph'                          => $request->ph ?? null,
+            'id_inmueble'                 => $request->id_inmueble ?? null,
+            'id_zona'                     => $request->id_zona ?? null,
+            'id_provincia'                => $request->id_provincia ?? null,
+            'llave'                       => $request->llave ?? null,
+            'comentario_llave'            => $request->comentario_llave ?? null,
+            'cartel'                      => $request->cartel ?? null,
+            'comentario_cartel'           => $request->comentario_cartel ?? null,
+            // Actualizar campos de comodidades
+            'id_estado_general'           => $comodidades['estado_general'] ?? null,
+            'cantidad_dormitorios'        => $comodidades['dormitorios'] ?? null,
+            'banios'                      => $comodidades['banios'] ?? null,
+            'mLote'                       => $comodidades['lotes'] ?? null,
+            'mCubiertos'                  => $comodidades['lote_cubierto'] ?? null,
+            'cochera'                     => $comodidades['cochera'] ?? null,
+            'numero_cochera'              => $comodidades['numero_cochera'] ?? null,
+            'asfalto'                     => $comodidades['asfalto'] ?? null,
+            'gas'                         => $comodidades['gas'] ?? null,
+            'cloaca'                      => $comodidades['cloaca'] ?? null,
+            'agua'                        => $comodidades['agua'] ?? null,
+            //Actualizar compo descripcion
+            'descipcion_propiedad'        => $descripcion['texto'] ?? null,
+            //Actualizar campo de venta
+            'asesor'                      => $venta['asesor_resultado'] ?? null,
+            'captador_int'                => $venta['captador_interno'] ?? null,
+            'cod_venta'                   => $venta['cod_venta'] ?? null,
+            'id_estado_venta'             => $venta['estado_venta'] ?? null,
+            'exclusividad_venta'          => $venta['exclusividad_venta'] ?? null,
+            'comparte_venta'              => $venta['comparte_venta'] ?? null,
+            'condicionado_venta'          => $venta['condicionado_venta'] ?? null,
+            'venta_fecha_alta'            => $venta['venta_fecha_alta'] ?? null,
+            'fecha_autorizacion_venta'    => $venta['fecha_autorizacion_venta'] ?? null,
+            'comentario_autorizacion'     => $venta['comentario_autorizacion'] ?? null,
+            'zona_prop'                   => $venta['zona_prop'] ?? null,
+            'flyer'                       => $venta['flyer'] ?? null,
+            'reel'                        => $venta['reel'] ?? null,
+            'web'                         => $venta['web'] ?? null,
+            //Actualizar campo de alquiler
+            'cod_alquiler'                => $alquiler['cod_alquiler'] ?? null,
+            'id_estado_alquiler'          => $alquiler['estado_alquiler'] ?? null,
+            'autorizacion_alquiler'       => $alquiler['autorizacion_alquiler'] ?? null,
+            'fecha_autorizacion_alquiler' => $alquiler['fecha_autorizacion_alquiler'] ?? null,
+            'exclusividad_alquiler'       => $alquiler['exclusividad_alquiler'] ?? null,
+            'clausula_de_venta'           => $alquiler['clausula_de_venta'] ?? null,
+            'tiempo_clausula'             => $alquiler['tiempo_clausula'] ?? null,
+            'alquiler_fecha_alta'         => $alquiler['alquiler_fecha_alta'] ?? null,
+            'mascota'                     => $alquiler['mascota'] ?? null,
+            //Condicion alquiler
+            'condicion'                   => $condicion_alquiler['condicion'] ?? null
+
+        ]);
+
+
+        (new TasacionService())->crearDesdeRequest($venta, $propiedad->id);
+        (new PrecioService())->crearDesdeRequest($venta, $alquiler, $propiedad->id);
+
+        if ($request->has('fotos_modificadas')) {
+            $fotos_modificadas = $this->cleanArray(json_decode($request->fotos_modificadas, true));
+            (new PropiedadMediaService())->modificarFoto($fotos_modificadas);
+        }
+        if ($request->has('fotos_eliminadas')) {
+            $fotos_eliminadas = json_decode($request->fotos_eliminadas, true);
+            (new PropiedadMediaService())->eliminarFoto($fotos_eliminadas);
+        }
+        if ($request->has('fotos_nuevas_data')) {
+            (new PropiedadMediaService())->subirdesdeUpdate($request, $propiedad->id);
+        }
+        if ($request->has('documentos_modificados')) {
+            $documentos_modificados = $this->cleanArray(json_decode($request->documentos_modificados, true));
+            (new PropiedadMediaService())->modificarDocumento($documentos_modificados);
+        }
+        if ($request->has('documentos_eliminados')) {
+            $documentos_eliminados = json_decode($request->documentos_eliminados, true);
+            (new PropiedadMediaService())->eliminarDocumento($documentos_eliminados);
+        }
+        if ($request->has('documentos_nuevos_data')) {
+            (new PropiedadMediaService())->subirdesdeUpdate($request, $propiedad->id);
+        }
+
+        if ($request->has('videos_nuevos_data')) {
+            (new PropiedadMediaService())->subirdesdeUpdate($request, $propiedad->id);
+        }
+        if ($request->has('videos_modificados')) {
+            $videos_modificados = $this->cleanArray(json_decode($request->videos_modificados, true));
+            (new PropiedadMediaService())->modificarVideo($videos_modificados);
+        }
+
+        if ($request->has('videos_eliminados')) {
+            $videos_eliminados = $this->cleanArray(json_decode($request->videos_eliminados));
+            (new PropiedadMediaService())->eliminarVideo($videos_eliminados);
+        }
+
+        if ($request->has('propietarios_eliminados')) {
+            $propietarios_eliminados = json_decode($request->propietarios_eliminados, true);
+            (new Propiedades_padronService())->eliminarPropietario($propiedad->id, $propietarios_eliminados);
+        }
+
+        if ($request->has('propietarios_nuevos')) {
+            $propietarios_nuevos = json_decode($request->propietarios_nuevos, true);
+            (new Propiedades_padronService())->vincularActualizacion($propiedad->id, $propietarios_nuevos);
+        }
+
+        if ($request->has('propietarios_modificados')) {
+            $propietarios_modificados = json_decode($request->propietarios_modificados, true);
+            (new Propiedades_padronService())->modificarPropietario($propiedad->id, $propietarios_modificados);
+        }
+        return response()->json(['message' => 'Propiedad actualizada correctamente']);
     }
 
-    /**
-     * Muestra el formulario para editar una propiedad
-     *
-     * Verifica si el usuario tiene permiso para acceder a la vista de edición y, 
-     * si está autorizado, obtiene toda la información necesaria relacionada a la 
-     * propiedad, incluyendo datos generales, precios, tasación, fotos y padrones. 
-     * Luego retorna la vista con todos los datos requeridos para permitir la edición.
-     *
-     * @param  string $id identificador único de la propiedad a editar
-     *
-     * @return \Illuminate\View\View|\Illuminate\Http\RedirectResponse vista del formulario de edición o redirección si no hay permisos
-     * @access public
-     */
-    public function edit(string $id)
+    public function descargarFotos($id)
     {
+        try {
+            Log::info('Entrando a descargar fotos', ['propiedad_id' => $id]);
 
-        $vistaNombre = 'propiedadEditar';
+            $fotos = Foto::where('propiedad_id', $id)->get();
 
-        // Crear una instancia del servicio de permisos
-        $permisoService = new PermitirAccesoPropiedadService($this->usuario->id);
+            if ($fotos->isEmpty()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No se encontraron fotos para esta propiedad.'
+                ], 404);
+            }
 
-        // Verificar si el usuario tiene acceso a la vista
-        if (!$permisoService->tieneAccesoAVista($vistaNombre)) {
-            // Redirigir o mostrar un mensaje de error si no tiene acceso
-            return redirect()->route('home')->with('error', 'No tienes acceso a esta vista.');
+            $propiedad = $this->propiedadService->obtenerPropiedadesPorId($id);
+            $calle = Calle::find($propiedad->id_calle);
+            $numero = $propiedad->numero_calle;
+
+            // Limpiar nombre del archivo para evitar caracteres inválidos
+            $calleName = preg_replace('/[^a-zA-Z0-9\s]/', '', $calle->name);
+            $zipFileName = trim($calleName) . '-' . $numero . '.zip';
+
+            return response()->streamDownload(function () use ($fotos, $calleName, $numero) {
+                $zip = new \ZipStream\ZipStream(
+                    outputName: $calleName . '-' . $numero . '.zip',
+                    sendHttpHeaders: false
+                );
+
+                $basePath = '\\\\10.10.10.151\\Compartida\\PROPIEDADES';
+                $filesAdded = 0;
+                $filesNotFound = 0;
+
+                foreach ($fotos as $foto) {
+                    $imagePath = str_replace('/imagenes', '', $foto->url);
+                    $filePath = $basePath . str_replace('/', '\\', $imagePath);
+
+                    if (file_exists($filePath)) {
+                        $fileName = basename($filePath);
+                        $zip->addFileFromPath($fileName, $filePath);
+                        $filesAdded++;
+                    } else {
+                        $filesNotFound++;
+                        Log::warning('Archivo no encontrado', ['path' => $filePath]);
+                    }
+                }
+
+                if ($filesAdded > 0) {
+                    Log::info("ZIP creado exitosamente", [
+                        'archivos_agregados' => $filesAdded,
+                        'archivos_no_encontrados' => $filesNotFound
+                    ]);
+                    $zip->finish();
+                } else {
+                    Log::warning('No se encontraron archivos físicos para comprimir');
+                    echo "No se encontraron archivos físicos para comprimir.";
+                }
+            }, $zipFileName, [
+                'Content-Type' => 'application/zip',
+                'Content-Disposition' => 'attachment; filename="' . $zipFileName . '"'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al descargar fotos', [
+                'propiedad_id' => $id,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al procesar la descarga de fotos.'
+            ], 500);
         }
-
-        // Obtener todos los padrones con nombre y apellido combinados
-        $buscarPropietarios = DB::table('padron')->select('id', DB::raw("CONCAT(nombre, ' ', apellido) as name"))->get();
-
-        $historialEstados = $this->propiedadService->obtenerUltimoHistorialEstadosVenta($id);
-        $historialEstadosAlquiler = $this->propiedadService->obtenerUltimoHistorialEstadosAlquiler($id);
-        $empresaPropiedad = $this->propiedadService->obtenerEmpresaPropiedad($id);
-
-        $propiedad = $this->propiedadService->obtenerPropiedadConId($id);
-
-        $precio = $this->precioService->obtenerUltimoPrecio($id);
-        $tasacion = $this->tasacionService->obtenerUltimaTasacion($id);
-        $fotos = $this->fotoService->obtenerFotos($id);
-        $padrones = $this->propiedad_padronService->obtenerPropietarios($id);
-        $usuariosTotales = Usuario::all();
-
-        $usuarioAsesor = Usuario_sector::where('venta', 'S')->get('id_usuario');
-        foreach ($usuarioAsesor as $usuarioTot) {
-            $username = Usuario::where('id', $usuarioTot->id_usuario)->get('username');
-            $usuarioTot->username = $username;
-        }
-
-
-
-
-        return view('atencionAlCliente.propiedad.editarPropiedad', [
-            'barrio' => $this->barrio,
-            'zona' => $this->zona,
-            'localidad' => $this->localidad,
-            'provincia' => $this->provincia,
-            'tipo_inmueble' => $this->tipo_inmueble,
-            'estado_general' => $this->estado_general,
-            'estado_venta' => $this->estado_venta,
-            'estado_alquileres' => $this->estado_alquileres,
-            'padron' => $this->padron,
-            'calle' => $this->calle,
-            'propiedad' => $propiedad,
-            'precio' => $precio,
-            'tasacion' => $tasacion,
-            'fotos' => $fotos,
-            /* 'propietarios' => $propietarios, */
-            'buscarPropietarios' => $buscarPropietarios,
-            'padrones' => $padrones,
-            'historialEstados' => $historialEstados,
-            'historialEstadosAlquiler' => $historialEstadosAlquiler,
-            'usuariosTotales' => $usuariosTotales,
-            'empresaPropiedad' => $empresaPropiedad,
-            'usuarioAsesor' => $usuarioAsesor,
-        ]);
     }
 
     /**
@@ -587,6 +659,45 @@ class PropiedadController
             return redirect()->back()->with('error', 'Error al guardar la novedad.');
         }
     }
+
+    public function guardarNovedad(Request $request)
+    {
+        Log::info($request->all());
+        $novedad = Observaciones_propiedades::create([
+            'propiedad_id' => $request->propiedad_id,
+            'notes'        => $request->notes,
+            'tipo_ofera'   => $request->tipo_ofera,
+            'created_at'   => now(),
+            'last_modified_by' => $request->user_id
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data'    => $novedad
+        ]);
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     public function destroy(string $id)
@@ -1023,56 +1134,7 @@ class PropiedadController
     }
 
 
-    public function descargarFotos($id)
-    {
-        $fotos = Foto::where('propiedad_id', $id)->get();
-        $propiedad = $this->propiedadService->obtenerPropiedadesPorId($id);
-        $calle = Calle::find($propiedad->id_calle);
-        $numero = $propiedad->numero_calle;
 
-        if ($fotos->isEmpty()) {
-            return back()->with('error', 'No se encontraron fotos para esta propiedad.');
-        }
-
-        $zipFileName = $calle->name . '-' . $numero . '.zip';
-
-        // Usamos la librería ZipStream para enviar el archivo directamente
-        return response()->streamDownload(function () use ($fotos) {
-            // Inicializar el buffer de salida
-            if (ob_get_level() == 0) {
-                ob_start();
-            }
-
-            $zip = new \ZipStream\ZipStream(
-                outputName: 'fotos.zip',
-                sendHttpHeaders: false
-            );
-
-            $basePath = '\\\\10.10.10.151\\Compartida\\PROPIEDADES';
-            $filesAdded = false;
-
-            foreach ($fotos as $foto) {
-                $imagePath = str_replace('/imagenes', '', $foto->url);
-                $filePath = $basePath . str_replace('/', '\\', $imagePath);
-
-                if (file_exists($filePath)) {
-                    $zip->addFileFromPath(basename($filePath), $filePath);
-                    $filesAdded = true;
-                }
-            }
-
-            if ($filesAdded) {
-                $zip->finish();
-            } else {
-                echo "No se encontraron archivos para comprimir.";
-            }
-
-            ob_end_flush();
-        }, $zipFileName, [
-            'Content-Type' => 'application/zip',
-            'Content-Disposition' => 'attachment; filename="' . $zipFileName . '"'
-        ]);
-    }
 
     /**
      * Función recursiva para limpiar valores vacíos en arrays
@@ -1080,7 +1142,7 @@ class PropiedadController
      * @param mixed $data Datos a limpiar
      * @return mixed Datos limpios
      */
-    private function cleanArray($data)
+    public function cleanArray($data)
     {
         if (!is_array($data)) {
             return $data === '' ? null : $data;

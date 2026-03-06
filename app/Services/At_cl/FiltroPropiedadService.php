@@ -188,7 +188,7 @@ class FiltroPropiedadService
 
         // Determinar método dinámico de ordenamiento
         $sortMethod = $direccion === 'asc' ? 'sortBy' : 'sortByDesc';
-/* Log::info($filtros['busqueda']); */
+
         // Oferta 1 = venta
         if ($filtros['busqueda'] == 1) {
             return $propiedades->$sortMethod(fn($p) => $this->obtenerPrecioVenta($p, $direccion))->values();
