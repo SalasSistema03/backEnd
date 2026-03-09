@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
+use App\Models\turnos\Turno;
 
 class Usuario extends Authenticatable implements JWTSubject
 {
@@ -35,6 +36,11 @@ class Usuario extends Authenticatable implements JWTSubject
         return $this->hasMany(Permiso::class, 'usuario_id', 'id');
     }
 
+    // Un usuario puede tener muchos turnos
+    public function turnos()
+    {
+        return $this->hasMany(Turno::class, 'usuario_id', 'id');
+    }
     //Relacion con la tabla propiedad
     /* public function propiedadesModificadas()
     {

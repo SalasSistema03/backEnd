@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use App\Services\agenda\AgendaService;
 use App\Services\usuarios_y_permisos\PermisoService;
+use App\Models\cliente\Usuario_sector;
 
 class UsuarioService
 {
@@ -59,11 +60,26 @@ class UsuarioService
         ]);
     }
 
-
-
-   public function updateDatosGenerales(Request $request, $id_usuario)
+    public function getCaptadorInterno()
     {
-       $usuario = Usuario::where('id', $id_usuario)->first();
+        $captador_interno = Usuario::select('id', 'username')->get();
+        return response()->json($captador_interno);
+    }
+
+    public function getAsesor(){
+        $usuarioAsesor = Usuario_sector::where('venta', 'S')->get('id_usuario');
+        
+        foreach ($usuarioAsesor as $usuarioTot) {
+            $username = Usuario::where('id', $usuarioTot->id_usuario)->value('username');
+            $usuarioTot->username = $username;
+        }
+        
+        return $usuarioAsesor;
+    }
+
+    public function updateDatosGenerales(Request $request, $id_usuario)
+    {
+        $usuario = Usuario::where('id', $id_usuario)->first();
 
         if (!$usuario) {
             return response()->json(['error' => 'Usuario no encontrado'], 404);
@@ -71,7 +87,7 @@ class UsuarioService
 
         // Actualizar datos básicos del usuario
         $datosActualizar = $this->prepararDatosActualizacion($request);
-        
+
         if (empty($datosActualizar)) {
             return response()->json(['error' => 'No hay datos para actualizar'], 400);
         }
@@ -81,7 +97,7 @@ class UsuarioService
         // Delegar la gestión de permisos al servicio correspondiente
         if ($request->has('permisos')) {
             (new PermisoService())->sincronizarPermisos(
-                $request->input('permisos'), 
+                $request->input('permisos'),
                 $id_usuario
             );
         }
@@ -110,11 +126,6 @@ class UsuarioService
             if ($request->filled($campo)) {
                 $datosActualizar[$columna] = $request->input($campo);
             }
-        }
-
-        // Hash de contraseña si viene
-        if (isset($datosActualizar['password'])) {
-            $datosActualizar['password'] = bcrypt($datosActualizar['password']);
         }
 
         return $datosActualizar;

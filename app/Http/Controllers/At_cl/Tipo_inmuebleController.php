@@ -4,15 +4,18 @@ namespace App\Http\Controllers\At_cl;
 
 use Illuminate\Http\Request;
 use App\Models\At_cl\Tipo_inmueble;
+use App\Services\At_cl\InmuebleService;
 
 class Tipo_inmuebleController 
 {
     
-    public function index()
+    public function getTiposInmueble()
     {
-        $tipo_inmueble = Tipo_inmueble::all();
+        $tipo_inmueble = (new InmuebleService())->getInmuebles();
         return response()->json($tipo_inmueble);
     }
+
+  
 
     
     public function create(){}

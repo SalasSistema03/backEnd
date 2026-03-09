@@ -4,6 +4,7 @@ namespace App\Services\At_cl;
 
 use App\Models\At_cl\Precio;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class PrecioService
 {
@@ -32,17 +33,19 @@ class PrecioService
     }
 
 
-     
+
     /**
      * Crear un registro de precio desde los datos del request
      *
-     * @param Request $request
+     * @param Array $venta
+     * @param Array $alquiler
      * @param int $propiedadId
      * @return Precio|null
      */
-    public function crearDesdeRequest(Request $request, int $propiedadId): ?Precio
+    public function crearDesdeRequest(array $venta, array $alquiler, int $propiedadId): ?Precio
     {
-        $precioData = $this->prepararDatosDesdeRequest($request, $propiedadId);
+        //Log::info($venta, $alquiler, $propiedadId);
+        $precioData = $this->prepararDatosDesdeRequest($venta, $alquiler, $propiedadId);
 
         if (empty($precioData)) {
             return null;
@@ -58,28 +61,37 @@ class PrecioService
      * @param int $propiedadId
      * @return array
      */
-    private function prepararDatosDesdeRequest(Request $request, int $propiedadId): array
+    private function prepararDatosDesdeRequest(array $venta, array $alquiler, int $propiedadId): array
     {
+         
         $precioData = ['propiedad_id' => $propiedadId];
-
-        // Procesar datos de venta
-        if ($request->filled('moneda_venta') && $request->filled('monto_venta')) {
-            $precioData = array_merge($precioData, $this->procesarDatosVenta($request));
+        if ($venta !== null && !empty($venta)) {
+            // Procesar datos de venta
+            if (isset($venta['moneda_venta']) && isset($venta['monto_venta']) && 
+                $venta['moneda_venta'] !== null && $venta['monto_venta'] !== null) {
+                $precioData = array_merge($precioData, $this->procesarDatosVenta($venta));
+            }
+            // Agregar fechas de alta si corresponde
+            if (isset($venta['cod_venta'])) {
+                $precioData['venta_fecha_alta'] = now();
+            }
         }
 
-        // Procesar datos de alquiler
-        if ($request->filled('moneda_alquiler') && $request->filled('monto_alquiler')) {
-            $precioData = array_merge($precioData, $this->procesarDatosAlquiler($request));
-        }
+        log::info('estos son los datos de venta', $precioData);
+        if ($alquiler !== null && !empty($alquiler)) {
+            // Procesar datos de alquiler
+            if (isset($alquiler['moneda_alquiler']) && isset($alquiler['monto_alquiler']) && 
+                $alquiler['moneda_alquiler'] !== null && $alquiler['monto_alquiler'] !== null) {
+                $precioData = array_merge($precioData, $this->procesarDatosAlquiler($alquiler));
+            }
 
-        // Agregar fechas de alta si corresponde
-        if ($request->filled('cod_venta')) {
-            $precioData['venta_fecha_alta'] = now();
+            if (isset($alquiler['cod_alquiler'])) {
+                $precioData['alquiler_fecha_alta'] = now();
+            }
         }
+        log::info('estos son los datos de alquiler', $precioData);
 
-        if ($request->filled('cod_alquiler')) {
-            $precioData['alquiler_fecha_alta'] = now();
-        }
+
 
         return $precioData;
     }
@@ -90,14 +102,14 @@ class PrecioService
      * @param Request $request
      * @return array
      */
-    private function procesarDatosVenta(Request $request): array
+    private function procesarDatosVenta(array $venta): array
     {
         // Moneda 1 = Pesos ($), otra = Dólares
-        $esPesos = $request->moneda_venta == '1';
+        $esPesos = $venta['moneda_venta'] == '1';
 
         return [
-            'moneda_venta_pesos' => $esPesos ? $request->monto_venta : null,
-            'moneda_venta_dolar' => !$esPesos ? $request->monto_venta : null,
+            'moneda_venta_pesos' => $esPesos ? $venta['monto_venta'] : null,
+            'moneda_venta_dolar' => !$esPesos ? $venta['monto_venta'] : null,
             'moneda' => $esPesos ? '0' : '1'
         ];
     }
@@ -108,40 +120,19 @@ class PrecioService
      * @param Request $request
      * @return array
      */
-    private function procesarDatosAlquiler(Request $request): array
+    private function procesarDatosAlquiler(array $alquiler): array
     {
         // Moneda 1 = Pesos ($), otra = Dólares
-        $esPesos = $request->moneda_alquiler == '1';
+        $esPesos = $alquiler['moneda_alquiler'] == '1';
 
         return [
-            'moneda_alquiler_pesos' => $esPesos ? $request->monto_alquiler : null,
-            'moneda_alquiler_dolar' => !$esPesos ? $request->monto_alquiler : null,
+            'moneda_alquiler_pesos' => $esPesos ? $alquiler['monto_alquiler'] : null,
+            'moneda_alquiler_dolar' => !$esPesos ? $alquiler['monto_alquiler'] : null,
             'moneda' => $esPesos ? '0' : '1'
         ];
     }
 
-    /**
-     * Actualizar precio existente
-     *
-     * @param int $propiedadId
-     * @param Request $request
-     * @return bool
-     */
-    public function actualizarPorPropiedad(int $propiedadId, Request $request): bool
-    {
-        $precio = Precio::where('propiedad_id', $propiedadId)->first();
 
-        if (!$precio) {
-            return false;
-        }
-
-        $precioData = $this->prepararDatosDesdeRequest($request, $propiedadId);
-        
-        // Remover propiedad_id ya que no debe actualizarse
-        unset($precioData['propiedad_id']);
-
-        return $precio->update($precioData);
-    }
 
     /**
      * Obtener precio de una propiedad

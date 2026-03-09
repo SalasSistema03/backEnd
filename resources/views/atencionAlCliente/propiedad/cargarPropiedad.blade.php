@@ -3,7 +3,7 @@
 @section('title', 'Cargar Propiedad')
 
 @section('content')
- {{-- @dd($usuariosTotales) --}} 
+    {{-- @dd($usuariosTotales) --}}
     <div class="px-2 ">
         <form action="{{ route('propiedad.store') }}" method="POST" enctype="multipart/form-data" autocomplete="off"
             id="miFormulario" novalidate class="text-center mx-3">
@@ -195,7 +195,7 @@
                             </div>
                         </div>
                         {{-- formulario de carga de fotos --}}
-                       <div class="col-md-3">
+                        <div class="col-md-3">
                             <!-- Formulario de carga de varias fotos con detalles y previsualización dentro de un carrusel -->
                             <div class="container col-md-12">
 
@@ -220,9 +220,9 @@
                             </div>
 
 
-                        </div> 
+                        </div>
 
-                      
+
 
 
 
@@ -259,13 +259,13 @@
 
 
 
-                    
+
 
                 </div>
             </div>
 
 
-            
+
         </form>
     </div>
 
@@ -280,7 +280,7 @@
             initCalleSearch(@json($calle));
         });
     </script>
-   <script>
+    <script>
         document.getElementById('fotos').addEventListener('change', function(event) {
             let fotosDetallesDiv = document.getElementById('fotosDetalles');
             fotosDetallesDiv.innerHTML = ''; // Limpiar las diapositivas anteriores
@@ -355,7 +355,7 @@
                 })
                 .catch(error => console.error('Error:', error));
         });
-    </script> 
+    </script>
 
 
 @endsection
