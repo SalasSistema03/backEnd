@@ -116,13 +116,11 @@ return [
         ],
         'mysql4' => [ //Cuarta conexion
             'driver' => 'mysql',
-            'url' => env('DB_URL'),
-            'host' => env('DB_HOST', '10.10.10.66'),
-            'port' => env('DB_PORT', '3306'),
+             'host' => env('DB_HOST_4', '10.10.10.66'), // Variable única para esta conexión
+            'port' => env('DB_PORT_4', '3306'),
             'database' => env('DB_DATABASE4', 'sistema_usuarios_y_permisos'),
-            'username' => env('DB_USERNAME', 'root'),
-            'password' => env('DB_PASSWORD', 'GALEON'),
-            'unix_socket' => env('DB_SOCKET', ''),
+            'username' => env('DB_USERNAME_4', 'root'), // Variable única
+            'password' => env('DB_PASSWORD_4', 'GALEON'), // Variable única'unix_socket' => env('DB_SOCKET', ''),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
             'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
             'prefix' => '',
