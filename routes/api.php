@@ -18,6 +18,7 @@ use App\Http\Controllers\At_cl\EstadoAlquilerController;
 use App\Http\Controllers\At_cl\PropiedadController;
 use App\Services\At_cl\PadronService;
 use App\Http\Controllers\At_cl\PadronController;
+use App\Http\Controllers\contable\retenciones\RetencionController;
 
 Route::prefix('v1')->group(function () {
 

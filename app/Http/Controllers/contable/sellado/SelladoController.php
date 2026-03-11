@@ -192,7 +192,6 @@ class SelladoController extends Controller
         }
     }
 
-
     
     /* Lista los DATOS DE CALCULO que utiliza el sellado (Los datos que figuran en el engranaje)*/
     public function getDatosCalculo()
