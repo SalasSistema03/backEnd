@@ -18,6 +18,7 @@ use App\Http\Controllers\At_cl\EstadoAlquilerController;
 use App\Http\Controllers\At_cl\PropiedadController;
 use App\Services\At_cl\PadronService;
 use App\Http\Controllers\At_cl\PadronController;
+use App\Http\Controllers\At_cl\Exportar_PDF_atcl\Pdf_alquiler;
 
 Route::prefix('v1')->group(function () {
 
@@ -56,6 +57,15 @@ Route::prefix('v1')->group(function () {
             Route::get('padron/buscar', [PadronService::class, 'BuscarPadron']);
             Route::post('padron/cargar', [PadronController::class, 'CargarPadron']);
 
+            //Filtrado
+            Route::get('propiedad/buscar', [PropiedadController::class, 'buscaPropiedad']);
+            //show propiedad
+            Route::get('propiedad/muestra', [PropiedadController::class, 'MuestraPropiedad']);
+            Route::post('propiedad/actualizar', [PropiedadController::class, 'actualizarPropiedad']);
+            Route::get('propiedad/descargar-fotos/{id}', [PropiedadController::class, 'descargarFotos']);
+            Route::post('propiedad/guardar-novedad', [PropiedadController::class, 'guardarNovedad']);
+            Route::get('/propiedades/pdf/pdfPlantillaPropiedad/{id}/{tipoBTN}', [Pdf_alquiler::class, 'generarPDFpantillaPropiedad'])->name('propiedades.pdf.pdfPlantillaPropiedad');
+
         });
     });
     //CONTABLE - SELLADO
@@ -63,12 +73,12 @@ Route::prefix('v1')->group(function () {
     // 2. GRUPO PROTEGIDO (URL: api/v1/...)
     // Requieren Token, pero NO llevan "auth" en la URL
     Route::middleware('auth:api')->group(function () {
-        
+
         // Sesión y Usuario
         Route::get('logout', [AuthController::class, 'logout'])->name('logout');
         Route::post('refresh', [AuthController::class, 'refresh']);
         Route::get('me', [AuthController::class, 'me']);
-        
+
         // Servicios de Navegación y Usuarios
         Route::get('nav', [PermisoService::class, 'getMenuData']);
         Route::get('permisos-navegacion', [PermisoService::class, 'getPermisosNavegacion']);
@@ -96,7 +106,7 @@ Route::prefix('v1')->group(function () {
         Route::post('sellado/guardar', [SelladoController::class, 'guardarSelladoController']);
         Route::delete('sellado/eliminar', [SelladoController::class, 'eliminarRegistroSelladoController']);
 
-        
+
     }); // <--- Aquí cierra el middleware
 });
 

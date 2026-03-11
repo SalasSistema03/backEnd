@@ -220,12 +220,9 @@ class PropiedadService
         $descripcion_estado_alquiler,
         $descripcion_estado_venta,
         $fecha_baja_temporal_alquiler,
-        $fecha_baja_temporal_venta
+        $fecha_baja_temporal_venta,
+        $usuario_id
     ) {
-        // Usuario actual
-        $usuario = session('usuario');
-        $usuario_id = $usuario->id;
-
         // Últimos historiales (pueden ser null si nunca se guardó nada)
         $ultimo_historial_estado_venta = $this->obtenerUltimoHistorialEstadosVenta($id_propiedad);
         $ultimo_historial_estado_alquiler = $this->obtenerUltimoHistorialEstadosAlquiler($id_propiedad);
@@ -309,7 +306,7 @@ class PropiedadService
                 'id_zona' => $datos['zona_id'],
                 'id_provincia' => $datos['provincia_id'],
                 'llave' => $datos['llave'],
-                'comentario_llave' => $datos['observaciones_llave'],
+                'comentario_llave' => $datos['comentario_llave'],
                 'cartel' => $datos['cartel'],
                 'comentario_cartel' => $datos['observaciones_cartel'],
                 'id_estado_general' => $datos['comodidades']['estado_general'] ?? null,
@@ -336,8 +333,8 @@ class PropiedadService
                 'flyer' => $datos['venta']['flyer'] ?? null,
                 'reel' => $datos['venta']['reel'] ?? null,
                 'web' => $datos['venta']['web'] ?? null,
-                'captador_int' => $datos['venta']['captador_int'] ?? null,
-                'asesor' => $datos['venta']['asesor'] ?? null,
+                'captador_int' => $datos['venta']['captador_interno'] ?? null,
+                'asesor' => $datos['venta']['asesor_resultado'] ?? null,
                 'cod_alquiler' => $datos['alquiler']['cod_alquiler'] ?? null,
                 'id_estado_alquiler' => $datos['alquiler']['estado_alquiler'] ?? null,
                 'autorizacion_alquiler' => $datos['alquiler']['autorizacion_alquiler'] ?? null,

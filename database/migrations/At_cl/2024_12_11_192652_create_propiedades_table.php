@@ -6,23 +6,23 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Migración para crear la tabla 'propiedades' en la base de datos.
- * 
+ *
  * Esta clase gestiona la creación y eliminación de la tabla 'propiedades',
  * que incluye las relaciones con otras entidades del sistema inmobiliario
  * como barrios, calles, estados, etc.
- * 
+ *
  * @package Database\Migrations
  */
 return new class extends Migration
 {
     /**
      * Ejecuta la migración para crear la tabla de propiedades.
-     * 
+     *
      * Crea la estructura de la tabla 'propiedades' que incluye:
      * - Un identificador primario
      * - Claves foráneas para las entidades relacionadas (por ejemplo, barrio, calle, etc.)
      * - Campos de timestamp para registrar la creación y actualización de cada propiedad.
-     * 
+     *
      * @return void
      */
     public function up(): void
@@ -70,11 +70,11 @@ return new class extends Migration
             $table->text('condicionado_venta')->nullable();
             $table->text('comparte_venta')->nullable();
             $table->text('clausula_de_venta')->nullable();
-            $table->text('tiempo_clausula')->nullable(); 
+            $table->text('tiempo_clausula')->nullable();
             $table->date('fecha_autorizacion_venta')->nullable();
             $table->date('venta_fecha_alta')->nullable();
             $table->date('alquiler_fecha_alta')->nullable();
-            $table->date('fecha_publicacion_ig')->nullable();
+
 
             // Estado general y otros detalles
             $table->unsignedBigInteger('id_estado_general')->nullable();
@@ -103,16 +103,16 @@ return new class extends Migration
            /*  $table->foreign('id_tasacion')->references('id')->on('tasacion')->nullOnDelete(); */
             $table->foreign('id_estado_general')->references('id')->on('estado_general')->nullOnDelete();
           /*   $table->foreign('last_modified_by')->references('id')->on('usuarios')->nullOnDelete(); */
-        
+
         });
     }
 
     /**
      * Revierte la migración, eliminando la tabla 'propiedades'.
-     * 
+     *
      * Método de rollback que elimina la tabla de propiedades creada en el método `up()`.
      * Utiliza `dropIfExists` para evitar errores si la tabla no existe.
-     * 
+     *
      * @return void
      */
     public function down(): void

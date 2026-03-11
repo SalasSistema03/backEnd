@@ -33,7 +33,7 @@
                         <input type="number" class="form-control text-center @error('FTribunales') is-invalid @enderror"
                             value="{{ old('FTribunales', request('FTribunales')) }}" id="" name="FTribunales">
                     </div>
-                    
+
                     <div class="col-md-4">
                         <label class="text-center form-label" for="">Estado de
                             Alquiler</label>
@@ -131,14 +131,7 @@
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
-                    <div class="col-md-2 ">
-                        <label class="text-center form-label" id="basic-addon1">Fecha
-                            Pub.</label>
-                        <input type="date"
-                            class="form-control text-center @error('fecha_publicacion_ig') is-invalid @enderror"
-                            name="fecha_publicacion_ig"
-                            value="{{ old('fecha_publicacion_ig', request('fecha_publicacion_ig')) }}">
-                    </div>
+
 
                     {{-- Boton Condicion --}}
                     <div class="col-md-6 pt-4">

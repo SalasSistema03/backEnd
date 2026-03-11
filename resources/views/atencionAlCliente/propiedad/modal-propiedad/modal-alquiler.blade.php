@@ -22,7 +22,7 @@
                             value="{{ $central ? $central->folio : '-' }}" disabled>
                     </div>
 
-                    @php    
+                    @php
                         $candioti = $empresaPropiedad->firstWhere('empresa_id', 2);
                     @endphp
                     <div class="col-md-2 px-1">
@@ -70,11 +70,7 @@
                         <input type="date" class="form-control text-center"
                             value="{{ $propiedad->alquiler_fecha_alta ?? '-' }}" id="calle-input" disabled>
                     </div>
-                    <div class="col-md-2 px-1" id="fechaBaja">
-                        <label class="text-center" id="basic-addon1">Fecha Pub.</label>
-                        <input type="date" class="form-control text-center"
-                            value="{{ $propiedad->fecha_publicacion_ig ?? '-' }}" id="calle-input" disabled>
-                    </div>
+
                     <div class="col-md-2 px-1">
                         <label class="text-center" id="basic-addon1">Fecha Baja</label>
                         <input type="date" class="form-control text-center"
