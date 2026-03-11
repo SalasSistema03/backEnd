@@ -4,7 +4,7 @@ namespace App\Services\At_cl;
 
 use App\Models\At_cl\Propiedad;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Servicio encargado de aplicar filtros y ordenamientos avanzados
@@ -27,21 +27,25 @@ class FiltroPropiedadService
      */
     public function filtrarPropiedades(array $filtros): Collection
     {
-        // Si no se recibió ningún filtro significativo, no tiene sentido consultar la BD
-        if (empty(array_filter($filtros))) {
-            return collect();
-        }
+        try {
+            // Si no se recibió ningún filtro significativo, no tiene sentido consultar la BD
+            if (empty(array_filter($filtros))) {
+                return collect();
+            }
 
-        // Si el usuario solicitó un ordenamiento específico,
-        // delegamos la responsabilidad al método especializado
-        if (!empty($filtros['orden'])) {
-            return $this->aplicarOrden($filtros);
-        }
+            // Si el usuario solicitó un ordenamiento específico,
+            // delegamos la responsabilidad al método especializado
+            if (!empty($filtros['orden'])) {
+                return $this->aplicarOrden($filtros);
+            }
 
-        // Orden por defecto: fecha de creación descendente
-        return Propiedad::filtrar($filtros)
-            ->orderBy('propiedades.created_at', 'desc')
-            ->get();
+            // Orden por defecto: fecha de creación descendente
+            return Propiedad::filtrar($filtros)
+                ->orderBy('propiedades.created_at', 'desc')
+                ->get();
+        } catch (\Exception $e) {
+            throw new \Exception('Error al filtrar propiedades: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -52,19 +56,23 @@ class FiltroPropiedadService
      */
     private function aplicarOrden(array $filtros): Collection
     {
-        return match ($filtros['orden']) {
-            'calle' => $this->ordenarPorCalle($filtros),
-            'zona' => $this->ordenarPorZona($filtros),
-            'tipo' => $this->ordenarPorTipo($filtros),
-            'habitaciones' => $this->ordenarPorHabitaciones($filtros),
-            'cochera' => $this->ordenarPorCochera($filtros),
-            'precio_asc' => $this->ordenarPorPrecio($filtros, 'asc'),
-            'precio_desc' => $this->ordenarPorPrecio($filtros, 'desc'),
-            'banio' => $this->ordenarPorBanio($filtros),
-            default => Propiedad::filtrar($filtros)->orderBy('propiedades.created_at', 'desc')->get(),
-        };
+        try {
+            return match ($filtros['orden']) {
+                'calle' => $this->ordenarPorCalle($filtros),
+                'zona' => $this->ordenarPorZona($filtros),
+                'tipo' => $this->ordenarPorTipo($filtros),
+                'habitaciones' => $this->ordenarPorHabitaciones($filtros),
+                'cochera' => $this->ordenarPorCochera($filtros),
+                'precio_asc' => $this->ordenarPorPrecio($filtros, 'asc'),
+                'precio_desc' => $this->ordenarPorPrecio($filtros, 'desc'),
+                'banio' => $this->ordenarPorBanio($filtros),
+                default => Propiedad::filtrar($filtros)->orderBy('propiedades.created_at', 'desc')->get(),
+            };
+        } catch (\Exception $e) {
+            throw new \Exception('Error al aplicar ordenamiento: ' . $e->getMessage());
+        }
     }
-    
+
     /**
      * Ordena las propiedades por cantidad de baños.
      *
@@ -73,9 +81,13 @@ class FiltroPropiedadService
      */
     private function ordenarPorBanio(array $filtros): Collection
     {
-        return Propiedad::filtrar($filtros)
-            ->orderBy('banios', 'desc')
-            ->get();
+        try {
+            return Propiedad::filtrar($filtros)
+                ->orderBy('banios', 'desc')
+                ->get();
+        } catch (\Exception $e) {
+            throw new \Exception('Error al ordenar por baños: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -86,12 +98,16 @@ class FiltroPropiedadService
      */
     private function ordenarPorCalle(array $filtros): Collection
     {
-        return Propiedad::filtrar($filtros)
-            ->join('calle', 'calle.id', '=', 'propiedades.id_calle')
-            ->orderBy('calle.name')
-            ->select('propiedades.*')
-            ->with('calle')
-            ->get();
+        try {
+            return Propiedad::filtrar($filtros)
+                ->join('calle', 'calle.id', '=', 'propiedades.id_calle')
+                ->orderBy('calle.name')
+                ->select('propiedades.*')
+                ->with('calle')
+                ->get();
+        } catch (\Exception $e) {
+            throw new \Exception('Error al ordenar por calle: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -102,12 +118,16 @@ class FiltroPropiedadService
      */
     private function ordenarPorZona(array $filtros): Collection
     {
-        return Propiedad::filtrar($filtros)
-            ->join('zona', 'zona.id', '=', 'propiedades.id_zona')
-            ->orderBy('zona.name')
-            ->select('propiedades.*')
-            ->with('zona')
-            ->get();
+        try {
+            return Propiedad::filtrar($filtros)
+                ->join('zona', 'zona.id', '=', 'propiedades.id_zona')
+                ->orderBy('zona.name')
+                ->select('propiedades.*')
+                ->with('zona')
+                ->get();
+        } catch (\Exception $e) {
+            throw new \Exception('Error al ordenar por zona: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -118,20 +138,24 @@ class FiltroPropiedadService
      */
     private function ordenarPorTipo(array $filtros): Collection
     {
-        // Extraer solo tipos validos
-        $tipos = array_filter((array) ($filtros['tipo_inmueble'] ?? []));
+        try {
+            // Extraer solo tipos validos
+            $tipos = array_filter((array) ($filtros['tipo_inmueble'] ?? []));
 
-        $query = Propiedad::filtrar($filtros)
-            ->leftJoin('tipo_inmueble', 'tipo_inmueble.id', '=', 'propiedades.id_inmueble')
-            ->select('propiedades.*')
-            ->with('tipoInmueble');
+            $query = Propiedad::filtrar($filtros)
+                ->leftJoin('tipo_inmueble', 'tipo_inmueble.id', '=', 'propiedades.id_inmueble')
+                ->select('propiedades.*')
+                ->with('tipoInmueble');
 
-        // Si se especificaron tipo, filtrar por ellos
-        if (!empty($tipos)) {
-            $query->whereIn('propiedades.id_inmueble', $tipos);
+            // Si se especificaron tipo, filtrar por ellos
+            if (!empty($tipos)) {
+                $query->whereIn('propiedades.id_inmueble', $tipos);
+            }
+
+            return $query->orderBy('tipo_inmueble.inmueble')->get();
+        } catch (\Exception $e) {
+            throw new \Exception('Error al ordenar por tipo: ' . $e->getMessage());
         }
-
-        return $query->orderBy('tipo_inmueble.inmueble')->get();
     }
 
     /**
@@ -142,9 +166,13 @@ class FiltroPropiedadService
      */
     private function ordenarPorHabitaciones(array $filtros): Collection
     {
-        return Propiedad::filtrar($filtros)
-            ->orderBy('cantidad_dormitorios', 'asc')
-            ->get();
+        try {
+            return Propiedad::filtrar($filtros)
+                ->orderBy('cantidad_dormitorios', 'asc')
+                ->get();
+        } catch (\Exception $e) {
+            throw new \Exception('Error al ordenar por habitaciones: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -155,9 +183,13 @@ class FiltroPropiedadService
      */
     private function ordenarPorCochera(array $filtros): Collection
     {
-        return Propiedad::filtrar($filtros)
-            ->orderBy('cochera', 'asc')
-            ->get();
+        try {
+            return Propiedad::filtrar($filtros)
+                ->orderBy('cochera', 'asc')
+                ->get();
+        } catch (\Exception $e) {
+            throw new \Exception('Error al ordenar por cochera: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -173,34 +205,36 @@ class FiltroPropiedadService
      */
     private function ordenarPorPrecio(array $filtros, string $direccion): Collection
     {
-        /* Log::info($direccion); */
-        // Primero traemos propiedades con filtro + relación de precio
-        $propiedades = Propiedad::filtrar($filtros)
-            ->with('ultimoPrecio')
-            ->get()
-            // Eliminamos las que no tienen precio válido
-            ->filter(fn($propiedad) => $this->tienePrecioValido($propiedad, $filtros));
+        try {
+            // Primero traemos propiedades con filtro + relación de precio
+            $propiedades = Propiedad::filtrar($filtros)
+                ->with('ultimoPrecio')
+                ->get()
+                // Eliminamos las que no tienen precio válido
+                ->filter(fn($propiedad) => $this->tienePrecioValido($propiedad, $filtros));
 
-        // Si no se especificó tipo de oferta (1 venta / 2 alquiler)
-        if (empty($filtros['busqueda'])) {
+            // Si no se especificó tipo de oferta (1 venta / 2 alquiler)
+            if (empty($filtros['busqueda'])) {
+                return $propiedades;
+            }
+
+            // Determinar método dinámico de ordenamiento
+            $sortMethod = $direccion === 'asc' ? 'sortBy' : 'sortByDesc';
+
+            // Oferta 1 = venta
+            if ($filtros['busqueda'] == 1) {
+                return $propiedades->$sortMethod(fn($p) => $this->obtenerPrecioVenta($p, $direccion))->values();
+            }
+
+            // Oferta 2 = alquiler
+            if ($filtros['busqueda'] == 2) {
+                return $propiedades->$sortMethod(fn($p) => $this->obtenerPrecioAlquiler($p, $direccion))->values();
+            }
+
             return $propiedades;
+        } catch (\Exception $e) {
+            throw new \Exception('Error al ordenar por precio: ' . $e->getMessage());
         }
-
-        // Determinar método dinámico de ordenamiento
-        $sortMethod = $direccion === 'asc' ? 'sortBy' : 'sortByDesc';
-
-        // Oferta 1 = venta
-        if ($filtros['busqueda'] == 1) {
-            return $propiedades->$sortMethod(fn($p) => $this->obtenerPrecioVenta($p, $direccion))->values();
-        }
-        
-
-        // Oferta 2 = alquiler
-        if ($filtros['busqueda'] == 2) {
-            return $propiedades->$sortMethod(fn($p) => $this->obtenerPrecioAlquiler($p, $direccion))->values();
-        }
-
-        return $propiedades;
     }
 
     /**
@@ -212,23 +246,27 @@ class FiltroPropiedadService
      */
     private function tienePrecioValido($propiedad, array $filtros): bool
     {
-        $precio = $propiedad->ultimoPrecio;
+        try {
+            $precio = $propiedad->ultimoPrecio;
 
-        if (!$precio) {
+            if (!$precio) {
+                return false;
+            }
+
+            // Validación para venta
+            if (!empty($filtros['oferta']) && $filtros['oferta'] == 1) {
+                return $precio->moneda_venta_dolar > 0 || $precio->moneda_venta_pesos > 0;
+            }
+
+            // Validación para alquiler
+            if (!empty($filtros['oferta']) && $filtros['oferta'] == 2) {
+                return $precio->moneda_alquiler_pesos > 0 || $precio->moneda_alquiler_dolar > 0;
+            }
+
             return false;
+        } catch (\Exception $e) {
+            throw new \Exception('Error al validar precio: ' . $e->getMessage());
         }
-
-        // Validación para venta
-        if (!empty($filtros['oferta']) && $filtros['oferta'] == 1) {
-            return $precio->moneda_venta_dolar > 0 || $precio->moneda_venta_pesos > 0;
-        }
-
-        // Validación para alquiler
-        if (!empty($filtros['oferta']) && $filtros['oferta'] == 2) {
-            return $precio->moneda_alquiler_pesos > 0 || $precio->moneda_alquiler_dolar > 0;
-        }
-
-        return false;
     }
 
     /**
@@ -244,20 +282,23 @@ class FiltroPropiedadService
      */
     private function obtenerPrecioVenta($propiedad, string $direccion): float|int
     {
-        
-        $precio = $propiedad->ultimoPrecio;
+        try {
+            $precio = $propiedad->ultimoPrecio;
 
-        // ASC y pesos → moverlos al final mediante un valor muy alto
-        if ($direccion === 'asc') {
+            // ASC y pesos → moverlos al final mediante un valor muy alto
+            if ($direccion === 'asc') {
+                return $precio->moneda_venta_dolar > 0
+                    ? $precio->moneda_venta_dolar
+                    : ($precio->moneda_venta_pesos > 0 ? $precio->moneda_venta_pesos + 1_000_000_000 : PHP_INT_MAX);
+            }
+
+            // DESC → menor castigo para pesos
             return $precio->moneda_venta_dolar > 0
                 ? $precio->moneda_venta_dolar
-                : ($precio->moneda_venta_pesos > 0 ? $precio->moneda_venta_pesos + 1_000_000_000 : PHP_INT_MAX);
+                : ($precio->moneda_venta_pesos > 0 ? $precio->moneda_venta_pesos : 0);
+        } catch (\Exception $e) {
+            throw new \Exception('Error al obtener precio de venta: ' . $e->getMessage());
         }
-
-        // DESC → menor castigo para pesos
-        return $precio->moneda_venta_dolar > 0
-            ? $precio->moneda_venta_dolar
-            : ($precio->moneda_venta_pesos > 0 ? $precio->moneda_venta_pesos : 0);
     }
 
     /**
@@ -271,16 +312,20 @@ class FiltroPropiedadService
      */
     private function obtenerPrecioAlquiler($propiedad, string $direccion): float|int
     {
-        $precio = $propiedad->ultimoPrecio;
+        try {
+            $precio = $propiedad->ultimoPrecio;
 
-        if ($direccion === 'asc') {
+            if ($direccion === 'asc') {
+                return $precio->moneda_alquiler_pesos > 0
+                    ? $precio->moneda_alquiler_pesos
+                    : ($precio->moneda_alquiler_dolar > 0 ? $precio->moneda_alquiler_dolar + 1_000_000_000 : PHP_INT_MAX);
+            }
+
             return $precio->moneda_alquiler_pesos > 0
                 ? $precio->moneda_alquiler_pesos
-                : ($precio->moneda_alquiler_dolar > 0 ? $precio->moneda_alquiler_dolar + 1_000_000_000 : PHP_INT_MAX);
+                : ($precio->moneda_alquiler_dolar > 0 ? $precio->moneda_alquiler_dolar : 0);
+        } catch (\Exception $e) {
+            throw new \Exception('Error al obtener precio de alquiler: ' . $e->getMessage());
         }
-
-        return $precio->moneda_alquiler_pesos > 0
-            ? $precio->moneda_alquiler_pesos
-            : ($precio->moneda_alquiler_dolar > 0 ? $precio->moneda_alquiler_dolar : 0);
     }
 }

@@ -37,25 +37,7 @@ Route::prefix('v1')->group(function () {
             Route::get('datos-generales/{id_usuario}', [UsuarioService::class, 'getDatosGenerales']);
             Route::put('update-datos-generales/{id_usuario}', [UsuarioService::class, 'updateDatosGenerales']);
             Route::get('sectores', [TurnoController::class, 'getSectores']);
-            Route::get('turnos/pendientes', [TurnoController::class, 'getTurnosPendientes']);
-            Route::get('turnos/llamados', [TurnoController::class, 'getTurnosLlamados']);
-            Route::get('turnos/completados', [TurnoController::class, 'getTurnosCompletados']);
-            Route::post('turnos/cargar', [TurnoController::class, 'postCargarTurnoController']);
-            Route::put('turnos/finalizar/{id}', [TurnoController::class, 'finalizarturno']);
-            Route::put('turnos/llamar/{id}', [TurnoController::class, 'putLlamarTurno']);
-            //rutas que se usan a services/Api/Atcl/atclApi
-            Route::get('calles', [CalleController::class, 'getCalles']);
-            Route::get('tipos-inmueble', [Tipo_inmuebleController::class, 'getTiposInmueble']);
-            Route::get('zonas', [ZonaController::class, 'getZonas']);
-            Route::get('provincias', [ProvinciaController::class, 'getProvincias']);
-            Route::get('estado-general', [EstadoGeneralController::class, 'getEstadoGeneral']);
-            Route::get('estado-venta', [EstadoVentaController::class, 'getEstadoVenta']);
-            Route::get('captador-interno', [UsuariosController::class, 'getCaptadorInterno']);
-            Route::get('asesor', [UsuariosController::class, 'getAsesor']);
-            Route::get('estado-alquiler', [EstadoAlquilerController::class, 'getEstadoAlquiler']);
-            Route::post('propiedad/guardar/{id}', [PropiedadController::class, 'guardarPropiedad']);
-            Route::get('padron/buscar', [PadronService::class, 'BuscarPadron']);
-            Route::post('padron/cargar', [PadronController::class, 'CargarPadron']);
+
 
             //Filtrado
             Route::get('propiedad/buscar', [PropiedadController::class, 'buscaPropiedad']);
@@ -80,11 +62,25 @@ Route::prefix('v1')->group(function () {
         Route::get('me', [AuthController::class, 'me']);
 
         // Servicios de Navegación y Usuarios
-        Route::get('nav', [PermisoService::class, 'getMenuData']);
+        //Route::get('nav', [PermisoService::class, 'getMenuData']);
         Route::get('permisos-navegacion', [PermisoService::class, 'getPermisosNavegacion']);
         Route::get('nombres-de-usuarios', [UsuarioService::class, 'getNombresDeUsuarios']);
         Route::get('datos-generales/{id_usuario}', [UsuarioService::class, 'getDatosGenerales']);
         Route::put('update-datos-generales/{id_usuario}', [UsuarioService::class, 'updateDatosGenerales']);
+
+        // Atcl (URL: Variables generales de atcl)
+        Route::get('calles', [CalleController::class, 'getCalles']);
+        Route::get('tipos-inmueble', [Tipo_inmuebleController::class, 'getTiposInmueble']);
+        Route::get('zonas', [ZonaController::class, 'getZonas']);
+        Route::get('provincias', [ProvinciaController::class, 'getProvincias']);
+        Route::get('estado-general', [EstadoGeneralController::class, 'getEstadoGeneral']);
+        Route::get('estado-venta', [EstadoVentaController::class, 'getEstadoVenta']);
+        Route::get('captador-interno', [UsuariosController::class, 'getCaptadorInterno']);
+        Route::get('asesor', [UsuariosController::class, 'getAsesor']);
+        Route::get('estado-alquiler', [EstadoAlquilerController::class, 'getEstadoAlquiler']);
+        Route::post('propiedad/guardar/{id}', [PropiedadController::class, 'guardarPropiedad']);
+        Route::get('padron/buscar', [PadronService::class, 'BuscarPadron']);
+        Route::post('padron/cargar', [PadronController::class, 'CargarPadron']);
 
         // Turnos (URL: api/v1/turnos/...)
         Route::get('sectores', [TurnoController::class, 'getSectores']);

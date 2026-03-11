@@ -286,10 +286,7 @@ class Propiedad extends Model
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    /* public function lastModifiedBy()
-    {
-        return $this->belongsTo(Usuario::class, 'last_modified_by');
-    } */
+
     public function usuario()
     {
         return $this->belongsTo(Usuario::class, 'last_modified_by', 'id');
@@ -507,11 +504,7 @@ class Propiedad extends Model
 
 
 
-    /*  public function FolioAxctiov(){
-        foreach($this->buscarFolioActivo() as $folio){
-            $folio
-        }
-    } */
+
 
     /**
      * Relación con el modelo HistorialEstadosAlquiler.

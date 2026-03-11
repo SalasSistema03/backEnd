@@ -2,51 +2,20 @@
 
 namespace App\Http\Controllers\At_cl;
 
-use App\Http\Requests\FiltrarPropiedadRequest;
-use App\Models\At_cl\Tasacion;
 use Illuminate\Http\Request;
 use App\Models\At_cl\Propiedad;
-use App\Models\At_cl\Tipo_inmueble;
-use App\Models\At_cl\Zona;
 use App\Models\At_cl\Calle;
-use App\Models\At_cl\Barrio;
-use App\Models\At_cl\Estado_alquiler;
-use App\Models\At_cl\estado_general;
-use App\Models\At_cl\Estado_venta;
 use App\Models\At_cl\Foto;
-use App\Models\At_cl\Localidad;
 use App\Models\At_cl\Observaciones_propiedades;
-use App\Models\At_cl\Precio;
-use App\Models\At_cl\Provincia;
-use App\Models\sys\Propiedades_sys;
-use App\Models\sys\Contratos_cabecera_sys;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Validator;
-use App\Models\At_cl\Padron;
-use Illuminate\Support\Facades\Log;
-use App\Http\Requests\StorePropiedadRequest;
-use App\Models\At_cl\Documentacion;
-use App\Models\At_cl\Empresas_propiedades;
-use App\Models\usuarios_y_permisos\Usuario;
-use App\Models\At_cl\Video;
-use App\Models\cliente\Usuario_sector;
-use App\Services\At_cl\documentacionService;
-use App\Services\At_cl\FotosService;
-use App\Services\At_cl\HistorialFechasService;
-use App\Services\At_cl\PermitirAccesoPropiedadService;
 use App\Services\At_cl\PrecioService;
 use App\Services\At_cl\PropiedadService;
-use App\Services\At_cl\ObservacionesPropiedadesService;
 use App\Services\At_cl\TasacionService;
 use App\Services\At_cl\Propiedades_padronService;
-use App\Services\At_cl\VideosService;
-use Illuminate\Database\QueryException;
 use App\Services\At_cl\FiltroPropiedadService;
 use App\Services\At_cl\PropiedadMediaService;
 use App\Services\At_cl\EmpresaPropiedadService;
-
-
 
 /**
  * Controlador encargado de gestionar la búsqueda y CRUD completo de las propiedades,
@@ -58,56 +27,24 @@ use App\Services\At_cl\EmpresaPropiedadService;
  */
 class PropiedadController
 {
-    protected $tipo_inmueble, $zona, $calle, $estado_alquileres, $estado_general,
-        $estado_venta, $localidad, $barrio, $Propiedades, $contrato_cabecera, $observaciones_propiedades, $provincia,
-        $padron, $precio,  $usuario_id, $accessService, $propiedadService, $precioService, $observacionesPropiedadesService,
-        $usuario, $fotoService, $documentacionService, $historialFechasService, $tasacionService, $propiedad_padronService,
-        $videoService, $filtroPropiedadService, $mediaService, $empresaPropiedadService;
+    protected $propiedad_padronService, $propiedadService, $empresaPropiedadService;
 
 
+    /**
+     * Constructor del controlador - Inicializa servicios necesarios
+     *
+     * @param PropiedadService $propiedadService Servicio de gestión de propiedades
+     * @param Propiedades_padronService $propiedad_padronService Servicio de padrón de propiedades
+     * @param EmpresaPropiedadService $empresaPropiedadService Servicio de empresas de propiedades
+     */
     public function __construct(
-        FiltroPropiedadService $filtroPropiedadService,
         PropiedadService $propiedadService,
-        PrecioService $precioService,
-        ObservacionesPropiedadesService $observacionesService,
-        FotosService $fotoService,
-        documentacionService $documentacionService,
-        HistorialFechasService $historialFechasService,
-        TasacionService $tasacionService,
         Propiedades_padronService $propiedad_padronService,
-        VideosService $videoService,
-        PropiedadMediaService $mediaService,
         EmpresaPropiedadService $empresaPropiedadService
     ) {
-        // Definir variables globales para todas las funciones
-        $this->tipo_inmueble = Tipo_inmueble::all();
-        $this->zona = Zona::all();
-        $this->calle = Calle::all();
-        $this->barrio = Barrio::all();
-        $this->estado_alquileres = Estado_alquiler::all();
-        $this->estado_general = Estado_general::all();
-        $this->estado_venta = Estado_venta::all();
-        $this->localidad = Localidad::all();
-        $this->observaciones_propiedades = Observaciones_propiedades::all();
-        $this->provincia = Provincia::all();
-        $this->padron = Padron::all();
-        $this->precio = Precio::all();
-        $this->Propiedades = Propiedades_sys::all();
-        $this->contrato_cabecera = Contratos_cabecera_sys::all();
-        $this->usuario_id = session('usuario_id'); // Obtener el id del usuario actual desde la sesión
-        $this->usuario = Usuario::find($this->usuario_id);
-        $this->accessService = new PermitirAccesoPropiedadService($this->usuario_id);
+        // Inicializar servicios utilizados
         $this->propiedadService = $propiedadService;
-        $this->precioService = $precioService;
-        $this->observacionesPropiedadesService = $observacionesService;
-        $this->fotoService = $fotoService;
-        $this->documentacionService = $documentacionService;
-        $this->historialFechasService = $historialFechasService;
-        $this->tasacionService = $tasacionService;
         $this->propiedad_padronService = $propiedad_padronService;
-        $this->videoService = $videoService;
-        $this->filtroPropiedadService = $filtroPropiedadService;
-        $this->mediaService = $mediaService;
         $this->empresaPropiedadService = $empresaPropiedadService;
     }
 
@@ -115,9 +52,24 @@ class PropiedadController
 
 
 
+    /**
+     * Guarda una nueva propiedad en el sistema con todos sus datos relacionados
+     *
+     * Este método maneja la creación completa de una propiedad incluyendo:
+     * - Datos básicos de la propiedad
+     * - Información de venta y alquiler
+     * - Comodidades y descripción
+     * - Archivos multimedia (fotos, videos, documentos)
+     * - Asociación con propietarios
+     * - Vinculación con empresas (folios)
+     *
+     * @param Request $request Datos del formulario
+     * @param int $id ID del usuario que crea la propiedad
+     * @return \Illuminate\Http\JsonResponse Respuesta JSON con el resultado
+     */
     public function guardarPropiedad(Request $request, $id)
     {
-
+        // Limpiar y decodificar datos JSON del request
         $comodidades = $this->cleanArray(json_decode($request->comodidades, true) ?? []);
         $descripcion = $this->cleanArray(json_decode($request->descripcion, true) ?? []);
         $venta = $this->cleanArray(json_decode($request->venta, true) ?? []);
@@ -125,12 +77,8 @@ class PropiedadController
         $condicionAlquiler = $this->cleanArray(json_decode($request->condicion_alquiler, true) ?? []);
         $propietario = $this->cleanArray(json_decode($request->propietario, true) ?? []);
         $novedades = $this->cleanArray(json_decode($request->novedades, true) ?? []);
-        //Log::info('propieatios: ' . json_encode($propietario));
-        Log::info($request);
 
-
-        //Validaciones basicas para el guardado de la propiedad
-
+        // Validaciones básicas para el guardado de la propiedad
         $validator = Validator::make(
             [
                 'cod_venta'      => $venta['cod_venta'] ?? null,
@@ -149,6 +97,10 @@ class PropiedadController
                 'folio_central'      => $alquiler['FCentral'] ?? null,
                 'folio_candioti'     => $alquiler['FCandioti'] ?? null,
                 'folio_tribunales'   => $alquiler['FTribunales'] ?? null,
+                'venta_fecha_alta'         => $venta['venta_fecha_alta'] ?? null,
+                'fecha_autorizacion_venta' => $venta['fecha_autorizacion_venta'] ?? null,
+                'alquiler_fecha_alta'         => $alquiler['alquiler_fecha_alta'] ?? null,
+                'fecha_autorizacion_alquiler' => $alquiler['fecha_autorizacion_alquiler'] ?? null,
             ],
             [
                 'cod_venta' => ['nullable', 'required_without:cod_alquiler', 'unique:propiedades,cod_venta'],
@@ -167,6 +119,10 @@ class PropiedadController
                 'folio_central'    => ['nullable', 'regex:/^[0-9]+$/'],
                 'folio_candioti'   => ['nullable', 'regex:/^[0-9]+$/'],
                 'folio_tribunales' => ['nullable', 'regex:/^[0-9]+$/'],
+                'venta_fecha_alta' => ['nullable', 'date_format:Y-m-d'],
+                'fecha_autorizacion_venta' => ['nullable', 'date_format:Y-m-d'],
+                'alquiler_fecha_alta' => ['nullable', 'date_format:Y-m-d'],
+                'fecha_autorizacion_alquiler' => ['nullable', 'date_format:Y-m-d'],
             ],
             [
                 'cod_venta.required_without' => 'Debe ingresar un código de venta o de alquiler.',
@@ -190,6 +146,10 @@ class PropiedadController
                 'folio_central.regex' => 'El folio de Central debe ser un número entero.',
                 'folio_candioti.regex' => 'El folio de Candioti debe ser un número entero.',
                 'folio_tribunales.regex' => 'El folio de Tribunales debe ser un número entero.',
+                'venta_fecha_alta.date_format' => 'La fecha de alta de venta no es una fecha valida.',
+                'fecha_autorizacion_venta.date_format' => 'La fecha de autorización de venta no es una fecha valida.',
+                'alquiler_fecha_alta.date_format' => 'La fecha de alta de alquiler no es una fecha valida.',
+                'fecha_autorizacion_alquiler.date_format' => 'La fecha de autorización de alquiler no es una fecha valida.',
             ]
         );
 
@@ -203,6 +163,7 @@ class PropiedadController
 
         try {
             DB::beginTransaction();
+
             // Preparar datos para el servicio
             $datos = [
                 'calle_id' => $request->calle_id,
@@ -224,22 +185,19 @@ class PropiedadController
                 'condicionAlquiler' => $condicionAlquiler,
             ];
 
-            //Log::info($datos);
             // Crear la propiedad usando el servicio
             $propiedad_creada = (new PropiedadService())->crearPropiedad($datos, $id);
 
-
+            // Crear tasación si hay datos de venta
             (new TasacionService())->crearDesdeRequest($venta, $propiedad_creada->id);
 
-
+            // Crear registro de precios
             (new PrecioService())->crearDesdeRequest($venta, $alquiler, $propiedad_creada->id);
 
             // Carga de archivos multimedia
-
             (new PropiedadMediaService())->subirDesdeRequest($request, $propiedad_creada->id);
 
-            // Asociación de la propiedad a empresas
-
+            // Asociación de la propiedad a empresas (folios)
             $folios = [
                 1 => $alquiler['FCentral'] ?? null,
                 2 => $alquiler['FCandioti'] ?? null,
@@ -247,27 +205,24 @@ class PropiedadController
             ];
 
             if (($alquiler['FCentral'] ?? null) != null || ($alquiler['FCandioti'] ?? null) != null || ($alquiler['FTribunales'] ?? null) != null) {
-
                 (new EmpresaPropiedadService())->asociarNuevoFolio(array($folios), $propiedad_creada->id);
             }
-            //Asociacion de la propiedad con los propietarios
 
+            // Asociación de la propiedad con los propietarios
             if (!empty($propietario)) {
-                // Verificar si ya es un array o si necesita decodificación
                 $propietario_decoded = is_array($propietario) ? $propietario : json_decode($propietario, true);
 
                 if ($propietario_decoded) {
                     foreach ($propietario_decoded as $propietario_item) {
                         if (isset($propietario_item['id'])) {
-                            // Usar el método vincularActualizacion que maneja los datos del pivot
                             $this->propiedad_padronService->vincularActualizacion($propiedad_creada->id, [$propietario_item]);
                         }
                     }
                 }
             }
 
-
             DB::commit();
+
             return response()->json([
                 'success'  => true,
                 'message'  => 'Propiedad guardada correctamente.',
@@ -275,22 +230,28 @@ class PropiedadController
                     'id' => $propiedad_creada->id,
                 ],
             ], 200);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error("Error al guardar propiedad: " . $e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => 'Error al guardar la propiedad: ' . $e->getMessage()
             ], 500);
         }
     }
     /**
-     * ESTO CORRESPONDE AL FILTRADO
-    **/
+     * Busca propiedades según filtros avanzados
+     *
+     * Este método aplica filtros múltiples y ordenamiento para encontrar propiedades
+     * que coincidan con los criterios de búsqueda especificados.
+     *
+     * @param Request $request Parámetros de filtrado y búsqueda
+     * @param FiltroPropiedadService $filtroService Servicio de filtrado
+     * @return \Illuminate\Http\JsonResponse Lista de propiedades filtradas
+     */
     public function buscaPropiedad(Request $request, FiltroPropiedadService $filtroService)
     {
-        //Log::info($request->all());
-
         // Preparar filtros para el servicio
         $filtros = [
             'busqueda' => $request->busqueda,
@@ -311,9 +272,8 @@ class PropiedadController
 
         // El servicio se encarga de todo: filtrado + ordenamiento
         $propiedades = $filtroService->filtrarPropiedades($filtros);
-        /*  Log::info($propiedades); */
 
-        //quiero enviar el name de la calle
+        // Cargar relaciones necesarias para la respuesta
         foreach ($propiedades as $propiedad) {
             $propiedad->calle->name ?? null;
             $propiedad->zona->name ?? null;
@@ -321,6 +281,7 @@ class PropiedadController
             $propiedad->precioActual ?? null;
         }
 
+        // Formatear resultado para la respuesta
         $resultado = $propiedades->map(function ($propiedad) {
             return [
                 'id' => $propiedad->id,
@@ -338,253 +299,294 @@ class PropiedadController
                 'precio_venta' => $propiedad->precioActual?->moneda_venta_dolar ?? $propiedad->precioActual?->moneda_venta_pesos,
             ];
         });
-        /* Log::info($resultado); */
+
         return response()->json($resultado);
     }
 
+    /**
+     * Muestra los detalles completos de una propiedad específica
+     *
+     * Este método carga todas las relaciones necesarias de una propiedad
+     * incluyendo fotos, videos, documentación, propietarios, contratos, etc.
+     *
+     * @param Request $request Contiene el ID de la propiedad a mostrar
+     * @return \Illuminate\Http\JsonResponse Datos completos de la propiedad
+     */
     public function MuestraPropiedad(Request $request)
     {
-        $propiedad = Propiedad::with([
-            'calle',
-            'zona',
-            'tipoInmueble',
-            'precioActual',
-            'provincia',
-            'estadoGeneral',
-            'estadoAlquiler',
-            'estadoVenta',
-            'precioActual',
-            'tasaciones',
-            'usuarioAsesor',
-            'usuarioCaptadorInt',
-            'folios',
-            'fotos',
-            'video',
-            'documentacion',
-            'propietarios',
-            'observacionesPropiedades',
-            'historialEstadosAlquiler',
-            'historialEstadosVenta',
+        try {
+            // Cargar propiedad con todas sus relaciones
+            $propiedad = Propiedad::with([
+                'calle',
+                'zona',
+                'tipoInmueble',
+                'precioActual',
+                'provincia',
+                'estadoGeneral',
+                'estadoAlquiler',
+                'estadoVenta',
+                'precioActual',
+                'tasaciones',
+                'usuarioAsesor',
+                'usuarioCaptadorInt',
+                'folios',
+                'fotos',
+                'video',
+                'documentacion',
+                'propietarios',
+                'observacionesPropiedades',
+                'historialEstadosAlquiler',
+                'historialEstadosVenta',
+            ])->find($request->id);
 
-        ])->find($request->id);
+            if (!$propiedad) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Propiedad no encontrada'
+                ], 404);
+            }
 
-        // Llamar al método manualmente
-        $foliosActivos = $propiedad ? $propiedad->buscarCasa() : [];
-        $contratoMasReciente = $propiedad ? $propiedad->buscarContratoMasReciente() : [];
+            // Obtener información adicional de contratos y folios
+            $foliosActivos = $propiedad->buscarCasa();
+            $contratoMasReciente = $propiedad->buscarContratoMasReciente();
 
-        // Obtener el detalle del contrato más alto
-        $detalleContrato = null;
-        if (!empty($contratoMasReciente) && isset($contratoMasReciente['id_contrato_cabecera'])) {
-            $detalleContrato = $propiedad->buscarDetalleContratoMasAlto($contratoMasReciente['id_contrato_cabecera']);
+            // Obtener el detalle del contrato más alto
+            $detalleContrato = null;
+            if (!empty($contratoMasReciente) && isset($contratoMasReciente['id_contrato_cabecera'])) {
+                $detalleContrato = $propiedad->buscarDetalleContratoMasAlto($contratoMasReciente['id_contrato_cabecera']);
+            }
+
+            // Convertir a array y agregar información adicional
+            $propiedadArray = $propiedad->toArray();
+            $propiedadArray['buscarFolioActivo'] = $foliosActivos;
+            $propiedadArray['buscarContratoMasReciente'] = $contratoMasReciente;
+            $propiedadArray['detalleContrato'] = $detalleContrato;
+
+            // Eliminar valores null para limpiar la respuesta
+            $propiedadFiltrada = array_filter($propiedadArray, function ($value) {
+                return $value !== null;
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $propiedadFiltrada
+            ]);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al cargar los datos de la propiedad'
+            ], 500);
         }
-
-        // Ver qué retorna
-        //Log::info('Folios activos encontrados: ', $foliosActivos);
-        //Log::info('Contrato más reciente: ', $contratoMasReciente);
-        //Log::info('Detalle del contrato: ', $detalleContrato ?: []);
-
-        // Convertir a array y eliminar valores null
-        $propiedadArray = $propiedad->toArray();
-        $propiedadArray['buscarFolioActivo'] = $foliosActivos;
-        $propiedadArray['buscarContratoMasReciente'] = $contratoMasReciente; // Agregar resultado manualmente
-        $propiedadArray['detalleContrato'] = $detalleContrato;
-
-        $propiedadFiltrada = array_filter($propiedadArray, function ($value) {
-            return $value !== null;
-        });
-
-        return response()->json($propiedadFiltrada);
     }
 
+    /**
+     * Actualiza los datos de una propiedad existente
+     *
+     * Este método maneja la actualización completa de una propiedad incluyendo:
+     * - Datos básicos y comodidades
+     * - Información de venta y alquiler
+     * - Archivos multimedia (fotos, videos, documentos)
+     * - Propietarios asociados
+     * - Estados y historial
+     *
+     * @param Request $request Datos actualizados de la propiedad
+     * @return \Illuminate\Http\JsonResponse Resultado de la operación
+     */
     public function actualizarPropiedad(Request $request)
     {
         try {
-            Log::info('Entrando a actualizarPropiedad');
-            Log::info($request->all());
-
             $propiedad = Propiedad::find($request->id);
             if (!$propiedad) {
-                return response()->json(['message' => 'Propiedad no encontrada'], 404);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Propiedad no encontrada'
+                ], 404);
             }
 
-        // Decodificar las comodidades si vienen en formato JSON y limpiar el array
-        $comodidades = [];
-        if ($request->has('comodidades')) {
+            // Iniciar transacción para garantizar consistencia
+            DB::beginTransaction();
+
+            // Decodificar y limpiar datos JSON del request
             $comodidades = $this->cleanArray(json_decode($request->comodidades, true) ?? []);
-        }
-
-        $descripcion = [];
-        if ($request->has('descripcion')) {
             $descripcion = $this->cleanArray(json_decode($request->descripcion, true) ?? []);
-        }
-
-        $venta = [];
-        if ($request->has('venta')) {
             $venta = $this->cleanArray(json_decode($request->venta, true) ?? []);
-        }
-
-        $alquiler = [];
-        if ($request->has('alquiler')) {
             $alquiler = $this->cleanArray(json_decode($request->alquiler, true) ?? []);
-        }
-
-        $condicion_alquiler = [];
-        if ($request->has('condicion_alquiler')) {
             $condicion_alquiler = $this->cleanArray(json_decode($request->condicion_alquiler, true) ?? []);
-        }
+            $usuario_id = $request->id_usuario;
 
-        $usuario_id = $request->id_usuario;
+            // Actualizar datos básicos de la propiedad
+            $propiedad->update([
+                'id_calle'                    => $request->calle_id ?? null,
+                'numero_calle'                => $request->numero_calle ?? null,
+                'piso'                        => $request->piso ?? null,
+                'departamento'                => $request->departamento ?? null,
+                'ph'                          => $request->ph ?? null,
+                'id_inmueble'                 => $request->id_inmueble ?? null,
+                'id_zona'                     => $request->id_zona ?? null,
+                'id_provincia'                => $request->id_provincia ?? null,
+                'llave'                       => $request->llave ?? null,
+                'comentario_llave'            => $request->comentario_llave ?? null,
+                'cartel'                      => $request->cartel ?? null,
+                'comentario_cartel'           => $request->comentario_cartel ?? null,
+                // Actualizar campos de comodidades
+                'id_estado_general'           => $comodidades['estado_general'] ?? null,
+                'cantidad_dormitorios'        => $comodidades['dormitorios'] ?? null,
+                'banios'                      => $comodidades['banios'] ?? null,
+                'mLote'                       => $comodidades['lotes'] ?? null,
+                'mCubiertos'                  => $comodidades['lote_cubierto'] ?? null,
+                'cochera'                     => $comodidades['cochera'] ?? null,
+                'numero_cochera'              => $comodidades['numero_cochera'] ?? null,
+                'asfalto'                     => $comodidades['asfalto'] ?? null,
+                'gas'                         => $comodidades['gas'] ?? null,
+                'cloaca'                      => $comodidades['cloaca'] ?? null,
+                'agua'                        => $comodidades['agua'] ?? null,
+                // Actualizar descripción
+                'descipcion_propiedad'        => $descripcion['texto'] ?? null,
+                // Actualizar datos de venta
+                'asesor'                      => $venta['asesor_resultado'] ?? null,
+                'captador_int'                => $venta['captador_interno'] ?? null,
+                'cod_venta'                   => $venta['cod_venta'] ?? null,
+                'id_estado_venta'             => $venta['estado_venta'] ?? null,
+                'exclusividad_venta'          => $venta['exclusividad_venta'] ?? null,
+                'comparte_venta'              => $venta['comparte_venta'] ?? null,
+                'condicionado_venta'          => $venta['condicionado_venta'] ?? null,
+                'venta_fecha_alta'            => $venta['venta_fecha_alta'] ?? null,
+                'fecha_autorizacion_venta'    => $venta['fecha_autorizacion_venta'] ?? null,
+                'comentario_autorizacion'     => $venta['comentario_autorizacion'] ?? null,
+                'zona_prop'                   => $venta['zona_prop'] ?? null,
+                'flyer'                       => $venta['flyer'] ?? null,
+                'reel'                        => $venta['reel'] ?? null,
+                'web'                         => $venta['web'] ?? null,
+                'autorizacion_venta'          => $venta['autorizacion_venta'] ?? null,
+                // Actualizar datos de alquiler
+                'cod_alquiler'                => $alquiler['cod_alquiler'] ?? null,
+                'id_estado_alquiler'          => $alquiler['estado_alquiler'] ?? null,
+                'autorizacion_alquiler'       => $alquiler['autorizacion_alquiler'] ?? null,
+                'fecha_autorizacion_alquiler' => $alquiler['fecha_autorizacion_alquiler'] ?? null,
+                'exclusividad_alquiler'       => $alquiler['exclusividad_alquiler'] ?? null,
+                'clausula_de_venta'           => $alquiler['clausula_de_venta'] ?? null,
+                'tiempo_clausula'             => $alquiler['tiempo_clausula'] ?? null,
+                'alquiler_fecha_alta'         => $alquiler['alquiler_fecha_alta'] ?? null,
+                'mascota'                     => $alquiler['mascota'] ?? null,
+                // Condición de alquiler
+                'condicion'                   => $condicion_alquiler['condicion'] ?? null
+            ]);
 
-        $propiedad->update([
-            'id_calle'                    => $request->calle_id ?? null,
-            'numero_calle'                => $request->numero_calle ?? null,
-            'piso'                        => $request->piso ?? null,
-            'departamento'                => $request->departamento ?? null,
-            'ph'                          => $request->ph ?? null,
-            'id_inmueble'                 => $request->id_inmueble ?? null,
-            'id_zona'                     => $request->id_zona ?? null,
-            'id_provincia'                => $request->id_provincia ?? null,
-            'llave'                       => $request->llave ?? null,
-            'comentario_llave'            => $request->comentario_llave ?? null,
-            'cartel'                      => $request->cartel ?? null,
-            'comentario_cartel'           => $request->comentario_cartel ?? null,
-            // Actualizar campos de comodidades
-            'id_estado_general'           => $comodidades['estado_general'] ?? null,
-            'cantidad_dormitorios'        => $comodidades['dormitorios'] ?? null,
-            'banios'                      => $comodidades['banios'] ?? null,
-            'mLote'                       => $comodidades['lotes'] ?? null,
-            'mCubiertos'                  => $comodidades['lote_cubierto'] ?? null,
-            'cochera'                     => $comodidades['cochera'] ?? null,
-            'numero_cochera'              => $comodidades['numero_cochera'] ?? null,
-            'asfalto'                     => $comodidades['asfalto'] ?? null,
-            'gas'                         => $comodidades['gas'] ?? null,
-            'cloaca'                      => $comodidades['cloaca'] ?? null,
-            'agua'                        => $comodidades['agua'] ?? null,
-            //Actualizar compo descripcion
-            'descipcion_propiedad'        => $descripcion['texto'] ?? null,
-            //Actualizar campo de venta
-            'asesor'                      => $venta['asesor_resultado'] ?? null,
-            'captador_int'                => $venta['captador_interno'] ?? null,
-            'cod_venta'                   => $venta['cod_venta'] ?? null,
-            'id_estado_venta'             => $venta['estado_venta'] ?? null,
-            'exclusividad_venta'          => $venta['exclusividad_venta'] ?? null,
-            'comparte_venta'              => $venta['comparte_venta'] ?? null,
-            'condicionado_venta'          => $venta['condicionado_venta'] ?? null,
-            'venta_fecha_alta'            => $venta['venta_fecha_alta'] ?? null,
-            'fecha_autorizacion_venta'    => $venta['fecha_autorizacion_venta'] ?? null,
-            'comentario_autorizacion'     => $venta['comentario_autorizacion'] ?? null,
-            'zona_prop'                   => $venta['zona_prop'] ?? null,
-            'flyer'                       => $venta['flyer'] ?? null,
-            'reel'                        => $venta['reel'] ?? null,
-            'web'                         => $venta['web'] ?? null,
-            'autorizacion_venta'          => $venta['autorizacion_venta'] ?? null,
-            //Actualizar campo de alquiler
-            'cod_alquiler'                => $alquiler['cod_alquiler'] ?? null,
-            'id_estado_alquiler'          => $alquiler['estado_alquiler'] ?? null,
-            'autorizacion_alquiler'       => $alquiler['autorizacion_alquiler'] ?? null,
-            'fecha_autorizacion_alquiler' => $alquiler['fecha_autorizacion_alquiler'] ?? null,
-            'exclusividad_alquiler'       => $alquiler['exclusividad_alquiler'] ?? null,
-            'clausula_de_venta'           => $alquiler['clausula_de_venta'] ?? null,
-            'tiempo_clausula'             => $alquiler['tiempo_clausula'] ?? null,
-            'alquiler_fecha_alta'         => $alquiler['alquiler_fecha_alta'] ?? null,
-            'mascota'                     => $alquiler['mascota'] ?? null,
-            //Condicion alquiler
-            'condicion'                   => $condicion_alquiler['condicion'] ?? null
+            // Actualizar datos relacionados con servicios
+            (new TasacionService())->crearDesdeRequest($venta, $propiedad->id);
+            (new PrecioService())->crearDesdeRequest($venta, $alquiler, $propiedad->id);
 
-        ]);
+            // Manejar actualización de fotos
+            if ($request->has('fotos_modificadas')) {
+                $fotos_modificadas = $this->cleanArray(json_decode($request->fotos_modificadas, true));
+                (new PropiedadMediaService())->modificarFoto($fotos_modificadas);
+            }
+            if ($request->has('fotos_eliminadas')) {
+                $fotos_eliminadas = json_decode($request->fotos_eliminadas, true);
+                (new PropiedadMediaService())->eliminarFoto($fotos_eliminadas);
+            }
+            if ($request->has('fotos_nuevas_data')) {
+                (new PropiedadMediaService())->subirdesdeUpdate($request, $propiedad->id);
+            }
 
+            // Manejar actualización de documentos
+            if ($request->has('documentos_modificados')) {
+                $documentos_modificados = $this->cleanArray(json_decode($request->documentos_modificados, true));
+                (new PropiedadMediaService())->modificarDocumento($documentos_modificados);
+            }
+            if ($request->has('documentos_eliminados')) {
+                $documentos_eliminados = json_decode($request->documentos_eliminados, true);
+                (new PropiedadMediaService())->eliminarDocumento($documentos_eliminados);
+            }
+            if ($request->has('documentos_nuevos_data')) {
+                (new PropiedadMediaService())->subirdesdeUpdate($request, $propiedad->id);
+            }
 
-        (new TasacionService())->crearDesdeRequest($venta, $propiedad->id);
-        (new PrecioService())->crearDesdeRequest($venta, $alquiler, $propiedad->id);
+            // Manejar actualización de videos
+            if ($request->has('videos_nuevos_data')) {
+                (new PropiedadMediaService())->subirdesdeUpdate($request, $propiedad->id);
+            }
+            if ($request->has('videos_modificados')) {
+                $videos_modificados = $this->cleanArray(json_decode($request->videos_modificados, true));
+                (new PropiedadMediaService())->modificarVideo($videos_modificados);
+            }
+            if ($request->has('videos_eliminados')) {
+                $videos_eliminados = $this->cleanArray(json_decode($request->videos_eliminados));
+                (new PropiedadMediaService())->eliminarVideo($videos_eliminados);
+            }
 
-        if ($request->has('fotos_modificadas')) {
-            $fotos_modificadas = $this->cleanArray(json_decode($request->fotos_modificadas, true));
-            (new PropiedadMediaService())->modificarFoto($fotos_modificadas);
-        }
-        if ($request->has('fotos_eliminadas')) {
-            $fotos_eliminadas = json_decode($request->fotos_eliminadas, true);
-            (new PropiedadMediaService())->eliminarFoto($fotos_eliminadas);
-        }
-        if ($request->has('fotos_nuevas_data')) {
-            (new PropiedadMediaService())->subirdesdeUpdate($request, $propiedad->id);
-        }
-        if ($request->has('documentos_modificados')) {
-            $documentos_modificados = $this->cleanArray(json_decode($request->documentos_modificados, true));
-            (new PropiedadMediaService())->modificarDocumento($documentos_modificados);
-        }
-        if ($request->has('documentos_eliminados')) {
-            $documentos_eliminados = json_decode($request->documentos_eliminados, true);
-            (new PropiedadMediaService())->eliminarDocumento($documentos_eliminados);
-        }
-        if ($request->has('documentos_nuevos_data')) {
-            (new PropiedadMediaService())->subirdesdeUpdate($request, $propiedad->id);
-        }
-        if ($request->has('videos_nuevos_data')) {
-            (new PropiedadMediaService())->subirdesdeUpdate($request, $propiedad->id);
-        }
-        if ($request->has('videos_modificados')) {
-            $videos_modificados = $this->cleanArray(json_decode($request->videos_modificados, true));
-            (new PropiedadMediaService())->modificarVideo($videos_modificados);
-        }
-        if ($request->has('videos_eliminados')) {
-            $videos_eliminados = $this->cleanArray(json_decode($request->videos_eliminados));
-            (new PropiedadMediaService())->eliminarVideo($videos_eliminados);
-        }
-        if ($request->has('propietarios_eliminados')) {
-            $propietarios_eliminados = json_decode($request->propietarios_eliminados, true);
-            (new Propiedades_padronService())->eliminarPropietario($propiedad->id, $propietarios_eliminados);
-        }
-        if ($request->has('propietarios_nuevos')) {
-            $propietarios_nuevos = json_decode($request->propietarios_nuevos, true);
-            (new Propiedades_padronService())->vincularActualizacion($propiedad->id, $propietarios_nuevos);
-        }
-        if ($request->has('propietarios_modificados')) {
-            $propietarios_modificados = json_decode($request->propietarios_modificados, true);
-            (new Propiedades_padronService())->modificarPropietario($propiedad->id, $propietarios_modificados);
-        }
-        $this->propiedadService->guardarHistorialEstadosSerbive(
-            $propiedad->id,
-            $venta['estado_venta'] ?? null,
-            $alquiler['estado_alquiler'] ?? null,
-            $alquiler['descripcion_estado_alquiler'] ?? null,
-            $venta['descripcion_estado_venta'] ?? null,
-            $alquiler['fecha_baja_temporal_alquiler'] ?? null,
-            $venta['fecha_baja_temporal_venta'] ?? null,
-            $usuario_id
-        );
+            // Manejar actualización de propietarios
+            if ($request->has('propietarios_eliminados')) {
+                $propietarios_eliminados = json_decode($request->propietarios_eliminados, true);
+                (new Propiedades_padronService())->eliminarPropietario($propiedad->id, $propietarios_eliminados);
+            }
+            if ($request->has('propietarios_nuevos')) {
+                $propietarios_nuevos = json_decode($request->propietarios_nuevos, true);
+                (new Propiedades_padronService())->vincularActualizacion($propiedad->id, $propietarios_nuevos);
+            }
+            if ($request->has('propietarios_modificados')) {
+                $propietarios_modificados = json_decode($request->propietarios_modificados, true);
+                (new Propiedades_padronService())->modificarPropietario($propiedad->id, $propietarios_modificados);
+            }
 
-         $folios = [
+            // Guardar historial de estados
+            $this->propiedadService->guardarHistorialEstadosSerbive(
+                $propiedad->id,
+                $venta['estado_venta'] ?? null,
+                $alquiler['estado_alquiler'] ?? null,
+                $alquiler['descripcion_estado_alquiler'] ?? null,
+                $venta['descripcion_estado_venta'] ?? null,
+                $alquiler['fecha_baja_temporal_alquiler'] ?? null,
+                $venta['fecha_baja_temporal_venta'] ?? null,
+                $usuario_id
+            );
+
+            // Actualizar folios de empresas
+            $folios = [
                 1 => $alquiler['FCentral'] ?? null,
                 2 => $alquiler['FCandioti'] ?? null,
                 3 => $alquiler['FTribunales'] ?? null,
             ];
 
-            //dd('esto es un dd de folio', $folios);
-            $propiedadId = $propiedad->id;
-
             if ($alquiler['FCentral'] != '-' || $alquiler['FCandioti'] != '-' || $alquiler['FTribunales'] != '-') {
                 $this->empresaPropiedadService->actualizarFolioExistente(
-                    $propiedadId,
+                    $propiedad->id,
                     $folios
                 );
             }
 
-        return response()->json(['message' => 'Propiedad actualizada correctamente']);
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Propiedad actualizada correctamente'
+            ]);
 
         } catch (\Exception $e) {
-            Log::error("Error al actualizar propiedad: " . $e->getMessage());
+            DB::rollBack();
+
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => 'Error al actualizar la propiedad: ' . $e->getMessage()
             ], 500);
         }
     }
 
+    /**
+     * Descarga todas las fotos de una propiedad en un archivo ZIP
+     *
+     * Este método busca las fotos físicas en la red y las comprime
+     * en un archivo ZIP para su descarga.
+     *
+     * @param int $id ID de la propiedad
+     * @return \Illuminate\Http\StreamedResponse|\Illuminate\Http\JsonResponse Archivo ZIP o error
+     */
     public function descargarFotos($id)
     {
         try {
-            Log::info('Entrando a descargar fotos', ['propiedad_id' => $id]);
-
+            // Obtener fotos de la propiedad
             $fotos = Foto::where('propiedad_id', $id)->get();
 
             if ($fotos->isEmpty()) {
@@ -594,6 +596,7 @@ class PropiedadController
                 ], 404);
             }
 
+            // Obtener información de la propiedad para el nombre del archivo
             $propiedad = $this->propiedadService->obtenerPropiedadesPorId($id);
             $calle = Calle::find($propiedad->id_calle);
             $numero = $propiedad->numero_calle;
@@ -602,6 +605,7 @@ class PropiedadController
             $calleName = preg_replace('/[^a-zA-Z0-9\s]/', '', $calle->name);
             $zipFileName = trim($calleName) . '-' . $numero . '.zip';
 
+            // Crear y enviar el archivo ZIP
             return response()->streamDownload(function () use ($fotos, $calleName, $numero) {
                 $zip = new \ZipStream\ZipStream(
                     outputName: $calleName . '-' . $numero . '.zip',
@@ -622,30 +626,20 @@ class PropiedadController
                         $filesAdded++;
                     } else {
                         $filesNotFound++;
-                        Log::warning('Archivo no encontrado', ['path' => $filePath]);
                     }
                 }
 
                 if ($filesAdded > 0) {
-                    Log::info("ZIP creado exitosamente", [
-                        'archivos_agregados' => $filesAdded,
-                        'archivos_no_encontrados' => $filesNotFound
-                    ]);
                     $zip->finish();
                 } else {
-                    Log::warning('No se encontraron archivos físicos para comprimir');
                     echo "No se encontraron archivos físicos para comprimir.";
                 }
             }, $zipFileName, [
                 'Content-Type' => 'application/zip',
                 'Content-Disposition' => 'attachment; filename="' . $zipFileName . '"'
             ]);
-        } catch (\Exception $e) {
-            Log::error('Error al descargar fotos', [
-                'propiedad_id' => $id,
-                'error' => $e->getMessage()
-            ]);
 
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Error al procesar la descarga de fotos.'
@@ -654,20 +648,18 @@ class PropiedadController
     }
 
     /**
-     * Actualiza las observaciones de una propiedad, registrando una novedad
-     * ya sea para venta o alquiler según el formulario enviado.
+     * Actualiza las observaciones de una propiedad registrando una novedad
      *
-     * Inserta un registro en la tabla observaciones_propiedades dentro
-     * de una transacción para asegurar consistencia.
+     * Este método inserta un registro en la tabla observaciones_propiedades
+     * dentro de una transacción para asegurar consistencia de datos.
      *
-     * @param \Illuminate\Http\Request $request       Datos enviados por el formulario.
-     * @param string|int $propiedad_id                ID de la propiedad a actualizar.
-     *
-     * @return \Illuminate\Http\RedirectResponse
+     * @param Request $request Datos del formulario de observaciones
+     * @param string|int $propiedad_id ID de la propiedad a actualizar
+     * @return \Illuminate\Http\RedirectResponse Redirección con mensaje de éxito o error
      */
     public function update(Request $request, string $propiedad_id)
     {
-        DB::beginTransaction(); // Iniciar transacción
+        DB::beginTransaction();
 
         try {
             $formulario = $request->input('formulario');  // Obtener qué formulario se envió
@@ -688,37 +680,61 @@ class PropiedadController
                 'last_modified_by' => $usuario_id,
             ]);
 
-            DB::commit(); // Confirmar la transacción
+            DB::commit();
+
             return redirect()->back()->with('success', 'Novedad cargada correctamente.');
+
         } catch (\Exception $e) {
-            DB::rollBack(); // Revertir la transacción en caso de error
+            DB::rollBack();
+
             return redirect()->back()->with('error', 'Error al guardar la novedad.');
         }
     }
 
+    /**
+     * Guarda una nueva novedad/observación para una propiedad
+     *
+     * Este método crea un nuevo registro de observación en la base de datos
+     * con la información proporcionada desde el formulario.
+     *
+     * @param Request $request Datos de la novedad a guardar
+     * @return \Illuminate\Http\JsonResponse Respuesta JSON con el resultado
+     */
     public function guardarNovedad(Request $request)
     {
-        Log::info($request->all());
-        $novedad = Observaciones_propiedades::create([
-            'propiedad_id' => $request->propiedad_id,
-            'notes'        => $request->notes,
-            'tipo_ofera'   => $request->tipo_ofera,
-            'created_at'   => now(),
-            'last_modified_by' => $request->user_id
-        ]);
+        try {
+            $novedad = Observaciones_propiedades::create([
+                'propiedad_id' => $request->propiedad_id,
+                'notes'        => $request->notes,
+                'tipo_ofera'   => $request->tipo_ofera,
+                'created_at'   => now(),
+                'last_modified_by' => $request->user_id
+            ]);
 
-        return response()->json([
-            'success' => true,
-            'data'    => $novedad
-        ]);
+            return response()->json([
+                'success' => true,
+                'data'    => $novedad
+            ]);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al guardar la novedad: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
 
-    public function destroy(string $id)
-    {
-        //
-    }
-
+    /**
+     * Guarda un cambio en la sesión del usuario
+     *
+     * Este método almacena temporalmente valores en la sesión
+     * para mantener estado entre solicitudes.
+     *
+     * @param Request $request Contiene el campo y valor a guardar
+     * @return \Illuminate\Http\JsonResponse Respuesta JSON con el resultado
+     */
     public function guardarCambio(Request $request)
     {
         // Validar que el campo y el valor se han enviado correctamente
@@ -727,22 +743,18 @@ class PropiedadController
             'valor' => 'required|string',
         ]);
 
-        DB::beginTransaction(); // Iniciar transacción
-
         try {
             // Almacenar el cambio en la sesión
             session()->put($request->campo, $request->valor);
             session()->save();
 
-            DB::commit(); // Confirmar la "transacción"
-            // Responder con éxito
             return response()->json([
                 'status' => 'success',
                 'message' => 'Cambio guardado correctamente en la sesión.'
             ]);
+
         } catch (\Exception $e) {
-            DB::rollBack(); // Revertir cambios en caso de error
-            // Responder con error
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Ocurrió un error al guardar el cambio.'
@@ -751,36 +763,58 @@ class PropiedadController
     }
 
 
+    /**
+     * Busca propiedades según código, calle o sector
+     *
+     * Este método realiza una búsqueda simple de propiedades
+     * aplicando filtros básicos según los parámetros proporcionados.
+     *
+     * @param Request $request Parámetros de búsqueda (código, calle, sector)
+     * @return \Illuminate\Http\JsonResponse Lista de propiedades encontradas
+     */
     public function search(Request $request)
     {
-        $codigo = $request->query('codigo', '');
-        $calle  = $request->query('calle', '');
-        $sector = $request->query('sector_asesor', '');
+        try {
+            $codigo = $request->query('codigo', '');
+            $calle  = $request->query('calle', '');
+            $sector = $request->query('sector_asesor', '');
 
+            // Buscar propiedades usando el servicio
+            $props = $this->propiedadService->buscarPropiedades($codigo, $calle, $sector);
 
+            // Convertir a colección si no lo es
+            $props = collect($props);
 
-        $props = $this->propiedadService->buscarPropiedades($codigo, $calle, $sector);
+            // Aplicar filtros según el sector
+            if ($sector === 'venta') {
+                $props = $props->filter(function ($prop) {
+                    return !is_null($prop['cod_venta'] ?? null);
+                });
+            } elseif ($sector === 'alquiler') {
+                $props = $props->filter(function ($prop) {
+                    return !is_null($prop['cod_alquiler'] ?? null);
+                });
+            }
 
-        // Convertir a colección si no lo es
-        $props = collect($props);
+            return response()->json($props->values());
 
-        // Aplicar filtros según el sector
-        if ($sector === 'venta') {
-            $props = $props->filter(function ($prop) {
-                return !is_null($prop['cod_venta'] ?? null);
-            });
-        } elseif ($sector === 'alquiler') {
-            $props = $props->filter(function ($prop) {
-                return !is_null($prop['cod_alquiler'] ?? null);
-            });
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al realizar la búsqueda'
+            ], 500);
         }
-        return response()->json($props->values());
     }
-
-
-
-
-
+    /**
+     * Limpia un array o valor eliminando cadenas vacías y convirtiéndolas a null
+     *
+     * Este método recursivo limpia datos de formularios para asegurar que
+     * las cadenas vacías se almacenen como null en la base de datos.
+     *
+     * @param mixed $data Datos a limpiar (array o valor simple)
+     * @return mixed Datos limpios con cadenas vacías convertidas a null
+     */
     public function cleanArray($data)
     {
         if (!is_array($data)) {

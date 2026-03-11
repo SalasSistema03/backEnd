@@ -4,7 +4,7 @@ namespace App\Services\At_cl;
 
 use App\Models\At_cl\Precio;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class PrecioService
 {
@@ -24,7 +24,7 @@ class PrecioService
     /**
      * Crea un nuevo precio para una propiedad.
      *
-     * @param array $precioData  Datos validados del precio.
+     * @param array $precioData Datos validados del precio.
      * @return \App\Models\At_cl\Precio
      */
     public function crearPrecio(array $precioData)
@@ -44,30 +44,40 @@ class PrecioService
      */
     public function crearDesdeRequest(array $venta, array $alquiler, int $propiedadId): ?Precio
     {
-        //Log::info($venta, $alquiler, $propiedadId);
-        $precioData = $this->prepararDatosDesdeRequest($venta, $alquiler, $propiedadId);
+        try {
+            DB::beginTransaction();
 
-        if (empty($precioData)) {
-            return null;
+            $precioData = $this->prepararDatosDesdeRequest($venta, $alquiler, $propiedadId);
+
+            if (empty($precioData)) {
+                return null;
+            }
+
+            $precio = Precio::create($precioData);
+
+            DB::commit();
+            return $precio;
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw new \Exception('No se pudo crear el precio: ' . $e->getMessage());
         }
-
-        return Precio::create($precioData);
     }
 
     /**
      * Preparar array de datos para crear/actualizar precio
      *
-     * @param Request $request
+     * @param array $venta
+     * @param array $alquiler
      * @param int $propiedadId
      * @return array
      */
     private function prepararDatosDesdeRequest(array $venta, array $alquiler, int $propiedadId): array
     {
-         
         $precioData = ['propiedad_id' => $propiedadId];
         if ($venta !== null && !empty($venta)) {
             // Procesar datos de venta
-            if (isset($venta['moneda_venta']) && isset($venta['monto_venta']) && 
+            if (isset($venta['moneda_venta']) && isset($venta['monto_venta']) &&
                 $venta['moneda_venta'] !== null && $venta['monto_venta'] !== null) {
                 $precioData = array_merge($precioData, $this->procesarDatosVenta($venta));
             }
@@ -77,10 +87,10 @@ class PrecioService
             }
         }
 
-        log::info('estos son los datos de venta', $precioData);
+        //log::info('estos son los datos de venta', $precioData);
         if ($alquiler !== null && !empty($alquiler)) {
             // Procesar datos de alquiler
-            if (isset($alquiler['moneda_alquiler']) && isset($alquiler['monto_alquiler']) && 
+            if (isset($alquiler['moneda_alquiler']) && isset($alquiler['monto_alquiler']) &&
                 $alquiler['moneda_alquiler'] !== null && $alquiler['monto_alquiler'] !== null) {
                 $precioData = array_merge($precioData, $this->procesarDatosAlquiler($alquiler));
             }
@@ -89,9 +99,6 @@ class PrecioService
                 $precioData['alquiler_fecha_alta'] = now();
             }
         }
-        log::info('estos son los datos de alquiler', $precioData);
-
-
 
         return $precioData;
     }
@@ -99,7 +106,7 @@ class PrecioService
     /**
      * Procesar datos de venta según la moneda seleccionada
      *
-     * @param Request $request
+     * @param array $venta
      * @return array
      */
     private function procesarDatosVenta(array $venta): array
@@ -117,7 +124,7 @@ class PrecioService
     /**
      * Procesar datos de alquiler según la moneda seleccionada
      *
-     * @param Request $request
+     * @param array $alquiler
      * @return array
      */
     private function procesarDatosAlquiler(array $alquiler): array
