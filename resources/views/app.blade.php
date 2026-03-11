@@ -21,6 +21,7 @@
     ></script>
     <!-- Bootstrap Icons -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/dist/bootstrap-icons.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <!-- En tu index.html o layout principal -->
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap-submenu@3.0.1/dist/css/bootstrap-submenu.min.css"
@@ -29,8 +30,8 @@
     <!-- Custom CSS -->
     <!-- App -->
     <title>Salas</title>
-    <script type="module" crossorigin src="/assets/index-sZHOvx1D.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DUzN1EQT.css">
+    <script type="module" crossorigin src="/assets/index-D2cmOYrN.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-1nSwsFIx.css">
   </head>
   <body>
     <!-- App Container -->
