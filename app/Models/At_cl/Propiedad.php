@@ -512,4 +512,26 @@ class Propiedad extends Model
             $folio
         }
     } */
+
+    /**
+     * Relación con el modelo HistorialEstadosAlquiler.
+     * Una propiedad puede tener un historial de alquiler.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
+    public function historialEstadosAlquiler()
+    {
+        return $this->hasOne(HistorialEstadosAlquiler::class, 'id_propiedad');
+    }
+
+    /**
+     * Relación con el modelo HistorialEstadosVenta.
+     * Una propiedad puede tener un historial de venta.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
+    public function historialEstadosVenta()
+    {
+        return $this->hasOne(HistorialEstadosVenta::class, 'id_propiedad');
+    }
 }

@@ -220,12 +220,9 @@ class PropiedadService
         $descripcion_estado_alquiler,
         $descripcion_estado_venta,
         $fecha_baja_temporal_alquiler,
-        $fecha_baja_temporal_venta
+        $fecha_baja_temporal_venta,
+        $usuario_id
     ) {
-        // Usuario actual
-        $usuario = session('usuario');
-        $usuario_id = $usuario->id;
-
         // Últimos historiales (pueden ser null si nunca se guardó nada)
         $ultimo_historial_estado_venta = $this->obtenerUltimoHistorialEstadosVenta($id_propiedad);
         $ultimo_historial_estado_alquiler = $this->obtenerUltimoHistorialEstadosAlquiler($id_propiedad);

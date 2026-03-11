@@ -74,12 +74,27 @@ class EmpresaPropiedadService
             2 => 'Candioti',
             3 => 'Tribunales'
         ];
+
+
+        $registrosExistentes = Empresas_propiedades::where('propiedad_id', $propiedadId)->get();
+
+        $empresasAMantener = [];
+
         foreach ($folios as $empresaId => $folio) {
+            $empresaId = (int) $empresaId;
+
+
             if ($folio === null || $folio === '' || $folio === '-') {
+
+                $registroExistente = $registrosExistentes->where('empresa_id', $empresaId)->first();
+                if ($registroExistente) {
+                    $registroExistente->delete();
+                }
                 continue;
             }
 
-            $empresaId = (int) $empresaId;
+
+            $empresasAMantener[] = $empresaId;
 
             $registro = Empresas_propiedades::where('propiedad_id', $propiedadId)
                 ->where('empresa_id', $empresaId)
@@ -102,14 +117,20 @@ class EmpresaPropiedadService
 
             if ($registro) {
                 $registro->update(['folio' => $folio]);
-                continue;
+            } else {
+                Empresas_propiedades::create([
+                    'empresa_id' => $empresaId,
+                    'folio' => $folio,
+                    'propiedad_id' => $propiedadId,
+                ]);
             }
+        }
 
-            Empresas_propiedades::create([
-                'empresa_id' => $empresaId,
-                'folio' => $folio,
-                'propiedad_id' => $propiedadId,
-            ]);
+        // Delete any existing records that weren't in the new folios array
+        foreach ($registrosExistentes as $registroExistente) {
+            if (!in_array($registroExistente->empresa_id, $empresasAMantener)) {
+                $registroExistente->delete();
+            }
         }
     }
 

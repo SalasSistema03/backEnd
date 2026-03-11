@@ -1,5 +1,4 @@
-<div class="modal fade" id="exampleModalA" tabindex="-1" aria-labelledby="exampleModalLabel"
-    aria-hidden="true">
+<div class="modal fade" id="exampleModalA" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
@@ -15,14 +14,14 @@
                             value="{{ session('cod_alquiler', $propiedad->cod_alquiler) }}" id="cod_alquiler"
                             name="cod_alquiler" min="0">
                     </div>
-                     @php
+                    @php
                         $central = $empresaPropiedad->firstWhere('empresa_id', 1);
                     @endphp
 
                     <div class="col-md-2 px-1">
                         <label class="text-center">F.Central</label>
                         <input type="text" class="form-control text-center" name="FCentral"
-                            value="{{ $central ? $central->folio : '-' }}"  >
+                            value="{{ $central ? $central->folio : '-' }}">
                     </div>
 
                     @php
@@ -31,16 +30,16 @@
                     <div class="col-md-2 px-1">
                         <label class="text-center">F.Candioti</label>
                         <input type="text" class="form-control text-center" name="FCandioti"
-                            value="{{ $candioti ? $candioti->folio : '-' }}" >
+                            value="{{ $candioti ? $candioti->folio : '-' }}">
                     </div>
 
-                     @php
+                    @php
                         $tribunales = $empresaPropiedad->firstWhere('empresa_id', 3);
                     @endphp
                     <div class="col-md-2 px-1">
                         <label class="text-center">F.Tribunales</label>
                         <input type="text" class="form-control text-center" name="FTribunales"
-                            value="{{ $tribunales ? $tribunales->folio : '-' }}"  >
+                            value="{{ $tribunales ? $tribunales->folio : '-' }}">
                     </div>
                     <div class="col-md-4">
                         <label for="">Estado</label>
@@ -48,10 +47,10 @@
                             aria-label="Default select example" name="estado_alquiler" id="estado_alquiler">
                             <option value="">Seleccione una estado</option>
                             @foreach ($estado_alquileres as $estado_alq)
-                            <option value="{{ $estado_alq->id }}"
-                                {{ session('estado_alquiler', $propiedad->id_estado_alquiler) == $estado_alq->id ? 'selected' : '' }}>
-                                {{ $estado_alq->name }}
-                            </option>
+                                <option value="{{ $estado_alq->id }}"
+                                    {{ session('estado_alquiler', $propiedad->id_estado_alquiler) == $estado_alq->id ? 'selected' : '' }}>
+                                    {{ $estado_alq->name }}
+                                </option>
                             @endforeach
                         </select>
                     </div>
@@ -80,19 +79,18 @@
                         <select class="form-select @error('exclusividad_alquiler') is-invalid @enderror"
                             aria-label="Default select example" name="exclusividad_alquiler">
                             <option value="">-</option>
-                            <option
-                                value="SI" {{ session('exclusividad_alquiler', $propiedad->exclusividad_alquiler) == 'SI' ? 'selected' : '' }}>
+                            <option value="SI"
+                                {{ session('exclusividad_alquiler', $propiedad->exclusividad_alquiler) == 'SI' ? 'selected' : '' }}>
                                 SI</option>
-                            <option
-                                value="NO" {{ session('exclusividad_alquiler', $propiedad->exclusividad_alquiler) == 'NO' ? 'selected' : '' }}>
+                            <option value="NO"
+                                {{ session('exclusividad_alquiler', $propiedad->exclusividad_alquiler) == 'NO' ? 'selected' : '' }}>
                                 NO</option>
                         </select>
                     </div>
                     <div class="col-md-2">
                         <label class="text-center" id="basic-addon1">Autorizacion</label>
                         <select class="form-select @error('autorizacion_alquiler') is-invalid @enderror"
-                            aria-label="Default select example" name="autorizacion_alquiler"
-                            id="autorizacion_alquiler">
+                            aria-label="Default select example" name="autorizacion_alquiler" id="autorizacion_alquiler">
                             <option value="">-</option>
                             <option value="SI"
                                 {{ session('autorizacion_alquiler', $propiedad->autorizacion_alquiler) == 'SI' ? 'selected' : '' }}>
@@ -138,9 +136,15 @@
                             value="{{ session('alquiler_fecha_alta', $propiedad->alquiler_fecha_alta) }}"
                             name="alquiler_fecha_alta" id="alquiler_fecha_alta">
                     </div>
+                    <div class="col-md-2 ">
+                        <label class="text-center" id="basic-addon1">Fecha Pub.</label>
+                        <input type="date"
+                            class="form-control text-center @error('fecha_publicacion_ig') is-invalid @enderror"
+                            value="{{ session('fecha_publicacion_ig', $propiedad->fecha_publicacion_ig) }}"
+                            name="fecha_publicacion_ig" id="fecha_publicacion_ig">
+                    </div>
 
-
-                       <div class="col-md-8 d-none" id="descripcion_container_alquiler">
+                    <div class="col-md-8 d-none" id="descripcion_container_alquiler">
                         <label for="descripcion_alquiler" class="text-center" id="basic-addon1">Descripción</label>
                         <input type="text"
                             class="form-control @error('descripcion_estado_alquiler') is-invalid @enderror"
@@ -171,46 +175,47 @@
 
 
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-    const estadoSelect = document.getElementById("estado_alquiler");
-    const descripcionContainer = document.getElementById("descripcion_container_alquiler");
-    const bajaTemporalContainer = document.getElementById("baja_temporal_alquiler");
-    const descripcionInput = document.getElementById("descripcion_alquiler");
-    const bajaTemporalInput = document.getElementById("fecha_baja_temporal_alquiler");
-    function toggleDescripcion() {
-        if (!estadoSelect) return; // seguridad: si no existe el select, no hace nada
+    document.addEventListener("DOMContentLoaded", function() {
+        const estadoSelect = document.getElementById("estado_alquiler");
+        const descripcionContainer = document.getElementById("descripcion_container_alquiler");
+        const bajaTemporalContainer = document.getElementById("baja_temporal_alquiler");
+        const descripcionInput = document.getElementById("descripcion_alquiler");
+        const bajaTemporalInput = document.getElementById("fecha_baja_temporal_alquiler");
+
+        function toggleDescripcion() {
+            if (!estadoSelect) return; // seguridad: si no existe el select, no hace nada
 
 
-        const selectedOption = estadoSelect.options[estadoSelect.selectedIndex];
-        const selectedText = selectedOption ? selectedOption.text.trim().toUpperCase() : "";
+            const selectedOption = estadoSelect.options[estadoSelect.selectedIndex];
+            const selectedText = selectedOption ? selectedOption.text.trim().toUpperCase() : "";
 
-        const estadosValidos = ["BAJA", "RESET","BAJA TEMPORAL"];
+            const estadosValidos = ["BAJA", "RESET", "BAJA TEMPORAL"];
 
-        // Mostrar/ocultar descripción
-        if (estadosValidos.includes(selectedText)) {
-            if (descripcionContainer) descripcionContainer.classList.remove("d-none");
-        } else {
-            if (descripcionContainer) descripcionContainer.classList.add("d-none");
-            if (descripcionInput) descripcionInput.value = ""; // limpiar input
+            // Mostrar/ocultar descripción
+            if (estadosValidos.includes(selectedText)) {
+                if (descripcionContainer) descripcionContainer.classList.remove("d-none");
+            } else {
+                if (descripcionContainer) descripcionContainer.classList.add("d-none");
+                if (descripcionInput) descripcionInput.value = ""; // limpiar input
+            }
+
+            // Mostrar/ocultar baja temporal
+            if (selectedText === "BAJA TEMPORAL") {
+                if (bajaTemporalContainer) bajaTemporalContainer.style.display = "block";
+            } else {
+                if (bajaTemporalContainer) bajaTemporalContainer.style.display = "none";
+                if (bajaTemporalInput) bajaTemporalInput.value = ""; // limpiar input
+            }
         }
 
-        // Mostrar/ocultar baja temporal
-        if (selectedText === "BAJA TEMPORAL") {
-            if (bajaTemporalContainer) bajaTemporalContainer.style.display = "block";
-        } else {
-            if (bajaTemporalContainer) bajaTemporalContainer.style.display = "none";
-            if (bajaTemporalInput) bajaTemporalInput.value = ""; // limpiar input
+        // Ejecutar al cargar la página
+        toggleDescripcion();
+
+        // Ejecutar cada vez que cambie el select
+        if (estadoSelect) {
+
+            estadoSelect.addEventListener("change", toggleDescripcion);
+
         }
-    }
-
-    // Ejecutar al cargar la página
-    toggleDescripcion();
-
-    // Ejecutar cada vez que cambie el select
-    if (estadoSelect) {
-
-        estadoSelect.addEventListener("change", toggleDescripcion);
-
-    }
-});
+    });
 </script>
