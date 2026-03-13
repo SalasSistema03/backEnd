@@ -11,7 +11,7 @@ use App\Models\cliente\Usuario_sector;
 use App\Models\usuarios_y_permisos\Usuario;
 use App\Models\sys\Propiedades_sys;
 use App\Models\sys\Contratos_detalle_sys;
-
+use Illuminate\Support\Facades\Log;
 
 class Propiedad extends Model
 {
@@ -343,8 +343,9 @@ class Propiedad extends Model
         /* if (!empty($filtros['habitaciones'])) {
             $query->where('cantidad_dormitorios', $filtros['habitaciones']);
         } */
-        if (isset($filtros['cantidad_dormitorios']) && $filtros['cantidad_dormitorios'] !== '') {
-            $query->where('cantidad_dormitorios', $filtros['cantidad_dormitorios']);
+       //Log::info($filtros);
+        if (isset($filtros['habitaciones']) && $filtros['habitaciones'] !== '') {
+            $query->where('cantidad_dormitorios', $filtros['habitaciones']);
         }
 
         // Rango de precios
