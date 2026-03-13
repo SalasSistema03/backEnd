@@ -68,17 +68,18 @@ class UsuarioService
 
     public function getAsesor(){
         $usuarioAsesor = Usuario_sector::where('venta', 'S')->get('id_usuario');
-        
+
         foreach ($usuarioAsesor as $usuarioTot) {
             $username = Usuario::where('id', $usuarioTot->id_usuario)->value('username');
             $usuarioTot->username = $username;
         }
-        
+
         return $usuarioAsesor;
     }
 
     public function updateDatosGenerales(Request $request, $id_usuario)
     {
+        //Log::info('updateDatosGenerales', ['id_usuario' => $id_usuario, 'request' => $request->all()]);
         $usuario = Usuario::where('id', $id_usuario)->first();
 
         if (!$usuario) {

@@ -15,7 +15,12 @@ use App\Services\At_cl\TasacionService;
 use App\Services\At_cl\Propiedades_padronService;
 use App\Services\At_cl\FiltroPropiedadService;
 use App\Services\At_cl\PropiedadMediaService;
+use Illuminate\Support\Facades\Log;
 use App\Services\At_cl\EmpresaPropiedadService;
+use App\Services\contable\sellado\PermitirAccesoSelladoService;
+use App\Services\contable\sellado\RegistroSelladoService;
+
+
 
 /**
  * Controlador encargado de gestionar la búsqueda y CRUD completo de las propiedades,
@@ -40,7 +45,8 @@ class PropiedadController
     public function __construct(
         PropiedadService $propiedadService,
         Propiedades_padronService $propiedad_padronService,
-        EmpresaPropiedadService $empresaPropiedadService
+        EmpresaPropiedadService $empresaPropiedadService,
+        protected  RegistroSelladoService $registro_sellado,
     ) {
         // Inicializar servicios utilizados
         $this->propiedadService = $propiedadService;
@@ -367,9 +373,31 @@ class PropiedadController
                 return $value !== null;
             });
 
+
+            // 1. Obtener el ID del usuario autenticado vía JWT/Token
+            $usuario_id = auth('api')->id();
+
+            // 2. Instanciar el servicio de permisos localmente
+            $accessService = new PermitirAccesoSelladoService($usuario_id);
+            // 3. Recopilación de Permisos de Botones
+            $botones = [
+                'propietario' => $accessService->tieneAcceso('propietario'),
+                'informacion_venta' => $accessService->tieneAcceso('informacion_venta'),
+                'informacion_alquiler' => $accessService->tieneAcceso('informacion_alquiler'),
+                'modificar' => $accessService->tieneAcceso('modificar')
+            ];
+            //Log::info('despues del array de botones', $botones);
+           // $resultado = $this->registro_sellado->getRegistroSellado();
+
+            //Log::info('despues de resultado', $resultado);
             return response()->json([
                 'success' => true,
-                'data' => $propiedadFiltrada
+                'data' => $propiedadFiltrada,
+                'botones' => $botones
+                /* 'permisos' => [
+                    'botones' => $botones,
+                    'registro_sellado' => $resultado
+                ] */
             ]);
 
         } catch (\Exception $e) {
@@ -479,8 +507,11 @@ class PropiedadController
             (new PrecioService())->crearDesdeRequest($venta, $alquiler, $propiedad->id);
 
             // Manejar actualización de fotos
+            Log::info('fotos_modificadas', ['fotos_modificadas' => $request->fotos_modificadas]);
             if ($request->has('fotos_modificadas')) {
+
                 $fotos_modificadas = $this->cleanArray(json_decode($request->fotos_modificadas, true));
+                Log::info('fotos_modificadas_clean', ['fotos_modificadas' => $fotos_modificadas]);
                 (new PropiedadMediaService())->modificarFoto($fotos_modificadas);
             }
             if ($request->has('fotos_eliminadas')) {

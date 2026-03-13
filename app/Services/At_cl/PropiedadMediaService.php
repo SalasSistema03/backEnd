@@ -8,6 +8,7 @@ use App\Models\At_cl\Documentacion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Servicio de gestión de archivos multimedia asociados a propiedades
@@ -194,6 +195,7 @@ class PropiedadMediaService
         try {
             DB::beginTransaction();
 
+            //Log::info('modificarFoto', ['fotos_modificadas' => $fotos_modificadas]);
             foreach ($fotos_modificadas as $foto) {
                 $fotoModel = Foto::find($foto['id']);
                 if ($fotoModel) {

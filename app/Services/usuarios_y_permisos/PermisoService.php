@@ -11,9 +11,7 @@ use App\Models\usuarios_y_permisos\Botones;
 use App\Models\agenda\Sectores;
 use App\Models\agenda\Agenda;
 use App\Services\agenda\AgendaService;
-
-
-
+use Illuminate\Support\Facades\Log;
 
 class PermisoService
 {
@@ -112,7 +110,7 @@ class PermisoService
         $vistasPorMenu = Vista::select('id', 'Seccion', 'nombre_visual', 'menu_id')
             ->get()
             ->groupBy('menu_id');
-            
+
         // Obtener todos los botones agrupados por vista_id (no menu_id)
         $botonesPorVista = Botones::select('id','nombre_visual','vista_id')->get()->groupBy('vista_id');
 
@@ -123,15 +121,15 @@ class PermisoService
 
         foreach ($navs as $nav) {
             $vistasConBotones = [];
-            
+
             // Obtener las vistas de este menú
             $vistas = $vistasPorMenu->get($nav->id, []);
-            
+
             foreach ($vistas as $vista) {
                 // Agregar botones relacionados a cada vista
                 $vistaConBotones = $vista->toArray();
                 $vistaConBotones['botones'] = $botonesPorVista->get($vista->id, []);
-                
+
                 $vistasConBotones[] = $vistaConBotones;
 
             }
@@ -189,7 +187,7 @@ class PermisoService
         [$permisosRecibidos, $sectoresRecibidos] = $this->separarPermisosYSectores($permisos);
 
         $this->sincronizarPermisosUsuario($permisosRecibidos, $usuario_id);
-        
+
         if (!empty($sectoresRecibidos)) {
             (new AgendaService())->sincronizarSectores($sectoresRecibidos, $usuario_id);
         }
@@ -206,8 +204,8 @@ class PermisoService
             }
 
             $permisosRecibidos[] = [
-                $permiso[0] ?? null, 
-                $permiso[1] ?? null, 
+                $permiso[0] ?? null,
+                $permiso[1] ?? null,
                 $permiso[2] ?? null
             ];
 
@@ -228,6 +226,7 @@ class PermisoService
         $permisosActuales = $this->obtenerPermisosActuales($usuario_id);
 
         // Eliminar permisos obsoletos
+        //Log::info('esto son los eliminarpermisos obsoletos', ['permisosActuales' => $permisosActuales, 'permisosNuevos' => $permisosNuevos]);
         $this->eliminarPermisosObsoletos($permisosActuales, $permisosNuevos, $usuario_id);
 
         // Agregar nuevos permisos
@@ -243,11 +242,8 @@ class PermisoService
             ->toArray();
     }
 
-    private function eliminarPermisosObsoletos(
-        array $permisosActuales, 
-        array $permisosNuevos, 
-        int $usuario_id
-    ): void {
+    private function eliminarPermisosObsoletos(array $permisosActuales,  array $permisosNuevos,  int $usuario_id): void
+    {
         $permisosAEliminar = array_diff(
             array_map('json_encode', $permisosActuales),
             array_map('json_encode', $permisosNuevos)
@@ -267,8 +263,8 @@ class PermisoService
     }
 
     private function agregarPermisosNuevos(
-        array $permisosActuales, 
-        array $permisosNuevos, 
+        array $permisosActuales,
+        array $permisosNuevos,
         int $usuario_id
     ): void {
         $permisosAAgregar = array_diff(
@@ -295,4 +291,6 @@ class PermisoService
         // Inserción masiva más eficiente
         Permiso::insert($datosInsertar);
     }
+
+
 }
