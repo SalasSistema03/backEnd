@@ -190,6 +190,40 @@ class PropiedadService
         });
     }
 
+    public function buscarPropiedadesVenta(string $codigo = '', string $calle = ''){
+         $props = Propiedad::with(['calle', 'barrio', 'zona', 'tipoInmueble'])
+            ->when(
+                $codigo,
+                fn($q) => $q
+                    ->where('cod_venta', $codigo)
+            )
+            ->when($calle, function ($q) use ($calle) {
+                $q->whereHas(
+                    'calle',
+                    fn($query) =>
+                    $query->where('name', 'like', "%{$calle}%")
+                )
+                    ->orWhere('numero_calle', 'like', "%{$calle}%");
+            })
+            ->get();
+
+        return $props->map(function ($prop) {
+            $data = $prop->toArray();
+            $data['calle'] = isset($prop->calle->name)
+                ? $prop->calle->name . ' ' . $prop->numero_calle
+                : $prop->numero_calle;
+            $data['barrio'] = $prop->barrio->name ?? null;
+            $data['zona'] = $prop->zona->name ?? null;
+            $data['inmueble'] = $prop->tipoInmueble->inmueble ?? null;
+
+
+            $data['id_zona'] = $prop->id_zona;
+
+            unset($data['id_calle'], $data['id_barrio']);
+            return $data;
+        });
+    }
+
     /**
      * Obtiene una propiedad por ID sin relaciones.
      *
@@ -346,4 +380,6 @@ class PropiedadService
             throw new \Exception('No se pudo crear la propiedad: ' . $e->getMessage());
         }
     }
+
+
 }

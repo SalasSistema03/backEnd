@@ -19,6 +19,7 @@ use App\Http\Controllers\At_cl\PropiedadController;
 use App\Services\At_cl\PadronService;
 use App\Http\Controllers\At_cl\PadronController;
 use App\Http\Controllers\At_cl\Exportar_PDF_atcl\Pdf_alquiler;
+use App\Http\Controllers\clientes\ClientesController;
 
 Route::prefix('v1')->group(function () {
 
@@ -79,6 +80,7 @@ Route::prefix('v1')->group(function () {
         Route::get('asesor', [UsuariosController::class, 'getAsesor']);
         Route::get('estado-alquiler', [EstadoAlquilerController::class, 'getEstadoAlquiler']);
         Route::post('propiedad/guardar/{id}', [PropiedadController::class, 'guardarPropiedad']);
+        Route::get('propiedades/buscar-venta', [PropiedadController::class, 'buscarPropiedadesVenta']);
         Route::get('padron/buscar', [PadronService::class, 'BuscarPadron']);
         Route::post('padron/cargar', [PadronController::class, 'CargarPadron']);
 
@@ -102,6 +104,10 @@ Route::prefix('v1')->group(function () {
         Route::post('sellado/guardar', [SelladoController::class, 'guardarSelladoController']);
         Route::delete('sellado/eliminar', [SelladoController::class, 'eliminarRegistroSelladoController']);
 
+
+        //clientes
+        Route::post('/clientes/guardar', [ClientesController::class, 'guardar']);
+        Route::get('cliente/{telefono?}', [ClientesController::class, 'clientePorTelefono']);
 
     }); // <--- Aquí cierra el middleware
 });

@@ -2,7 +2,7 @@
 
 namespace App\Models\cliente;
 
-use App\Models\At_cl\Usuario;
+use App\Models\usuarios_y_permisos\Usuario;
 use Illuminate\Database\Eloquent\Model;
 
 class Usuario_sector extends Model

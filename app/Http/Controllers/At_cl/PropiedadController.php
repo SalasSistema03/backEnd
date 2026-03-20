@@ -837,6 +837,31 @@ class PropiedadController
             ], 500);
         }
     }
+
+    /**
+     * Busca propiedades de venta por código o calle
+     */
+    public function buscarPropiedadesVenta(Request $request)
+    {
+        Log::info('Buscando propiedades de venta', $request->all());
+        try {
+            $codigo = $request->get('codigo', '');
+            $calle = $request->get('calle', '');
+
+            $propiedades = $this->propiedadService->buscarPropiedadesVenta($codigo, $calle);
+
+            return response()->json([
+                'success' => true,
+                'data' => $propiedades
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al buscar propiedades: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     /**
      * Limpia un array o valor eliminando cadenas vacías y convirtiéndolas a null
      *
@@ -862,4 +887,6 @@ class PropiedadController
         }
         return $cleaned;
     }
+
+
 }
