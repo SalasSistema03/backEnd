@@ -19,6 +19,8 @@ use App\Models\cliente\HistorialCodOfrecimiento;
 use App\Models\cliente\HistorialCodigoConsulta;
 use App\Services\At_cl\PropiedadService;
 
+use function Pest\Laravel\json;
+
 class AsesoresController
 {
     public $propiedadService;
@@ -30,37 +32,116 @@ class AsesoresController
     public function __construct(PropiedadService $propiedadService)
     {
         $this->usuario_id = session('usuario_id'); // Obtener el id del usuario actual desde la sesión
-        $this->usuario = Usuario::find($this->usuario_id);
+        //$this->usuario = Usuario::find($this->usuario_id);
         $this->propiedadService = $propiedadService;
         $this->accessService = new PermitirAccesoPropiedadService($this->usuario_id);
     }
 
-    public function index()
-    {
-        $vistaNombre = 'asesores';
 
+    public function Asesores()
+    {
+        $id_usuario = auth('api')->id();
+
+        try {
+            $clientesOrdenados = DB::connection('mysql5')
+                ->table('clientes as c')
+                ->leftJoin('criterio_busqueda_venta as cbv', 'c.id_cliente', '=', 'cbv.id_cliente')
+                ->where('c.id_asesor_venta', $id_usuario)
+                ->selectRaw('c.id_cliente')
+                ->groupBy('c.id_cliente')
+
+
+                ->orderByRaw('
+        CASE
+            WHEN MAX(CASE WHEN cbv.estado_criterio_venta = "Activo" THEN 1 ELSE 0 END) = 1 THEN 1
+            WHEN MAX(CASE WHEN cbv.estado_criterio_venta = "Finalizado" THEN 1 ELSE 0 END) = 1 THEN 2
+            ELSE 3
+        END
+    ')
+
+
+                ->orderByRaw('
+        MIN(
+            CASE
+                WHEN cbv.estado_criterio_venta = "Activo" THEN
+                    CASE
+                        WHEN cbv.id_categoria IS NULL THEN 1
+                        WHEN cbv.id_categoria = "Potable" THEN 2
+                        WHEN cbv.id_categoria = "Medio" THEN 3
+                        WHEN cbv.id_categoria = "No Potable" THEN 4
+                        ELSE 5
+                    END
+            END
+        )
+    ')
+
+
+                ->orderByRaw('
+        MAX(
+            CASE
+                WHEN cbv.estado_criterio_venta = "Activo" THEN cbv.fecha_criterio_venta
+                WHEN cbv.estado_criterio_venta = "Finalizado" THEN cbv.fecha_criterio_venta
+                ELSE cbv.fecha_criterio_venta
+            END
+        ) DESC
+    ')
+                ->pluck('id_cliente');
+
+
+
+            $clientes = \App\Models\cliente\clientes::with(['criteriosOrdenados.tipoInmueble'])
+                ->whereIn('id_cliente', $clientesOrdenados)
+                ->get()
+                ->sortBy(function ($cliente) use ($clientesOrdenados) {
+                    return $clientesOrdenados->search($cliente->id_cliente);
+                })
+                ->values();
+
+
+
+            if ($clientes->isEmpty()) {
+                return response()->json([
+                    'error' => 'No se encontraron clientes'
+                ], 404);
+            }
+
+            return response()->json([
+                'clientes' => $clientes
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    public function Asesoress()
+    {
+        /* $vistaNombre = 'asesores';
+ */
         // Verificar permisos (mantener lógica original)
-        $permisoService = new PermitirAccesoPropiedadService($this->usuario->id);
+        /*  $permisoService = new PermitirAccesoPropiedadService($this->usuario->id);
         if (!$permisoService->tieneAccesoAVista($vistaNombre)) {
             return redirect()->route('home')->with('error', 'No tienes acceso a esta vista.');
-        }
+        } */
 
         $usuario_id = session()->get('usuario_id');
         $usuario = session('usuario');
         $usuario_nombre = $usuario ? $usuario->username : null;
 
         // OPTIMIZACIÓN 1: Verificar sector una sola vez
-        $usuario_sector = Usuario_sector::where('id_usuario', $usuario_id)->first();
+        /* $usuario_sector = Usuario_sector::where('id_usuario', $usuario_id)->first();
         if (!$usuario_sector) {
             return redirect()->route('home')->with('error', 'Acceso denegado.');
-        }
+        } */
+
+        $id_usuario = auth('api')->id();
 
         try {
             // OPTIMIZACIÓN 2A: Consulta principal sin tipo_inmueble (diferentes conexiones)
             $clientesConCriterios = DB::connection('mysql5')
                 ->table('clientes as c')
                 ->leftJoin('criterio_busqueda_venta as cbv', 'c.id_cliente', '=', 'cbv.id_cliente')
-                ->where('c.id_asesor_venta', $usuario_sector->id_usuario)
+                ->where('c.id_asesor_venta', $id_usuario)
                 ->select([
                     'c.*',
                     'cbv.id_criterio_venta',
@@ -68,8 +149,8 @@ class AsesoresController
                     'cbv.estado_criterio_venta',
                     'cbv.id_categoria',
                     'cbv.id_tipo_inmueble',
-                    'cbv.id_zona', // Asegúrate de incluir este campo
-                    'cbv.cant_dormitorios', // Añade esta línea
+                    'cbv.id_zona',
+                    'cbv.cant_dormitorios',
                     'cbv.cochera',
                     'cbv.observaciones_criterio_venta',
                     'cbv.precio_hasta',
@@ -87,7 +168,8 @@ class AsesoresController
                 ->keyBy('id');
 
             if ($clientesConCriterios->isEmpty()) {
-                return redirect()->route('home')->with('error', 'No se encontraron clientes asignados al sector del usuario.');
+                /* return redirect()->route('home')->with('error', 'No se encontraron clientes asignados al sector del usuario.'); */
+                return response()->json(['error' => 'No se encontraron clientes asignados al sector del usuario.'], 404);
             }
 
             // OPTIMIZACIÓN 3: Procesamiento en memoria en lugar de múltiples consultas
@@ -100,7 +182,6 @@ class AsesoresController
 
             foreach ($clientesAgrupados as $id_cliente => $registros) {
                 $primerRegistro = $registros->first();
-
                 // Crear objeto cliente
                 $cliente = (object) [
                     'id_cliente' => $primerRegistro->id_cliente,
@@ -235,7 +316,19 @@ class AsesoresController
             return redirect()->route('home')->with('error', 'Error al obtener los clientes: ' . $e->getMessage());
         }
 
-        return view('clientes.gestionasesores.asesores', compact(
+        return response()->json([
+            'clientes' => $clientes,
+            'criterios_venta' => $criterios_venta,
+            'tipo_inmueble' => $tipo_inmueble,
+            'conversaciones' => $conversaciones,
+            'agenda' => $agenda,
+            'usuario_nombre' => $usuario_nombre,
+            'criterios_mas_antiguos_por_cliente' => $criterios_mas_antiguos_por_cliente,
+            'zona' => $zona,
+            'clientes_ordenados' => $clientes_ordenados,
+            'faltaDevolucion' => $faltaDevolucion,
+        ]);
+        /* return view('clientes.gestionasesores.asesores', compact(
             'clientes',
             'criterios_venta',
             'tipo_inmueble',
@@ -246,7 +339,7 @@ class AsesoresController
             'zona',
             'clientes_ordenados',
             'faltaDevolucion',
-        ));
+        )); */
     }
     public function create() {}
 
@@ -262,7 +355,7 @@ class AsesoresController
 
     public function enviarMensaje(Request $request)
     {
-      
+
         DB::beginTransaction();
         try {
             // Validamos los datos que vienen del formulario

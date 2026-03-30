@@ -37,8 +37,8 @@ class clientes extends Model
     public function consulta_prop_venta()
     {
         return $this->hasMany(ConsultaPropVenta::class, 'id_cliente')
-                        ->orderByDesc('fecha_consulta_propiedad') // primero la fecha más reciente
-                ->orderBy('estado_consulta_venta', 'desc'); // después "Activo" > "Inactivo;
+            ->orderByDesc('fecha_consulta_propiedad') // primero la fecha más reciente
+            ->orderBy('estado_consulta_venta', 'desc'); // después "Activo" > "Inactivo;
     }
 
     public function consulta_prop_alquiler()
@@ -66,5 +66,27 @@ class clientes extends Model
         return $this->belongsTo(Usuario_sector::class, 'id_asesor_alquiler', 'id_usuario');
     }
 
-    
+    public function criteriosOrdenados()
+{
+    return $this->hasMany(CriterioBusquedaVenta::class, 'id_cliente')
+        ->orderByRaw("
+            CASE estado_criterio_venta
+                WHEN 'Activo' THEN 1
+                WHEN 'Finalizado' THEN 2
+                WHEN 'Inactivo' THEN 3
+                ELSE 4
+            END
+        ")
+        ->orderByRaw("
+            CASE
+                WHEN id_categoria IS NULL THEN 1
+                WHEN id_categoria = 'Potable' THEN 2
+                WHEN id_categoria = 'Medio' THEN 3
+                WHEN id_categoria = 'No Potable' THEN 4
+                ELSE 5
+            END
+        ")
+        ->orderByDesc('fecha_criterio_venta');
+}
+
 }

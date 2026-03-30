@@ -20,6 +20,8 @@ use App\Services\At_cl\PadronService;
 use App\Http\Controllers\At_cl\PadronController;
 use App\Http\Controllers\At_cl\Exportar_PDF_atcl\Pdf_alquiler;
 use App\Http\Controllers\clientes\ClientesController;
+use App\Services\clientes\Permisos;
+use App\Http\Controllers\clientes\AsesoresController;
 
 Route::prefix('v1')->group(function () {
 
@@ -108,6 +110,11 @@ Route::prefix('v1')->group(function () {
         //clientes
         Route::post('/clientes/guardar', [ClientesController::class, 'guardar']);
         Route::get('cliente/{telefono?}', [ClientesController::class, 'clientePorTelefono']);
+        Route::get('/tieneAcceso/{usuarioId}/{botonNombre}', [SelladoController::class, 'tieneAccesoUsuario']);
+        Route::get('/verificaPermisoAsesor/{botonNombre}', [Permisos::class, 'verificarAccesoBotones_Elementos']);
+
+        //Asesores
+        Route::get('/asesores', [AsesoresController::class, 'Asesores']);
 
     }); // <--- Aquí cierra el middleware
 });

@@ -66,7 +66,7 @@ class ClientesController extends Controller
         $this->recordatorioController = $recordatorioController;
     }
 
-    public function index()
+   /*  public function index()
     {
         $usuario = $this->usuario;
 
@@ -88,7 +88,7 @@ class ClientesController extends Controller
         $zonas = $this->zonaService->getAllZonas();
         $usuarioSectors = $this->usuarioSectorService->getAllUsuarioSector();
         return view('clientes.cargcarCliente.index', compact('tipoInmuebles', 'zonas', 'usuarioSectors', 'resultadoPermisoBoton', 'usuario'));
-    }
+    } */
 
     /**
      * Guarda un nuevo cliente y sus criterios asociados

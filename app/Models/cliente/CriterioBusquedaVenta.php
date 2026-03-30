@@ -49,4 +49,5 @@ class CriterioBusquedaVenta extends Model
     {
         return $this->belongsTo(clientes::class, 'id_cliente', 'id_cliente');
     }
+
 }
