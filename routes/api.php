@@ -115,6 +115,12 @@ Route::prefix('v1')->group(function () {
 
         //Asesores
         Route::get('/asesores', [AsesoresController::class, 'Asesores']);
+        Route::put('/clientes/modificar-criterio', [AsesoresController::class, 'modificarCriterio']);
+        Route::put('/clientes/modificar-datos-personales', [AsesoresController::class, 'modificarDatosPersonales']);
+        Route::post('/historialCodOfrecimiento', [AsesoresController::class, 'guardarHistorialCodOfrecimiento']);
+        Route::post('/asesores/enviar-mensaje', [AsesoresController::class, 'enviarMensaje']);
+        Route::put('/clientes/devolver-mensaje', [AsesoresController::class, 'devolverMensaje']);
+        Route::get('/historialCodOfrecimiento/{id}', [AsesoresController::class, 'obtenerHistorialCod']);
 
     }); // <--- Aquí cierra el middleware
 });

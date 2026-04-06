@@ -847,8 +847,11 @@ class PropiedadController
         try {
             $codigo = $request->get('codigo', '');
             $calle = $request->get('calle', '');
+            $dormitorios = $request->get('dorm') ? (int)$request->get('dorm') : null;
+            $banios = $request->get('baños') ? (int)$request->get('baños') : null;
+            $cochera = $request->get('cochera', '');
 
-            $propiedades = $this->propiedadService->buscarPropiedadesVenta($codigo, $calle);
+            $propiedades = $this->propiedadService->buscarPropiedadesVenta($codigo, $calle, $dormitorios, $banios, $cochera);
 
             return response()->json([
                 'success' => true,

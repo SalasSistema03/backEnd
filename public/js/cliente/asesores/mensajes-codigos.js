@@ -44,7 +44,7 @@ async function mostrarEstado(estado) {
 
         tipoInmuebleElementConversacion.textContent = textoConversacion;
         tipoInmuebleElementConversacion.style.display = 'inline-block';
-        
+
 
         // Ocultar textos por defecto
         if (criterioDefaultConversacion) criterioDefaultConversacion.style.display = 'none';
@@ -154,7 +154,7 @@ async function mostrarEstado(estado) {
     })
         .then(response => response.json())
         .then(data => {
-            console.log(data);
+           /*  console.log(data); */
             const codigosList = document.getElementById('codigo-list');
             if (codigosList) {
                 codigosList.innerHTML = '';
@@ -164,7 +164,7 @@ async function mostrarEstado(estado) {
                     newItem.classList.add('list-group-item', 'codigo-item');
                     newItem.setAttribute('data-codigo', codigo.codigo);
                     newItem.setAttribute('data-mensaje-id', codigo.fecha_hora); // CAMBIADO: usar codigo.fecha_hora en lugar de codigo.mensaje_id
-                    
+
 
                     //console.log('CODIGOS', codigo);
                     if (codigo.codigo_ofrecimiento) {
@@ -184,7 +184,7 @@ async function mostrarEstado(estado) {
                         <div class="col-12">${codigo.codigo_consulta} ${codigo.devolucion != null ? '<span class="ms-2 check-codigos-asesores">✓</span>' : ''}</div>
                         <div class="col-12 direccion-codigo">${codigo.direccion}</div>
                         </div>`;
-                        
+
                         newItem.innerHTML = contenido;
                     }
                     codigosList.appendChild(newItem);

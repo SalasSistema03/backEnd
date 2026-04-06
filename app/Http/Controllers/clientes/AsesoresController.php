@@ -18,6 +18,7 @@ use App\Services\At_cl\PermitirAccesoPropiedadService;
 use App\Models\cliente\HistorialCodOfrecimiento;
 use App\Models\cliente\HistorialCodigoConsulta;
 use App\Services\At_cl\PropiedadService;
+use Illuminate\Support\Facades\Log;
 
 use function Pest\Laravel\json;
 
@@ -52,44 +53,47 @@ class AsesoresController
 
 
                 ->orderByRaw('
-        CASE
-            WHEN MAX(CASE WHEN cbv.estado_criterio_venta = "Activo" THEN 1 ELSE 0 END) = 1 THEN 1
-            WHEN MAX(CASE WHEN cbv.estado_criterio_venta = "Finalizado" THEN 1 ELSE 0 END) = 1 THEN 2
-            ELSE 3
-        END
-    ')
-
-
+                                CASE
+                                    WHEN MAX(CASE WHEN cbv.estado_criterio_venta = "Activo" THEN 1 ELSE 0 END) = 1 THEN 1
+                                    WHEN MAX(CASE WHEN cbv.estado_criterio_venta = "Finalizado" THEN 1 ELSE 0 END) = 1 THEN 2
+                                    ELSE 3
+                                END
+                            ')
                 ->orderByRaw('
-        MIN(
-            CASE
-                WHEN cbv.estado_criterio_venta = "Activo" THEN
-                    CASE
-                        WHEN cbv.id_categoria IS NULL THEN 1
-                        WHEN cbv.id_categoria = "Potable" THEN 2
-                        WHEN cbv.id_categoria = "Medio" THEN 3
-                        WHEN cbv.id_categoria = "No Potable" THEN 4
-                        ELSE 5
-                    END
-            END
-        )
-    ')
-
-
+                                MIN(
+                                    CASE
+                                        WHEN cbv.estado_criterio_venta = "Activo" THEN
+                                            CASE
+                                                WHEN cbv.id_categoria IS NULL THEN 1
+                                                WHEN cbv.id_categoria = "Potable" THEN 2
+                                                WHEN cbv.id_categoria = "Medio" THEN 3
+                                                WHEN cbv.id_categoria = "No Potable" THEN 4
+                                                ELSE 5
+                                            END
+                                    END
+                                )
+                            ')
                 ->orderByRaw('
-        MAX(
-            CASE
-                WHEN cbv.estado_criterio_venta = "Activo" THEN cbv.fecha_criterio_venta
-                WHEN cbv.estado_criterio_venta = "Finalizado" THEN cbv.fecha_criterio_venta
-                ELSE cbv.fecha_criterio_venta
-            END
-        ) DESC
-    ')
+                                MAX(
+                                    CASE
+                                        WHEN cbv.estado_criterio_venta = "Activo" THEN cbv.fecha_criterio_venta
+                                        WHEN cbv.estado_criterio_venta = "Finalizado" THEN cbv.fecha_criterio_venta
+                                        ELSE cbv.fecha_criterio_venta
+                                    END
+                                ) DESC
+                            ')
                 ->pluck('id_cliente');
 
 
 
-            $clientes = \App\Models\cliente\clientes::with(['criteriosOrdenados.tipoInmueble'])
+            $clientes = \App\Models\cliente\clientes::with([
+                'criteriosOrdenados.zona',
+                'criteriosOrdenados.tipoInmueble',
+                'criteriosOrdenados.historialMuestras',
+                'criteriosOrdenados.historialOfrecimientos',
+                'criteriosOrdenados.historialConsultas',
+                'criteriosOrdenados.historialConversaciones',
+            ])
                 ->whereIn('id_cliente', $clientesOrdenados)
                 ->get()
                 ->sortBy(function ($cliente) use ($clientesOrdenados) {
@@ -114,10 +118,11 @@ class AsesoresController
             ], 500);
         }
     }
+    //DEPRECATED
     public function Asesoress()
     {
         /* $vistaNombre = 'asesores';
- */
+        */
         // Verificar permisos (mantener lógica original)
         /*  $permisoService = new PermitirAccesoPropiedadService($this->usuario->id);
         if (!$permisoService->tieneAccesoAVista($vistaNombre)) {
@@ -355,11 +360,14 @@ class AsesoresController
 
     public function enviarMensaje(Request $request)
     {
+        /*  Log::info('enviarMensaje', ['request' => $request->all()]);
+        dd('enviarMensaje'); */
 
         DB::beginTransaction();
         try {
+            $idUsuario = auth('api')->id();
             // Validamos los datos que vienen del formulario
-            $request->validate(
+            /*  $request->validate(
                 [
                     'id_criterio_venta' => 'required',
                     'mensaje' => 'required',
@@ -370,18 +378,18 @@ class AsesoresController
                     'mensaje.required' => 'El mensaje es requerido.',
                     'fecha_hora.required' => 'La fecha y hora es requerida.',
                 ]
-            );
+            ); */
             // Creamos el historial de conversación
             $historial_creado = HistorialCriteriosConversacion::create([
                 'id_criterio_venta' => $request->id_criterio_venta,
                 'mensaje' => $request->mensaje,
-                'fecha_hora' => $request->fecha_hora,
-                'last_modified_by' => $request->last_modified_by,
+                'fecha_hora' => now(),
+                'last_modified_by' => $idUsuario,
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => $historial_creado,
+                'message' => 'Propiedad asignada correctamente',
             ]);
             DB::commit();
         } catch (\Exception $e) {
@@ -489,13 +497,15 @@ class AsesoresController
         }
     }
 
-    public function modificarDatosPersonales(Request $request, $id)
+    public function modificarDatosPersonales(Request $request)
     {
+        /*  Log::info('modificarDatosPersonales', ['request' => $request->all()]);
+        dd('hola'); */
         DB::beginTransaction();
 
         try {
             //obtenemos el cliente
-            $cliente = Clientes::findOrFail($id);
+            $cliente = Clientes::findOrFail($request->id_cliente);
 
             //actualizamos el cliente
             $cliente->update([
@@ -510,13 +520,13 @@ class AsesoresController
             return response()->json([
                 'success' => true,
                 'message' => 'Cliente actualizado correctamente',
-                'cliente' => [
+                /*  'cliente' => [
                     'id' => $cliente->id_cliente,
                     'nombre' => $cliente->nombre,
                     'telefono' => $cliente->telefono,
                     'observaciones' => $cliente->observaciones,
                     'nombre_de_inmobiliaria' => $cliente->nombre_de_inmobiliaria
-                ]
+                ] */
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -529,41 +539,45 @@ class AsesoresController
     }
 
 
-    public function modificarCriterio(Request $request, $id)
+    public function modificarCriterio(Request $request)
     {
+
+        Log::info('modificarCriterio', ['request' => $request->all()]);
+
+        /*dd('hola'); */
         //guardamos el criterio real, que no es el mismo que el que llega por funcion
-        $criterio = $request->id_criterio;
+        $criterio = $request->id_criterio_venta;
         //iniciamos la transaccion
         DB::beginTransaction();
         //iniciamos el try catch
         try {
             //actualizamos el criterio
             CriterioBusquedaVenta::where('id_criterio_venta', $criterio)->update([
-                'id_categoria' => $request->categoria,
-                'id_tipo_inmueble' => $request->tipo_inmueble,
-                'id_zona' => $request->zona,
-                'cant_dormitorios' => $request->dormitorios,
+                'id_categoria' => $request->id_categoria,
+                'id_tipo_inmueble' => $request->id_tipo_inmueble,
+                'id_zona' => $request->id_zona,
+                'cant_dormitorios' => $request->cant_dormitorios,
                 'cochera' => $request->cochera,
-                'observaciones_criterio_venta' => $request->observaciones_criterio_venta,
+                'observaciones_criterio_venta' => $request->observaciones,
                 'estado_criterio_venta' => $request->estado_criterio_venta,
                 'precio_hasta' => $request->precio_hasta,
             ]);
             //confirmamos la transaccion
             DB::commit();
-            // Get the updated criterio with relationships
+            /*  // Get the updated criterio with relationships
             $criterioActualizado = CriterioBusquedaVenta::with('tipoInmueble')->find($criterio);
 
             // Get the tipo_inmueble relationship data
             $tipoInmueble = $criterioActualizado->tipoInmueble;
 
             // Format the date
-            $fechaFormateada = \Carbon\Carbon::parse($criterioActualizado->fecha_criterio_venta)->format('d/m/Y');
+            $fechaFormateada = \Carbon\Carbon::parse($criterioActualizado->fecha_criterio_venta)->format('d/m/Y'); */
 
             // Return the updated data
             return response()->json([
                 'success' => true,
                 'message' => 'Criterio actualizado correctamente',
-                'criterio' => [
+                /* 'criterio' => [
                     'id_criterio_venta' => $criterioActualizado->id_criterio_venta,
                     'tipo_inmueble' => $tipoInmueble ? $tipoInmueble->inmueble : 'Tipo no especificado',
                     'cant_dormitorios' => $criterioActualizado->cant_dormitorios,
@@ -572,7 +586,7 @@ class AsesoresController
                     'precio_hasta' => $criterioActualizado->precio_hasta,
                     'id_categoria' => $criterioActualizado->id_categoria,
                     'tipo_inmueble_id' => $criterioActualizado->id_tipo_inmueble
-                ]
+                ] */
             ]);
         } catch (\Exception $e) {
             //si hay error, deshacemos la transaccion
@@ -596,24 +610,21 @@ class AsesoresController
     public function guardarHistorialCodOfrecimiento(Request $request)
     {
 
+
         //iniciamos la transaccion
         DB::beginTransaction();
         try {
-
-            $propiedad = $request->input('propiedad');
-            $idUsuario = $request->input('id_usuario');
-            $id_calle = $propiedad['id_calle'];
-            $calle = Calle::where('id', $id_calle)->first()->name;
+            $idUsuario = auth('api')->id();
 
 
             // Guardar en el historial
             HistorialCodOfrecimiento::create([
-                'codigo_ofrecimiento' => $propiedad['cod_venta'],
-                'mensaje' => 'Propiedad ofrecida Codigo: ' . $propiedad['cod_venta'] . ' - Direccion: ' . $calle . ' ' . $propiedad['numero_calle'],
-                'direccion' => $calle . ' ' . $propiedad['numero_calle'],
+                'codigo_ofrecimiento' => $request->cod_venta,
+                'mensaje' => 'Propiedad ofrecida Codigo: ' . $request->cod_venta . ' - Direccion: ' . $request->calle,
+                'direccion' => $request->calle,
                 'fecha_hora' => now(),
-                'last_modified_by' => session()->get('usuario_id'),
-                'id_criterio_venta' => $idUsuario,
+                'last_modified_by' => $idUsuario,
+                'id_criterio_venta' => $request->id_criterio_venta,
             ]);
             //confirmamos la transaccion
             DB::commit();
@@ -633,27 +644,31 @@ class AsesoresController
             ], 500);
         }
     }
-    public function devolverMensaje(Request $request, $id)
+    public function devolverMensaje(Request $request)
     {
+
+        //Log::info('devolverMensaje', ['request' => $request->all()]);
+        $idUsuario = auth('api')->id();
+        //dd('devolverMensaje');
         try {
 
             if ($request->tipo == 'ofrecimiento') {
-                HistorialCodOfrecimiento::where('id', $request->id_mensaje)->update([
-                    'devolucion' => $request->devolucion,
+                HistorialCodOfrecimiento::where('id', $request->item)->update([
+                    'devolucion' => $request->mensaje,
                     'fecha_devolucion' => now(),
-                    'last_modified_by' => session()->get('usuario_id'),
+                    'last_modified_by' =>  $idUsuario,
                 ]);
             } elseif ($request->tipo == 'muestra') {
-                HistorialCodMuestra::where('id', $request->id_mensaje)->update([
-                    'devolucion' => $request->devolucion,
+                HistorialCodMuestra::where('id', $request->item)->update([
+                    'devolucion' => $request->mensaje,
                     'fecha_devolucion' => now(),
-                    'last_modified_by' => session()->get('usuario_id'),
+                    'last_modified_by' =>  $idUsuario,
                 ]);
             } elseif ($request->tipo == 'consulta') {
-                HistorialCodigoConsulta::where('id', $request->id_mensaje)->update([
-                    'devolucion' => $request->devolucion,
+                HistorialCodigoConsulta::where('id', $request->item)->update([
+                    'devolucion' => $request->mensaje,
                     'fecha_devolucion' => now(),
-                    'last_modified_by' => session()->get('usuario_id'),
+                    'last_modified_by' =>  $idUsuario,
                 ]);
             }
 
