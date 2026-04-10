@@ -15,13 +15,7 @@ use App\Models\At_cl\Calle;
 use App\Models\cliente\CriterioBusquedaVenta;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
-use App\Models\At_cl\Usuario;
-use App\Models\At_cl\Padron;
-use App\Models\At_cl\Propiedades_padron;
-use App\Models\At_cl\Padron_telefonos;
-use App\Models\At_cl\Tipo_inmueble;
-
-
+use App\Models\usuarios_y_permisos\Usuario;
 
 
 class AgendaController extends Controller
@@ -36,61 +30,65 @@ class AgendaController extends Controller
         $this->usuario_id = session('usuario_id');
     }
 
-    // Buscar clientes por número de teléfono (autocomplete)
-    public function buscarClientesPorTelefono(Request $request)
-    {
-        $telefono = $request->input('telefono');
 
-        // Se buscan coincidencias parciales por teléfono
+
+    public function buscarClientesPorTelefono($telefono)
+    {
+
+
+        // Cargar clientes con sus notas en una sola consulta
         $clientes = clientes::where('telefono', 'like', "%{$telefono}%")
-            ->limit(10)
+            ->with(['notas' => function ($query) {
+                $query->with(['propiedad', 'usuario'])
+                    ->orderBy('fecha', 'desc');
+            }])
+
             ->get(['id_cliente', 'nombre', 'telefono']);
 
-        return response()->json($clientes);
-    }
+        $resultado = $clientes->map(function ($cliente) {
+            $historial = $cliente->notas
+                ->sortByDesc(fn($n) => $n->fecha . ' ' . $n->hora_inicio)->values()
+                /* ->filter(fn($nota) => !empty($nota->propiedad?->cod_alquiler)) */
+                ->map(function ($nota) {
+                    return [
+                        'fecha'        => Carbon::parse($nota->fecha)->format('d-m-Y'),
+                        'inmueble'     => $nota->propiedad->calle->name ?? '-',
+                        'numero_calle' => $nota->propiedad->numero_calle ?? '-',
+                        'hora_inicio'  => Carbon::parse($nota->hora_inicio)->format('H:i'),
+                        'asesor'       => $nota->usuario->username ?? 'Sin asesor',
+                        'activo'       => $nota->activo == 1 ? 'Activo' : 'Baja',
+                        'cod_alquiler' => $nota->propiedad->cod_alquiler ?? '',
+                    ];
+                })->values();
 
-    public function obtenerHistorialCliente(Request $request)
-    {
-        $clienteId = $request->input('cliente_id');
-
-        // Obtener todas las notas del cliente ordenadas de más reciente a más antigua
-        $notas = Notas::where('cliente_id', $clienteId)
-            ->with(['propiedad', 'usuario']) // Eager loading para optimizar
-            ->orderBy('fecha', 'desc')
-            ->get();
-
-            //Log::info('Notas encontradas: ' . json_encode($notas));
-        $historial = $notas->map(function ($nota) {
             return [
-                'fecha' => Carbon::parse($nota->fecha)->format('d-m-Y'),
-                'inmueble' => $nota->propiedad->calle->name ?? '-',
-                'numero_calle' => $nota->propiedad->numero_calle ?? '-',
-                'hora_inicio' => Carbon::parse($nota->hora_inicio)->format('H:i')  ?? '-',
-                'asesor' => $nota->usuario->username ?? 'Sin asesor',
-                'activo' => $nota->activo == 1 ? 'Activo' : 'Baja',
-                'cod_alquiler' => $nota->propiedad->cod_alquiler ?? '-',
+                'cliente' => [
+                    'id_cliente' => $cliente->id_cliente,
+                    'nombre' => $cliente->nombre,
+                    'telefono' => $cliente->telefono,
+                ],
+                'historial' => $historial
             ];
         });
-        
 
-        return response()->json($historial);
+        return response()->json($resultado);
     }
 
     // Buscar propiedades por código de alquiler o venta
-    public function buscarPropiedadPorCodigo(Request $request)
+    /* public function buscarPropiedadPorCodigo(Request $request)
     {
         $codigo = $request->input('codigo');
 
         // Se buscan propiedades con coincidencias en cod_alquiler o cod_venta
-        $propiedades = Propiedad::with(['calle', 'zona','estadoVenta', 'estadoAlquiler'])
+        $propiedades = Propiedad::with(['calle', 'zona', 'estadoVenta', 'estadoAlquiler'])
             ->where('cod_alquiler', 'like', "%{$codigo}%")
             ->orWhere('cod_venta', 'like', "%{$codigo}%")
             ->get();
 
         // Se transforma la colección para mostrar datos útiles
         $resultado = $propiedades->map(function ($prop) {
-            
-            //$tipo = $prop->cod_alquiler ? 'alquiler' : 'venta'; 
+
+            //$tipo = $prop->cod_alquiler ? 'alquiler' : 'venta';
             //$codigo = $prop->cod_alquiler ?: $prop->cod_venta;
             $codigo_v = $prop->cod_venta;
             $codigo_a = $prop->cod_alquiler;
@@ -98,17 +96,17 @@ class AgendaController extends Controller
             $dorm = $prop->cantidad_dormitorios;
             $banios = $prop->banios;
             $cochera = $prop->cochera;
-            $estado_v= $prop->estadoVenta;
+            $estado_v = $prop->estadoVenta;
             $estado_a = $prop->estadoAlquiler ?? '-';
 
             return [
                 'id' => $prop->id,
                 //'codigo' => $codigo,
-                /* 'tipo' => $tipo, */
+
                 'nombre_calle' => $prop->calle ? $prop->calle->name : null,
                 'numero_calle' => $prop->numero_calle,
                 'zona' => $prop->zona ? $prop->zona->name : null,
-                /* 'tipo_v' => $tipo_v, */
+
                 'codigo_v' => $codigo_v,
                 'codigo_a' => $codigo_a,
                 'dorm' => $dorm,
@@ -120,10 +118,10 @@ class AgendaController extends Controller
         });
 
         return response()->json($resultado);
-    }
+    } */
 
-    // Página principal de la agenda
-    public function index(Request $request)
+    // Página principal de la agenda deprecated
+    /*  public function index(Request $request)
     {
         // Se obtiene lista de calles y números únicos para autocompletar
         $calles = Propiedad::with('calle')
@@ -269,168 +267,196 @@ class AgendaController extends Controller
             'creadores',
             'calles'
         ));
-    }
+    } */
 
     // Método para guardar una nueva nota en la agenda
     public function store(Request $request)
     {
+        Log::info('llego la informacion', $request->all());
+        //dd($request->all());
         $cliente = null;
-        //Log::info('ESTON SON TODOS LOS DATOS DEL STORE DE AGENDA', $request->all());
-        // Validación de campos requeridos
-        $request->validate([
-            'hora_inicio' => 'required',
-            'hora_fin' => 'required',
-            'descripcion' => 'nullable|string',
-            'usuario_id' => 'required',
-            'sector' => 'required',
-            'fecha' => 'required|date',
-            'calle' => 'nullable',
-            'devoluciones' => 'nullable|string',
-
-        ]);
 
         DB::beginTransaction(); // Inicia la transacción
 
         try {
+
+
             // Buscar la agenda correspondiente al sector y usuario
             $agenda = Agenda::where('sector_id', $request->sector)
-                ->where('usuario_id', $request->usuario_id)
+                ->where('usuario_id', $request->usuario)
                 ->first();
+
+
+
 
             if (!$agenda) {
                 // Si no se encuentra la agenda, redirigir con error
-                return redirect()->route('agenda.index', ['fecha' => $request->fecha])
-                    ->with('error', 'No se encontró una agenda válida para este sector y usuario');
-            }
-
-            // Función para redondear al intervalo de 15 minutos más cercano
-            function roundToNearest15Minutes($time)
-            {
-                $timeParts = explode(':', $time);
-                $hours = (int)$timeParts[0];
-                $minutes = (int)$timeParts[1];
-
-                // Redondear minutos al múltiplo de 15 más cercano
-                $roundedMinutes = round($minutes / 15) * 15;
-
-                // Ajustar horas si los minutos redondeados son 60
-                if ($roundedMinutes == 60) {
-                    $hours++;
-                    $roundedMinutes = 0;
-                }
-
-                return sprintf('%02d:%02d', $hours, $roundedMinutes);
+                return response()->json(['error' => 'No se encontró una agenda válida para este sector y usuario'], 404);
             }
 
             // Redondear horas de inicio y fin
-            $horaInicioRedondeada = roundToNearest15Minutes($request->hora_inicio);
-            $horaFinRedondeada = roundToNearest15Minutes($request->hora_fin);
+            $horaInicioRedondeada = $request->horaInicio;
+            $horaFinRedondeada = $request->horaFin;
 
-            if ($request->calle != null) {
-                $propiedadV = $request->calle;
+
+            if (isset($request->propiedad['id'])) {
+                $propiedadV = $request->propiedad['id'];
             } else {
-                $propiedadV = $request->propiedad_id;
+                $propiedadV = null;
             }
 
-            if ($request->cliente_telefono) {
-                $cliente = Clientes::where('telefono', $request->cliente_telefono)->first();
+            if ($request->telefono) {
+                $cliente = Clientes::where('telefono', $request->telefono)->first();
                 if (!$cliente) {
                     $cliente = Clientes::create([
-                        'nombre' => $request->cliente_nombre,
-                        'telefono' => $request->cliente_telefono
+                        'nombre' => $request->nombrecliente,
+                        'telefono' => $request->telefono
                     ]);
                 }
             }
+            $usuario_id = auth('api')->id();
 
 
             // Crear la nota con horas redondeadas
-            $notas = Notas::create([
-                'hora_inicio' => $horaInicioRedondeada . ':00',
-                'hora_fin'    => $horaFinRedondeada . ':00',
-                'descripcion' => $request->descripcion,
-                'propiedad_id' => $propiedadV,
-                'cliente_id' => $cliente ? $cliente->id_cliente : null,
-                'creado_por' => $this->usuario_id,
-                'usuario_id' => $request->usuario_id,
-                'agenda_id' => $agenda->id,
-                'fecha' => $request->fecha,
-                'realizado' => 0,
-                'devoluciones' => $request->devolucion
-            ]);
+            try {
+                $nuevaHoraInicio = $horaInicioRedondeada . ':00';
+                $repetida = Notas::where('fecha', $request->fecha)
+                    ->where('hora_inicio', '<=', $nuevaHoraInicio)
+                    ->where('hora_fin',    '>',  $nuevaHoraInicio)
+                    ->where('usuario_id', $request->usuario)
+                    ->where('agenda_id', $agenda->id)
+                    ->where('activo', 1)
+                    ->first();
+                if ($repetida) {
+                    Log::info('Ya existe una nota en ese horario');
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => "Ya existe una nota en ese horario (de {$repetida->hora_inicio} a {$repetida->hora_fin})"
+                    ], 404);
+                }
+                $notas = Notas::create([
+                    'hora_inicio' => $horaInicioRedondeada . ':00', //
+                    'hora_fin'    => $horaFinRedondeada . ':00', //
+                    'descripcion' => $request->descripcion, //
+                    'propiedad_id' => $propiedadV,
+                    'cliente_id' => $cliente ? $cliente->id_cliente : null,
+                    'creado_por' => $usuario_id, //
+                    'usuario_id' => $request->usuario, //
+                    'agenda_id' => $agenda->id,
+                    'fecha' => $request->fecha, //
+                    'realizado' => 0,
+                    'devoluciones' => $request->devolucion ? $request->devolucion : null,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Error al crear nota', [
+                    'message' => $e->getMessage(),
+                    'line' => $e->getLine(),
+                    'file' => $e->getFile()
+                ]);
+            }
 
+            Log::info('Nota creada correctamente');
             // Si se proporciona un criterio, crear el evento en el historial
-            if ($request->id_criterio != null) {
-                $busca_cliente = CriterioBusquedaVenta::where('id_criterio_venta', $request->id_criterio)->first();
+            if ($request->criterioSeleccionado != null) {
+                if($propiedadV === null){
+                    //Log::error('Propiedad no encontrada');
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Ingrese una propiedad'
+                    ], 404);
+                }
+                Log::info('antes de buscar cliente');
+                $busca_cliente = CriterioBusquedaVenta::where('id_criterio_venta', $request->criterioSeleccionado)->first();
+                Log::info('despues de buscar cliente');
                 // Buscar la propiedad correspondiente al sector y usuario
                 $propiedadNC = Propiedad::where('id', $propiedadV)->first();
-
+                Log::info('despues de buscar propiedad');
                 // Buscar el nombre de la calle
                 $calleName = Calle::where('id', $propiedadNC->id_calle)->first()->name;
 
                 // Dia formato dd/mm/yyyy
                 $fecha = Carbon::parse($request->fecha)->format('d/m/Y');
 
+                Log::info('antes de crear historial');
                 // Crear el evento en el historial
-                $evento = HistorialCodMuestra::create([
+                HistorialCodMuestra::create([
                     'codigo_muestra' => $propiedadNC->cod_venta,
                     'mensaje' => 'Se muestra la propiedad: ' . $propiedadNC->cod_venta . ' - Direccion: ' .
                         $calleName . ' ' . $propiedadNC->numero_calle . ' a las ' . $horaInicioRedondeada .
                         ' en el dia ' . $fecha,
                     'direccion' => $calleName . ' ' . $propiedadNC->numero_calle,
                     'fecha_hora' => now(),
-                    'last_modified_by' => $this->usuario_id,
-                    'id_criterio_venta' => $request->id_criterio
+                    'last_modified_by' => $usuario_id,
+                    'id_criterio_venta' => $request->criterioSeleccionado
                 ]);
 
+                Log::info('despues de crear historial');
                 $notas->update([
                     'cliente_id' => $busca_cliente->id_cliente
                 ]);
+
                 // Si es petición AJAX, responder con JSON
                 return response()->json([
                     'success' => true,
-                    'evento' => $evento
+                    //'evento' => $evento
                 ]);
             }
 
             DB::commit(); // Confirmar transacción
 
-            return redirect()->route('agenda.index', ['fecha' => $request->fecha])
-                ->with('success', 'Evento agregado correctamente');
+            return response()->json([
+                'success' => true,
+                'message' => 'Evento agregado correctamente'
+            ]);
         } catch (\Exception $e) {
             DB::rollBack(); // Revertir cambios ante error
 
-            return redirect()->route('agenda.index', ['fecha' => $request->fecha])
-                ->with('error', 'Ocurrió un error al agregar el evento.' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error al agregar el evento.' . $e->getMessage()
+            ], 500);
         }
     }
 
     // Desactivar (eliminar lógicamente) una nota
-    public function destroy($id)
+    public function destroy($id, $motivo)
     {
+        Log::info('entro');
         // Inicia la transacción
         DB::beginTransaction();
         try {
             // Buscar la nota por ID
             $notas = Notas::find($id);
+            $usuario_id = auth('api')->id();
+
 
             if ($notas) {
                 // Cambiar el estado de la nota a inactiva (activo = 0)
-                $notas->update(['activo' => 0]);
+                $notas->update(['activo' => 0, 'motivo' => $motivo, 'quien_borro' => $usuario_id]);
 
                 //$fecha = request('fecha', date('Y-m-d'));
 
                 DB::commit(); // Confirmar transacción
-                return redirect()->route('agenda.index')->with('success', 'Evento desactivado correctamente');
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Evento desactivado correctamente'
+                ]);
             }
             DB::rollBack(); // Revertir cambios ante error
-            return redirect()->route('agenda.index')->with('error', 'No se encontró el evento');
+            return response()->json([
+                'success' => false,
+                'message' => 'No se encontró el evento'
+            ], 404);
         } catch (\Exception $e) {
             DB::rollBack(); // Revertir cambios ante error
-            return redirect()->route('agenda.index')->with('error', 'Ocurrió un error al desactivar el evento.' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error al desactivar el evento.' . $e->getMessage()
+            ], 500);
         }
     }
 
-    public function eventosDelDia()
+    /* public function eventosDelDia()
     {
         $usuarioId = session('usuario_id');
         $hoy = now()->toDateString();
@@ -440,9 +466,9 @@ class AgendaController extends Controller
             ->get(['id', 'descripcion', 'hora_inicio', 'hora_fin', 'fecha', 'activo', 'realizado', 'cliente_id', 'devoluciones', 'propiedad_id', 'usuario_id']);
 
         return response()->json($eventos);
-    } 
+    } */
 
-    public function marcarRealizada(Request $request)
+    /* public function marcarRealizada(Request $request)
     {
         // Inicia la transacción
         DB::beginTransaction();
@@ -461,9 +487,9 @@ class AgendaController extends Controller
             DB::rollBack(); // Revertir cambios ante error
             return response()->json(['error' => 'Error al marcar la nota como realizada'], 500);
         }
-    }
+    } */
 
-    public function buscarPropiedadPorCalle(Request $request)
+    /* public function buscarPropiedadPorCalle(Request $request)
     {
 
         try {
@@ -485,7 +511,7 @@ class AgendaController extends Controller
 
                 try {
                     $tipo = $prop->cod_alquiler ? 'alquiler' : 'venta';
-                    $codigo = /* $prop->cod_alquiler ?: */ $prop->cod_venta ?? null;
+                    $codigo =  $prop->cod_venta ?? null;
                     $codigo_alquiler = $prop->cod_alquiler ?? null;
 
                     // Retorna los datos de la propiedad
@@ -512,5 +538,87 @@ class AgendaController extends Controller
             //\Log::error("Error en buscarPropiedadPorCalle: " . $e->getMessage() . "\n" . $e->getTraceAsString());
             return response()->json(['error' => 'Error al buscar propiedades'], 500);
         }
+    } */
+
+    public function buscarSectores()
+    {
+        return Sectores::select('id', 'nombre')->get();
+    }
+
+
+    public function traerUsuarioSector($id_sector, $fecha)
+    {
+        $agendas = Agenda::with([
+            'usuario:id,username',
+
+            // NOTAS DEL USUARIO → SOLO ACTIVAS
+            'notas' => function ($q) use ($fecha) {
+                $q->where('fecha', $fecha)
+                    ->where('activo', 1)
+                    ->with([
+                        // 🔥 CLIENTE CON TODAS SUS NOTAS (SIN FILTRO)
+                        'cliente.notas',
+
+                        'propiedad.calle',
+                        'propiedad.estadoVenta',
+                        'propiedad.estadoAlquiler'
+                    ]);
+            }
+        ])
+            ->where('sector_id', $id_sector)
+            ->get();
+
+        $resultado = $agendas->map(function ($agenda) {
+
+            return [
+                'usuario_id' => $agenda->usuario_id,
+                'nombre' => $agenda->usuario->username ?? '',
+                'nota' => $agenda->notas->map(function ($item) {
+
+                    return [
+                        'id' => $item->id,
+                        'agenda_id' => $item->agenda_id,
+                        'descripcion' => $item->descripcion,
+                        'usuario_id' => $item->usuario_id,
+                        'hora_inicio' => $item->hora_inicio,
+                        'hora_fin' => $item->hora_fin,
+                        'activo' => $item->activo,
+                        'creado_por' => $item->creado_por,
+
+                        'id_cliente' => $item->cliente->id_cliente ?? '',
+                        'nombreCliente' => $item->cliente->nombre ?? '',
+                        'telfCliente' => $item->cliente->telefono ?? '',
+
+                        'propiedad_cod_venta' => $item->propiedad->cod_venta ?? '',
+                        'propiedad_cod_alquiler' => $item->propiedad->cod_alquiler ?? '',
+                        'propiedad_calle' => $item->propiedad->calle->name ?? '',
+                        'propiedad_numero_calle' => $item->propiedad->numero_calle ?? '',
+                        'propiedad_estado_venta' => $item->propiedad->estadoVenta->name ?? '',
+                        'propiedad_estado_alquiler' => $item->propiedad->estadoAlquiler->name ?? '',
+
+                        'fecha' => $item->fecha,
+                        'realizado' => $item->realizado,
+
+                        //  TODAS LAS NOTAS DEL CLIENTE (activas + inactivas) ordenados por fecha mas reciente arriba
+                        'notas_cliente' => $item->cliente
+                            ? $item->cliente->notas->sortByDesc(fn($n) => $n->fecha . ' ' . $n->hora_inicio)->values()->map(function ($n) {
+                                return [
+                                    'id' => $n->id,
+                                    'fecha' => $n->fecha, //
+                                    'hora_inicio' => $n->hora_inicio, //
+                                    'activo' => $n->activo, //
+                                    'cod_alquiler' => $n->propiedad->cod_alquiler ?? '',
+                                    'asesor' => $n->usuario->username ?? '',
+                                    'inmueble' => $n->propiedad->calle->name ?? '',
+                                    'numero_calle' => $n->propiedad->numero_calle ?? '',
+                                ];
+                            })
+                            : []
+                    ];
+                })
+            ];
+        });
+        //Log::info('resultado', ['resultado' => $resultado]);
+        return response()->json($resultado);
     }
 }

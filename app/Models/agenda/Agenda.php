@@ -4,7 +4,7 @@ namespace App\Models\agenda;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\agenda\Sectores;
-use App\Models\At_cl\Usuario;
+use App\Models\usuarios_y_permisos\Usuario;
 
 class Agenda extends Model
 {
@@ -25,5 +25,9 @@ class Agenda extends Model
     {
         return $this->belongsTo(Usuario::class);
     }
-    
+       public function notas()
+    {
+        return $this->hasMany(Notas::class, 'agenda_id');
+    }
+
 }

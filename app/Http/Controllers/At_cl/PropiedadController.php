@@ -843,7 +843,7 @@ class PropiedadController
      */
     public function buscarPropiedadesVenta(Request $request)
     {
-        Log::info('Buscando propiedades de venta', $request->all());
+        //Log::info('Buscando propiedades de venta', $request->all());
         try {
             $codigo = $request->get('codigo', '');
             $calle = $request->get('calle', '');

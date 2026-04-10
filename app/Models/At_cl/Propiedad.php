@@ -338,12 +338,6 @@ class Propiedad extends Model
         if (!empty($filtros['mascotas'])) {
             $query->where('mascota', $filtros['mascotas']);
         }
-
-        // Habitaciones
-        /* if (!empty($filtros['habitaciones'])) {
-            $query->where('cantidad_dormitorios', $filtros['habitaciones']);
-        } */
-       //Log::info($filtros);
         if (isset($filtros['habitaciones']) && $filtros['habitaciones'] !== '') {
             $query->where('cantidad_dormitorios', $filtros['habitaciones']);
         }
@@ -463,7 +457,7 @@ class Propiedad extends Model
         foreach ($this->folios as $folio) {
             if ($folio->folio != null) {
                 // Obtener el contrato más alto para este folio
-                $contrato = Propiedades_sys::select('propiedades.id_casa', 'c.id_contrato_cabecera','c.comienza', 'c.rescicion')
+                $contrato = Propiedades_sys::select('propiedades.id_casa', 'c.id_contrato_cabecera', 'c.comienza', 'c.rescicion')
                     ->join('contratos_cabecera as c', 'propiedades.id_casa', '=', 'c.id_casa')
                     ->where('propiedades.carpeta', $folio->folio)
                     ->where('c.id_empresa', $folio->empresa_id)
@@ -503,10 +497,6 @@ class Propiedad extends Model
         ] : null;
     }
 
-
-
-
-
     /**
      * Relación con el modelo HistorialEstadosAlquiler.
      * Una propiedad puede tener un historial de alquiler.
@@ -527,5 +517,55 @@ class Propiedad extends Model
     public function historialEstadosVenta()
     {
         return $this->hasOne(HistorialEstadosVenta::class, 'id_propiedad');
+    }
+
+    public function buscarPorCodigoCalle($codigo_calle, $sector)
+    {
+        // Primero busca por código de venta exacto
+        if ($sector == 'Ventas') {
+            $propiedad = Propiedad::where('cod_venta','like', '%' . $codigo_calle . '%')
+            ->where('id_estado_venta', '=', 1 || 2 || 5)
+            ->get();
+
+            // Si no encuentra por código, busca por nombre de calle
+            if (!$propiedad || $propiedad->isEmpty()) {
+                $propiedad = Propiedad::whereHas('calle', function ($query) use ($codigo_calle) {
+                    $query->where('name', 'like', '%' . $codigo_calle . '%')
+                        ->where('cod_venta', '!=', null)
+                        ->where('id_estado_venta', '=', 1 || 2 || 5);
+                })
+                    ->get();
+            }
+        }
+
+        if ($sector == 'Alquiler') {
+            $propiedad = Propiedad::where('cod_alquiler','like', '%' . $codigo_calle . '%')
+            ->where('id_estado_alquiler', '=', 1 || 2)
+            ->get();
+
+            // Si no encuentra por código, busca por nombre de calle
+            if (!$propiedad || $propiedad->isEmpty()) {
+                $propiedad = Propiedad::whereHas('calle', function ($query) use ($codigo_calle) {
+                    $query->where('name', 'like', '%' . $codigo_calle . '%')
+                        ->where('cod_alquiler', '!=', null)
+                        ->where('id_estado_alquiler', '=', 1 || 2);
+                })
+                    ->get();
+            }
+        }
+
+        $propiedad = $propiedad->map(function ($prop) {
+            return [
+                'id' => $prop->id,
+                'cod_venta' => $prop->cod_venta,
+                'cod_alquiler' => $prop->cod_alquiler,
+                'calle' => $prop->calle->name,
+                'numero_calle' => $prop->numero_calle,
+                'estado_venta' => $prop->estadoVenta->name ?? null,
+                'estado_alquiler' => $prop->estadoAlquiler->name ?? null,
+            ];
+        });
+
+        return $propiedad;
     }
 }

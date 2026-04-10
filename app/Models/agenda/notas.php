@@ -4,7 +4,7 @@ namespace App\Models\agenda;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\agenda\Agenda;
-use App\Models\At_cl\Usuario;
+use App\Models\usuarios_y_permisos\Usuario;
 use App\Models\cliente\clientes;
 use App\Models\At_cl\Propiedad;
 
@@ -24,7 +24,9 @@ class Notas extends Model
         'propiedad_id',
         'fecha',
         'realizado',
-        'devoluciones'
+        'devoluciones',
+        'motivo',
+        'quien_borro'
     ];
     public function agenda()
     {

@@ -22,6 +22,8 @@ use App\Http\Controllers\At_cl\Exportar_PDF_atcl\Pdf_alquiler;
 use App\Http\Controllers\clientes\ClientesController;
 use App\Services\clientes\Permisos;
 use App\Http\Controllers\clientes\AsesoresController;
+use App\Http\Controllers\agenda\AgendaController;
+use App\Models\At_cl\Propiedad;
 
 Route::prefix('v1')->group(function () {
 
@@ -121,6 +123,14 @@ Route::prefix('v1')->group(function () {
         Route::post('/asesores/enviar-mensaje', [AsesoresController::class, 'enviarMensaje']);
         Route::put('/clientes/devolver-mensaje', [AsesoresController::class, 'devolverMensaje']);
         Route::get('/historialCodOfrecimiento/{id}', [AsesoresController::class, 'obtenerHistorialCod']);
+
+        //Agenda
+        Route::get('/sectores', [AgendaController::class, 'buscarSectores']);
+        Route::get('/usuarios-sector/{id_sector}/{fecha}', [AgendaController::class, 'traerUsuarioSector']);
+        Route::get('/propiedad/buscar-por-codigo-calle/{codigo_calle}/{sector}', [Propiedad::class, 'buscarPorCodigoCalle']);
+        Route::post('/cargar-nota', [AgendaController::class, 'store']);
+        Route::get('/buscarCliente/{clienteId}', [AgendaController::class, 'buscarClientesPorTelefono']);
+        Route::put('/borrar-nota/{id}/{motivo}', [AgendaController::class, 'destroy']);
 
     }); // <--- Aquí cierra el middleware
 });

@@ -4,6 +4,7 @@ namespace App\Models\cliente;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\agenda\notas;
 
 class clientes extends Model
 {
@@ -67,9 +68,9 @@ class clientes extends Model
     }
 
     public function criteriosOrdenados()
-{
-    return $this->hasMany(CriterioBusquedaVenta::class, 'id_cliente')
-        ->orderByRaw("
+    {
+        return $this->hasMany(CriterioBusquedaVenta::class, 'id_cliente')
+            ->orderByRaw("
             CASE estado_criterio_venta
                 WHEN 'Activo' THEN 1
                 WHEN 'Finalizado' THEN 2
@@ -77,7 +78,7 @@ class clientes extends Model
                 ELSE 4
             END
         ")
-        ->orderByRaw("
+            ->orderByRaw("
             CASE
                 WHEN id_categoria IS NULL THEN 1
                 WHEN id_categoria = 'Potable' THEN 2
@@ -86,7 +87,11 @@ class clientes extends Model
                 ELSE 5
             END
         ")
-        ->orderByDesc('fecha_criterio_venta');
-}
+            ->orderByDesc('fecha_criterio_venta');
+    }
 
+    public function notas()
+    {
+        return $this->hasMany(Notas::class, 'cliente_id');
+    }
 }
