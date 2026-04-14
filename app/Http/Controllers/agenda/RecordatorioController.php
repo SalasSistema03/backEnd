@@ -10,12 +10,13 @@ use App\Models\agenda\Recordatorio;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Notifications\RecordatorioNotificacion;
-use App\Models\At_cl\Usuario;
+use App\Models\usuarios_y_permisos\Usuario;
 use App\Models\cliente\clientes;
 use App\Services\RecordatorioService;
 
 class RecordatorioController
 {
+    //DEPRECATED
     protected $recordatorioService;
 
     public function __construct(RecordatorioService $recordatorioService)
@@ -80,7 +81,7 @@ class RecordatorioController
     {
         //
     }
-
+    // DEPRECATED
     public function store(Request $request)
     {
         //Log::info('Logs provenientes de clientescontroller ', $request->all());
@@ -314,7 +315,7 @@ class RecordatorioController
         try {
             /* Busca el recordatorio; si no existe, lanza un error */
             $recordatorio = Recordatorio::findOrFail($request->id);
-            //dd($recordatorio); 
+            //dd($recordatorio);
 
             /* Instancia del servicio responsable de gestionar recordatorios */
             $service = new \App\Services\RecordatorioService;

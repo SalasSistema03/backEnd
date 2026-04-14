@@ -79,7 +79,7 @@ class UsuarioService
 
     public function updateDatosGenerales(Request $request, $id_usuario)
     {
-        //Log::info('updateDatosGenerales', ['id_usuario' => $id_usuario, 'request' => $request->all()]);
+        Log::info('updateDatosGenerales', ['id_usuario' => $id_usuario, 'request' => $request->all()]);
         $usuario = Usuario::where('id', $id_usuario)->first();
 
         if (!$usuario) {

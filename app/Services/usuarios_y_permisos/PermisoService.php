@@ -188,13 +188,12 @@ class PermisoService
 
         $this->sincronizarPermisosUsuario($permisosRecibidos, $usuario_id);
 
-        if (!empty($sectoresRecibidos)) {
-            (new AgendaService())->sincronizarSectores($sectoresRecibidos, $usuario_id);
-        }
+        (new AgendaService())->sincronizarSectores($sectoresRecibidos, $usuario_id);
     }
 
     private function separarPermisosYSectores(array $permisos): array
     {
+        Log::info('separarPermisosYSectores', ['permisos' => $permisos]);
         $permisosRecibidos = [];
         $sectoresRecibidos = [];
 
@@ -226,9 +225,11 @@ class PermisoService
         $permisosActuales = $this->obtenerPermisosActuales($usuario_id);
 
         // Eliminar permisos obsoletos
-        //Log::info('esto son los eliminarpermisos obsoletos', ['permisosActuales' => $permisosActuales, 'permisosNuevos' => $permisosNuevos]);
-        $this->eliminarPermisosObsoletos($permisosActuales, $permisosNuevos, $usuario_id);
+        Log::info('esto son los eliminarpermisos obsoletos', ['permisosActuales' => $permisosActuales, 'permisosNuevos' => $permisosNuevos]);
 
+        $this->eliminarPermisosObsoletos($permisosActuales, $permisosNuevos, $usuario_id);
+        Log::info('elimino permiso');
+        //dd('elimino permiso');
         // Agregar nuevos permisos
         $this->agregarPermisosNuevos($permisosActuales, $permisosNuevos, $usuario_id);
     }
@@ -244,10 +245,12 @@ class PermisoService
 
     private function eliminarPermisosObsoletos(array $permisosActuales,  array $permisosNuevos,  int $usuario_id): void
     {
+        Log::info('esto son los eliminarpermisos obsoletos', ['permisosActuales' => $permisosActuales, 'permisosNuevos' => $permisosNuevos]);
         $permisosAEliminar = array_diff(
             array_map('json_encode', $permisosActuales),
             array_map('json_encode', $permisosNuevos)
         );
+        Log::info('permisos a eliminar', ['permisosAEliminar' => $permisosAEliminar]);
 
         if (empty($permisosAEliminar)) {
             return;
@@ -259,6 +262,12 @@ class PermisoService
                 ->where('vista_id', $permiso[1])
                 ->where('boton_id', $permiso[2])
                 ->delete();
+           /* if($permiso[0] == 3){
+            Agenda::where('usuario_id', $usuario_id)
+            ->where('sector_id', $permiso[2])
+            ->delete();
+           } */
+            Log::info('permiso eliminado', ['permiso' => $permiso]);
         }
     }
 
@@ -271,7 +280,9 @@ class PermisoService
             array_map('json_encode', $permisosNuevos),
             array_map('json_encode', $permisosActuales)
         );
+        //Log::info('todos los permisos', ['permisosNuevos' => $permisosNuevos, 'permisosActuales' => $permisosActuales]);
 
+        //Log::info('permisos a agregar', ['permisosAAgregar' => $permisosAAgregar]);
         if (empty($permisosAAgregar)) {
             return;
         }

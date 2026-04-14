@@ -28,6 +28,8 @@ use Illuminate\Support\Facades\DB;
  */
 class RecordatorioService
 {
+
+    //DEPRECATED
     /**
      * Crea un nuevo recordatorio asociado a la carga de un cliente.
      *
@@ -210,7 +212,7 @@ class RecordatorioService
      */
     public function actualizarRecordatorio(Recordatorio $recordatorio, array $data): Recordatorio
     {
-      
+
         $fecha_inicio = Carbon::parse($data['fecha_inicio']);
 
         // Cálculo de fechas según repetición y tipo de intervalo

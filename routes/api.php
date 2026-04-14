@@ -24,6 +24,7 @@ use App\Services\clientes\Permisos;
 use App\Http\Controllers\clientes\AsesoresController;
 use App\Http\Controllers\agenda\AgendaController;
 use App\Models\At_cl\Propiedad;
+use App\Http\Controllers\NotificacionController;
 
 Route::prefix('v1')->group(function () {
 
@@ -131,7 +132,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/cargar-nota', [AgendaController::class, 'store']);
         Route::get('/buscarCliente/{clienteId}', [AgendaController::class, 'buscarClientesPorTelefono']);
         Route::put('/borrar-nota/{id}/{motivo}', [AgendaController::class, 'destroy']);
-
+        Route::get('/api/notificaciones/traer-notificaciones', [NotificacionController::class, 'traerNotificaciones']);
+        Route::post('/api/notificaciones/marcar-como-leida/{id}', [NotificacionController::class, 'marcarUnaComoLeida']);
     }); // <--- Aquí cierra el middleware
 });
 
