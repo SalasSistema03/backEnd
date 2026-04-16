@@ -7,6 +7,7 @@ use App\Models\impuesto\Tgi_padron;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\impuesto\TGI\CargaTgiService;
 
 class PadronTgiService
 {
@@ -123,9 +124,9 @@ class PadronTgiService
     public function obtenerPadronExistente()
     {
         return Tgi_padron::orderByRaw("
-        CASE 
-            WHEN folio LIKE '50%' AND LENGTH(folio) = 5 THEN 0 
-            ELSE 1 
+        CASE
+            WHEN folio LIKE '50%' AND LENGTH(folio) = 5 THEN 0
+            ELSE 1
         END
     ")
             ->orderBy('empresa')
@@ -146,7 +147,7 @@ class PadronTgiService
     private function consultaObtenerPadronTGI()
     {
         $sql = "
-        SELECT 
+        SELECT
             p.carpeta AS folio,
             CONCAT(n.Calle, ' ', p.altura) AS calle,
             pi.partida,
@@ -163,11 +164,11 @@ class PadronTgiService
         INNER JOIN desarrollo.nomenclador n ON n.Id_Nomenclador = p.id_nomenclador
         LEFT JOIN desarrollo.impuestos i ON pi.id_casa = i.id_casa
         INNER JOIN desarrollo.contratos_cabecera cc ON cc.id_casa = p.id_casa
-        INNER JOIN desarrollo.empresa e ON cc.id_empresa = e.id_empresa 
+        INNER JOIN desarrollo.empresa e ON cc.id_empresa = e.id_empresa
         WHERE ti.id_tipo_impuesto = 1
           AND cc.comienza <= CURDATE()
           AND cc.rescicion >= CURDATE()
-        GROUP BY 
+        GROUP BY
             pi.id_propiedad_impuesto,
             p.carpeta,
             CONCAT(n.Calle, ' ', p.altura),
@@ -191,4 +192,103 @@ class PadronTgiService
         }
         return $resultado;
     }
+
+
+    public function actualizarPadronTGI()
+    {
+        $this->obtenerPadronTGI();
+        return response()->json(['message' => 'Padrón TGI actualizado correctamente.']);
+    }
+
+    public function obtenerPadronFiltradoTGI(Request $request, $impuesto)
+    {
+        //Log::info('tgipadron - index', $request->all());
+        $search = $request->input('search_all');
+        $search_folio = $request->input('search_folio');
+        $filtros = $request->input('filtros', []);
+
+        // Si no hay filtros, por defecto mostrar solo activos
+        //Log::info('antes de filtro');
+        if (empty($filtros)) {
+            $filtros[] = 'ACTIVO';
+        }
+
+        // Separar filtros por tipo
+        $estados = array_intersect($filtros, ['ACTIVO', 'INACTIVO']);
+        $administraciones = array_intersect($filtros, ['L', 'P', 'I']);
+
+
+        $padron = (new PadronTgiService())->obtenerPadronExistente();
+
+        //Log::info('antes del filtro de folio');
+        //filtrar por folio, pero el numero exacto, no si solo lo contiene
+        if (!empty($search_folio)) {
+            $padron = $padron->filter(function ($item) use ($search_folio) {
+                // Comparación exacta
+                return strtolower($item->folio) === strtolower($search_folio);
+            });
+        }
+
+        //Log::info('antes del filtro de busqueda');
+
+        // Filtrar por búsqueda
+        if (!empty($search)) {
+            $padron = $padron->filter(function ($item) use ($search) {
+                return  str_contains(strtolower($item->calle), strtolower($search)) ||
+                    str_contains(strtolower($item->partida), strtolower($search)) ||
+                    str_contains(strtolower($item->clave), strtolower($search));
+            });
+        }
+
+        // Aplicar filtros combinados
+        $padron = $padron->filter(function ($item) use ($estados, $administraciones) {
+            $estadoOk = empty($estados) || in_array(strtoupper($item->estado), $estados);
+            $adminOk = empty($administraciones) || in_array(strtoupper($item->administra), $administraciones);
+            return $estadoOk && $adminOk;
+        });
+
+        //Log::info('antes de filtros vacios');
+        // Si hay parámetros de búsqueda, devolver JSON (para AJAX)
+        if (!empty($search) || !empty($search_folio) || !empty($request->input('filtros'))) {
+            return response()->json(['message' => 'Filtro actualizado correctamente.', 'data' => $padron->values()->all()]);
+        }
+
+        // Si no hay parámetros, devolver la vista completa
+        //Log::info('retornaPadron');
+        return response()->json(['data' => $padron->values()->all()]);
+    }
+
+
+    public function actualizarTGI(Request $request)
+    {
+        // Verificar si ya existe otro registro con el mismo folio, clave y partida
+        $existe = Tgi_padron::where('folio', $request->folio)
+            ->where('clave', $request->clave)
+            ->where('partida', $request->partida)
+            ->where('id', '!=', $request->id) // excluir el actual
+            ->exists();
+
+        if ($existe) {
+            /* return redirect()->route('padron_tgi')
+                ->with('error', 'Ya existe otro registro con el mismo folio, clave y partida.'); */
+            return response()->json(['message' => 'Ya existe otro registro con el mismo folio, clave y partida.'], 400);
+        }
+
+        // Si no existe duplicado, actualizar
+        $registro = Tgi_padron::findOrFail($request->id);
+        $registro->folio = $request->folio;
+        $registro->calle = $request->calle;
+        $registro->partida = $request->partida;
+        $registro->clave = $request->clave;
+        $registro->estado = $request->estado;
+        $registro->administra = $request->administra;
+        $registro->save();
+
+        /*  return redirect()->route('padron_tgi')->with('success', 'Registro actualizado correctamente.'); */
+        return response()->json(['message' => 'Registro actualizado correctamente.'], 200);
+    }
+
+
+
+
 }

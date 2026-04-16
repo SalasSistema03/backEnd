@@ -5,6 +5,7 @@ namespace App\Models\At_cl;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\usuarios_y_permisos\Usuario;
 
 class Padron extends Model
 {

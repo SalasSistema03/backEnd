@@ -5,7 +5,7 @@ namespace App\Services\clientes;
 use App\Models\At_cl\Calle;
 use App\Models\At_cl\Propiedad;
 use App\Models\At_cl\Tipo_inmueble;
-use App\Models\At_cl\Usuario;
+use App\Models\usuarios_y_permisos\Usuario;
 use App\Models\At_cl\Zona;
 use App\Models\cliente\clientes;
 use Illuminate\Container\Attributes\Log;
@@ -243,8 +243,8 @@ class EnvioMailService
             }
             $mail->addAddress($emailTo);
             FacadesLog::info('Email destinatario validado', ['to' => $emailTo]);
-            
-            
+
+
 
             // Contenido
             $cliente = clientes::find($clienteId);

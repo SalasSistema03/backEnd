@@ -68,6 +68,17 @@
                                             <strong>{{ strtoupper($cliente->nombre) }}</strong>
                                         </div>
 
+                                        {{-- --------------------- --}}
+
+
+
+
+
+
+
+
+
+
                                         <!-- Potabilidad -->
                                         <div class="col-1">
                                             @php
@@ -143,6 +154,19 @@
                                         </div>
 
                                     </div>
+
+
+
+
+
+
+
+
+
+
+
+
+                                    {{-- ----------------------- --}}
                                     <div class="d-flex justify-content-between align-items-center col-12">
                                         <!-- Telefono y boton whatsapp -->
                                         <div class="col-6">
@@ -195,6 +219,32 @@
                     </ul>
                 </div>
             </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             {{-- ---------------------------------------------------------------------------------------------------------- --}}
             <!-- Criterios (estilo contactos) -->
             @php
@@ -226,7 +276,7 @@
                 <div class="pb-1 pt-1 px-1 borde_inferior" id="criterio-default-div">
                     <h6 id="criterio-default" class="t-inmueble"><strong>CRITERIOS</strong></h6>
                      <button id="agregar-nuevo-criterio" class="t-inmueble btn-agregar-nuevo-criterio"
-                        style="display:none;" data-telefono=""></button> 
+                        style="display:none;" data-telefono=""></button>
                     <span id="tipo-inmueble-seleccionado" class="badge bg-primary t-inmueble" style="display:none;"></span>
 
                 </div>
@@ -243,7 +293,7 @@
                                  <button onclick="agregarNuevoCriterio('{{ $cliente->id_cliente }}')"
                                     id="agregar-nuevo-criterio-{{ $cliente->id_cliente }}"
                                     class="t-inmueble btn-agregar-nuevo-criterio" style="display:none;"
-                                    data-telefono="{{ $cliente->telefono }}"></button> 
+                                    data-telefono="{{ $cliente->telefono }}"></button>
                                 <span id="tipo-inmueble-seleccionado-{{ $cliente->id_cliente }}"
                                     class="badge bg-primary t-inmueble" style="display:none;"></span>
                             </div>
@@ -457,5 +507,5 @@
     </script>
 
 
-   
+
 @endsection

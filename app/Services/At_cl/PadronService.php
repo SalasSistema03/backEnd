@@ -60,6 +60,60 @@ class PadronService
         ]);
 
         $padronTelefonosService = new PadronTelefonosService();
-        $padronTelefonosService->CargarTelefonos($padron, $padronCreado->id); 
+        $padronTelefonosService->CargarTelefonos($padron, $padronCreado->id);
+    }
+
+    public function editaPadron($padron)
+    {
+        try {
+            // Buscar el registro existente
+            $padronExistente = Padron::find($padron->id);
+
+            if (!$padronExistente) {
+                Log::error("Padrón no encontrado con ID: {$padron->id}");
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Padrón no encontrado'
+                ], 404);
+            }
+
+            // Actualizar datos principales
+            $padronExistente->update([
+                'nombre' => strtoupper($padron->nombre),
+                'apellido' => strtoupper($padron->apellido),
+                'documento' => $padron->dni,
+                'fecha_nacimiento' => $padron->fecha_nacimiento,
+                'calle' => strtoupper($padron->calle),
+                'numero_calle' => $padron->numero_calle,
+                'piso_departamento' => $padron->piso,
+                'ciudad' => strtoupper($padron->ciudad),
+                'provincia' => strtoupper($padron->provincia), // Corregido: usar provincia en lugar de ciudad
+                'notes' => strtoupper($padron->comentarios),
+                'last_modified_by' => $padron->usuario_id,
+            ]);
+
+            // Procesar teléfonos si existen
+            if (!empty($padron->telefonos)) {
+                $telefonos = json_decode($padron->telefonos, true);
+                if ($telefonos) {
+                    $padronTelefonosService = new PadronTelefonosService();
+                    $padronTelefonosService->actualizarTelefonos($telefonos, $padron->id);
+                }
+            }
+
+            Log::info("Padrón actualizado correctamente: ID {$padron->id}");
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Padrón actualizado correctamente'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Error al actualizar padrón: " . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al actualizar el padrón'
+            ], 500);
+        }
     }
 }

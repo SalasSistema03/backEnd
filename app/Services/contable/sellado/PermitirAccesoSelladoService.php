@@ -24,8 +24,18 @@ class PermitirAccesoSelladoService
         })
         ->first();
 
-    return $permiso !== null; // Retorna true si tiene acceso, false si no
+    return $permiso !== null;
     }
 
-    
+    public function tieneAccesoUsuario($usuarioId, $botonNombre){
+        $permiso = Permiso::where('usuario_id', $usuarioId)
+        ->whereHas('boton', function ($query) use ($botonNombre) {
+            $query->where('btn_nombre', $botonNombre);
+        })
+        ->first();
+
+    return $permiso !== null;
+    }
+
+
 }

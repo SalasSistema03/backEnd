@@ -9,9 +9,9 @@ class ConsultaPropVentaService
 
     public function guardarConsultaPropVenta(array $data)
     {
-        
+
         try {
-            Log::info($data);
+            //Log::info($data);
             return ConsultaPropVenta::create($data);
         } catch (\Exception $e) {
             // Podés loguear el error si querés: \Log::error($e->getMessage());

@@ -4,9 +4,7 @@ namespace App\Http\Controllers\clientes;
 
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use App\Models\At_cl\Usuario;
 use App\Services\At_cl\PermitirAccesoPropiedadService;
-
 use App\Services\clientes\ClientesService;
 use App\Services\clientes\CriterioBusquedaVentaService;
 use App\Services\clientes\TipoInmuebleService;
@@ -22,8 +20,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use App\Http\Controllers\agenda\RecordatorioController;
-
-use function Pest\Laravel\json;
+use App\Models\usuarios_y_permisos\Usuario;
+use App\Notifications\RecordatorioNotificacion;
 
 class ClientesController extends Controller
 {
@@ -62,13 +60,13 @@ class ClientesController extends Controller
         $this->consultaPropiedadVentaService = $consultaPropiedadVentaService;
         $this->historialCodigoConsultaService = $historialCodigoConsultaService;
         $this->usuario_id = session('usuario_id'); // Obtener el id del usuario actual desde la sesión
-        $this->usuario = Usuario::find($this->usuario_id);
+        /* $this->usuario = Usuario::find($this->usuario_id); */
         $this->permisoService = $permisoService;
         $this->envioMailService = $envioMailService;
         $this->recordatorioController = $recordatorioController;
     }
 
-    public function index()
+   /*  public function index()
     {
         $usuario = $this->usuario;
 
@@ -90,7 +88,7 @@ class ClientesController extends Controller
         $zonas = $this->zonaService->getAllZonas();
         $usuarioSectors = $this->usuarioSectorService->getAllUsuarioSector();
         return view('clientes.cargcarCliente.index', compact('tipoInmuebles', 'zonas', 'usuarioSectors', 'resultadoPermisoBoton', 'usuario'));
-    }
+    } */
 
     /**
      * Guarda un nuevo cliente y sus criterios asociados
@@ -109,25 +107,17 @@ class ClientesController extends Controller
      */
     public function guardar(Request $request)
     {
+        Log::info('Logs provenientes de clientescontroller ', $request->all());
 
         try {
-            $request->validate([
-                'cliente.nombre'        => ['required', 'string', 'max:255', 'regex:/^[^\'"]+$/u'],
-                'cliente.telefono'      => 'required|string|max:20',
-                'cliente.observaciones' => 'nullable|string|max:500',
-                'cliente.ingreso'       => 'required|string|max:100',
-                'cliente.id_asesor'     => 'required|integer',
-                'cliente.usuario_id'    => 'required|integer',
-            ]);
 
 
             $cliente = null;
             $criteriosVentaCreados = [];
             $propiedadesVentaInput = $request->input('propiedades_venta', []);
-
-
-            //Log::info('Logs provenientes de clientescontroller ', $request->all());
-            $this->recordatorioController->storeDesdeClientes($request);
+            //Log::info('Esto es informacion de propiedadesventainput', $propiedadesVentaInput);
+            //Logica relacionada con los recordatorios
+            //$this->recordatorioController->storeDesdeClientes($request);
 
             DB::connection('mysql5')->transaction(function () use ($request, &$cliente, &$criteriosVentaCreados, $propiedadesVentaInput) {
                 // 1. GUARDAR EL CLIENTE
@@ -135,36 +125,32 @@ class ClientesController extends Controller
                 if ($clienteData['sector_asesor'] === 'venta') {
                     $clienteData['id_asesor_venta'] = $clienteData['id_asesor'] ?? null;
                 }
-
+                //Log::info('antes de guardar cliente');
                 $cliente = $this->clienteService->guardarcliente($clienteData);
 
-                // 2. GUARDAR TODOS LOS CRITERIOS DE VENTA
+                // 2. GUARDAR O SINCRONIZAR CRITERIOS DE VENTA
                 $criteriosVenta = $request->input('criterios_venta', []);
-                log::info('Criterios de venta: ' . json_encode($criteriosVenta));
+                //log::info('Criterios de venta: ' . json_encode($criteriosVenta));
+
+                // Cliente nuevo: agregar solo criterios nuevos (sin id_criterio_venta)
                 foreach ($criteriosVenta as $criterio) {
+                    // Si tiene id_criterio_venta, es un criterio existente, lo saltamos
+                    if (isset($criterio['id_criterio_venta'])) {
+                        Log::info('Omitiendo criterio existente', ['id_criterio_venta' => $criterio['id_criterio_venta']]);
+                        continue;
+                    }
 
                     $criterio['id_cliente'] = $cliente->id_cliente;
                     $criterio['usuario_id'] = $cliente->usuario_id;
                     $criterio['fecha_criterio_venta'] = $criterio['fecha_criterio'] ?? now();
-
-                    $validator = Validator::make($criterio, [
-                        'id_cliente' => 'required|integer',
-                        'id_tipo_inmueble' => 'required|integer'
-                    ]);
-
-                    if ($validator->fails()) {
-                        throw new \Exception('Completa los datos del venta');
-                    }
-
                     $criterioVenta = $this->criterioBusquedaVentaService->guardarcriterioBusquedaVenta($criterio);
-
                     // Almacenar el criterio creado con el ID real de la base de datos
                     if (isset($criterio['id_propiedad'])) {
                         $criteriosVentaCreados[] = [
                             'id_criterio_venta' => $criterioVenta->id_criterio_venta,
-                            'id_tipo_inmueble' => $criterio['id_tipo_inmueble'],
-                            'cant_dormitorios' => $criterio['cant_dormitorios'],
-                            'id_propiedad' => $criterio['id_propiedad']
+                            'id_tipo_inmueble'  => $criterio['id_tipo_inmueble'],
+                            'cant_dormitorios'  => $criterio['cant_dormitorios'],
+                            'id_propiedad'      => $criterio['id_propiedad']
                         ];
                     }
                 }
@@ -172,31 +158,102 @@ class ClientesController extends Controller
 
                 // 4. GUARDAR EL HISTORIAL DE CONSULTAS (DESPUÉS de que todo lo demás está creado)
                 foreach ($propiedadesVentaInput as $propiedad) {
+
+                    if (isset($propiedad['id_con_prop_venta'])) {
+                        // Log::info('Omitiendo propiedad existente', ['id_con_prop_venta' => $propiedad['id_con_prop_venta']]);
+                        continue;
+                    }
                     $propiedad['id_cliente'] = $cliente->id_cliente;
                     $propiedad['usuario_id'] = $cliente->usuario_id;
                     $propiedad['fecha_consulta_propiedad'] = $propiedad['fecha_consulta'] ?? now();
                     $propiedad['estado_consulta_venta'] = "Activo";
-                    if (isset($propiedad['id_propiedad'])) {
-                        foreach ($criteriosVentaCreados as $criterioCreado) {
-                            log::info('Comparando propiedad: ' . json_encode($propiedad) . ' con criterio creado: ' . json_encode($criterioCreado));
-                            if ($propiedad['id_tipo_inmueble'] == $criterioCreado['id_tipo_inmueble'] && $propiedad['cant_dormitorios'] == $criterioCreado['cant_dormitorios']) {
-                                $propiedad['id_criterio_venta'] = $criterioCreado['id_criterio_venta'];
-                                $this->consultaPropiedadVentaService->guardarConsultaPropVenta($propiedad);
-                                $this->historialCodigoConsultaService->guardarHistorialCodigoConsulta($propiedad['id_propiedad'], $criterioCreado['id_criterio_venta']);
-
-                                break;
-                            } else {
-                                // Eliminar campos que no existen en la tabla antes de guardar
-                                unset($propiedad['id_tipo_inmueble'], $propiedad['cant_dormitorios']);
-                                $this->historialCodigoConsultaService->guardarHistorialCodigoConsulta($propiedad['id_propiedad'], $criterioCreado['id_criterio_venta']);
 
 
-                                $this->consultaPropiedadVentaService->guardarConsultaPropVenta($propiedad);
-                            }
+                    if (!isset($propiedad['id_propiedad'])) continue;
+
+                    $encontrado = false;
+
+                    //Log::info('antes de entrar al for', $criteriosVentaCreados);
+                    foreach ($criteriosVentaCreados as $criterioCreado) {
+
+                        if ($propiedad['id_tipo_inmueble'] == $criterioCreado['id_tipo_inmueble'] && $propiedad['cant_dormitorios'] == $criterioCreado['cant_dormitorios']) {
+
+                            $propiedad['id_criterio_venta'] = $criterioCreado['id_criterio_venta'];
+
+                            $this->consultaPropiedadVentaService->guardarConsultaPropVenta($propiedad);
+
+                            $this->historialCodigoConsultaService
+                                ->guardarHistorialCodigoConsulta($propiedad['id_propiedad'], $criterioCreado['id_criterio_venta']);
+
+                            $encontrado = true;
+                            break;
+                        }
+                    }
+                    //Log::info('Salio de criteriosventacrados');
+                    // Solo si ningún criterio coincidió
+                    if (!$encontrado) {
+                        unset($propiedad['id_tipo_inmueble'], $propiedad['cant_dormitorios']);
+                        $this->consultaPropiedadVentaService->guardarConsultaPropVenta($propiedad);
+                    }
+                }
+
+
+
+                $usuarioId =   auth('api')->id();
+                Log::info('sssssssssssssssssssssssss');
+                Log::info('criteriosVenta', $criteriosVenta);
+                //mensajes
+                try{
+                // Encontrar el criterioventa con el ID más grande
+                $criterioVentaMasGrande = null;
+                $maxId = 0;
+
+                foreach ($criteriosVentaCreados as $criterio) {
+                    if (isset($criterio['id_criterio_venta']) && $criterio['id_criterio_venta'] > $maxId) {
+                        $maxId = $criterio['id_criterio_venta'];
+                        $criterioVentaMasGrande = $criterio;
+                    }
+                }
+
+                // Si no hay criterios creados, usar el primero del log si existe
+                if ($criterioVentaMasGrande === null && !empty($criteriosVenta)) {
+                    foreach ($criteriosVenta as $criterio) {
+                        if (isset($criterio['id_criterio_venta']) && $criterio['id_criterio_venta'] > $maxId) {
+                            $maxId = $criterio['id_criterio_venta'];
+                            $criterioVentaMasGrande = $criterio;
                         }
                     }
                 }
 
+                $idCriterioVenta = $criterioVentaMasGrande ? $criterioVentaMasGrande['id_criterio_venta'] : null;
+
+                $mensaje = [
+                    'descripcion'       => $cliente->nombre . ' ' . $cliente->apellido,
+                    'fecha'             => now()->isoFormat('DD/MM/YYYY'),  // 13/04/2026
+                    'hora'              => now()->isoFormat('HH:mm'),       // 14:53
+                    'activo'            => 1,
+                    'usuarioNotificar'  => $request->input('cliente.id_asesor'),
+                    'cliente_id'        => $cliente->id_cliente,
+                    'id_criterio_venta' => $idCriterioVenta
+                ];
+                }
+                catch(\Exception $e){
+                    Log::error('Error al crear mensaje', ['error' => $e->getMessage()]);
+                }
+                //Log::info('mensaje', ['mensaje' => $mensaje]);
+                //dd($mensaje);
+
+
+
+                $usuario = Usuario::find($usuarioId);
+                //Log::info('antes de entrar al if de usuaiuo', ['usuarioId' => $usuarioId, 'usuario' => $usuario]);
+                if ($usuario) {
+
+                    $usuario->notify(new RecordatorioNotificacion($mensaje));
+                }
+
+
+                //no borrar este comentado
                 $this->envioMailService->enviarNuevoMail($criteriosVenta, $cliente->id_cliente, $propiedadesVentaInput);
             });
             return response()->json(['success' => true, 'message' => 'Cliente y criterios guardados correctamente']);
@@ -208,51 +265,20 @@ class ClientesController extends Controller
     }
 
 
+
     public function clientePorTelefono($telefono = null)
     {
-        $usuario = $this->usuario;
-
-        $vistaBuscarCliente = 'cliente.telefono';
-        $permisoService = new PermitirAccesoPropiedadService($this->usuario->id);
-
-
-        // Verificar permisos de botones (Seleccionar el asesor)
-        $permisoBoton = "seleccionarAsesor";
-        $resultadoPermisoBoton = $this->permisoService->verificarAccesoBotones_Elementos($permisoBoton);
-
-
-        // Verificar si el usuario tiene acceso a la vista
-        if (!$permisoService->tieneAccesoAVista($vistaBuscarCliente)) {
-            // Redirigir o mostrar un mensaje de error si no tiene acceso
-            return redirect()->route('home')->with('error', 'No tienes acceso a esta vista.');
+        if (!$telefono) {
+            return response()->json(['error' => 'Teléfono requerido'], 400);
         }
-        $tipoInmuebles = $this->tipoInmuebleService->getTipoInmueble();
 
-        $zonas = $this->zonaService->getAllZonas();
+        $cliente = $this->clienteService->clientePorTelefonoService($telefono);
 
-        $usuarioSectors = $this->usuarioSectorService->getAllUsuarioSector();
-        $cliente = null;
-
-        if ($telefono) {
-            $cliente = $this->clienteService->clientePorTelefonoService($telefono);
-
-
-            // Si es una petición AJAX, devolvemos JSON
-            if (request()->ajax()) {
-                if (!$cliente) {
-                    return response()->json(['error' => 'Cliente no encontrado'], 404);
-                }
-
-                // devolvés solo los datos que necesitás, por ejemplo:
-                return response()->json([
-                    'cliente' => $cliente,
-                ]);
-            }
+        if (!$cliente) {
+            return response()->json(['error' => 'Cliente no encontrado'], 404);
         }
-        //log::info('Cliente buscado por teléfono: ' . $cliente);
 
-        // Si NO es AJAX, devolvés la vista normalmente (como hasta ahora)
-        return view('clientes.buscarCliente.index', compact('cliente', 'tipoInmuebles', 'zonas', 'usuarioSectors', 'resultadoPermisoBoton', 'usuario'));
+        return response()->json(['cliente' => $cliente]);
     }
 
 
@@ -316,7 +342,7 @@ class ClientesController extends Controller
         try {
 
             /* Genera un nuevo recordatorio relacionado a los criterios ingresados */
-            $this->recordatorioController->storeDesdeClientesCriterio($request);
+            //$this->recordatorioController->storeDesdeClientesCriterio($request);
             /* La transacción se ejecuta utilizando la conexión mysql5 para alinearse con los modelos */
             DB::connection('mysql5')->transaction(function () use ($request) {
 

@@ -9,7 +9,7 @@ use App\Models\sys\Propiedades_sys;
 use App\Models\sys\Contratos_cabecera_sys;
 use App\Models\sys\Contratos_detalle_sys;
 use App\Models\At_cl\Empresas_propiedades;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class PropiedadService
 {
@@ -29,12 +29,6 @@ class PropiedadService
             ->findOrFail($id);
     }
 
-    /*
-     * Obtiene las empresas asociadas a una propiedad.
-     *
-     * @param int|string $id ID de la propiedad.
-     * @return \Illuminate\Database\Eloquent\Collection
-     */
     public function obtenerEmpresaPropiedad($id)
     {
         return Empresas_propiedades::where('propiedad_id', $id)->get();
@@ -42,7 +36,7 @@ class PropiedadService
 
 
     /**
-     * Obtiene el folio con el vencimiento de contrato más grande y su fecha de inicio.
+     * Obtiene el folio con el vencimiento de contrato más grande y su fecha de inicio
      *
      * @param int|string $id ID de la propiedad
      * @return object|null Objeto con folio, inicio_contrato y vencimiento_contrato
@@ -69,7 +63,6 @@ class PropiedadService
             ->orderBy('rescicion', 'desc')
             ->first();
 
-
         if (!$contrato) {
             return null;
         }
@@ -84,9 +77,6 @@ class PropiedadService
             'id_casa' => $contrato->id_casa,
         ];
     }
-
-
-
 
     /**
      * Obtiene el monto de alquiler del contrato activo (documentos = 'N').
@@ -109,10 +99,11 @@ class PropiedadService
             ->whereDate('desde_fecha', '<=', now())
             ->whereDate('hasta_fecha', '>=', now())
             ->get('monto_alquiler');
-        /* dd($alquiler->first()->monto_alquiler);  */
+
         if ($alquiler->isEmpty()) {
             return 0;
         }
+
         return $alquiler->first()->monto_alquiler;
     }
 
@@ -136,10 +127,9 @@ class PropiedadService
             ->whereDate('desde_fecha', '<=', now())
             ->whereDate('hasta_fecha', '>=', now())
             ->get('monto_alquiler');
-        /* dd($alquiler->first()->monto_alquiler); */
+
         return $alquiler->first()->monto_alquiler;
     }
-
 
     /**
      * Obtiene los propietarios asociados a una propiedad.
@@ -192,10 +182,72 @@ class PropiedadService
             $data['zona'] = $prop->zona->name ?? null;
             $data['inmueble'] = $prop->tipoInmueble->inmueble ?? null;
 
-            // Agregá de nuevo si querés usarlo en la vista
+
             $data['id_zona'] = $prop->id_zona;
 
-            unset($data['id_calle'], $data['id_barrio']); // ahora sí podés eliminar estos si no se usan
+            unset($data['id_calle'], $data['id_barrio']);
+            return $data;
+        });
+    }
+
+    public function buscarPropiedadesVenta(string $codigo = '', string $calle = '', int $dormitorios = null, int $banios = null, string $cochera = ''){
+        $query = Propiedad::with(['calle', 'barrio', 'zona', 'tipoInmueble']);
+
+        // Filtro por código (solo, sin combinación)
+        if ($codigo) {
+            $props = $query->where('cod_venta', $codigo)->get();
+            return $props->map(function ($prop) {
+                $data = $prop->toArray();
+                $data['calle'] = isset($prop->calle->name)
+                    ? $prop->calle->name . ' ' . $prop->numero_calle
+                    : $prop->numero_calle;
+                $data['barrio'] = $prop->barrio->name ?? null;
+                $data['zona'] = $prop->zona->name ?? null;
+                $data['inmueble'] = $prop->tipoInmueble->inmueble ?? null;
+
+                $data['id_zona'] = $prop->id_zona;
+
+                unset($data['id_calle'], $data['id_barrio']);
+                return $data;
+            });
+        }
+
+        // Filtros combinados (calle, dormitorios, baños, cochera)
+        $query->when($calle, function ($q) use ($calle) {
+            $q->whereHas('calle', fn($query) =>
+                $query->where('name', 'like', "%{$calle}%")
+                    ->orWhere('numero_calle', 'like', "%{$calle}%")
+            );
+        })
+        ->when($dormitorios, function ($q) use ($dormitorios) {
+            $q->where('cantidad_dormitorios', $dormitorios);
+        })
+        ->when($banios, function ($q) use ($banios) {
+            $q->where('banios', $banios);
+        })
+        ->when($cochera, function ($q) use ($cochera) {
+            $q->where('cochera', $cochera);
+        });
+
+        $props = $query->get();
+
+        $props = $props->filter(function ($prop) {
+            return $prop->cod_venta !== null
+            && !in_array($prop->id_estado_venta, ['3', '4', '6', '7']);
+        });
+
+        return $props->map(function ($prop) {
+            $data = $prop->toArray();
+            $data['calle'] = isset($prop->calle->name)
+                ? $prop->calle->name . ' ' . $prop->numero_calle
+                : $prop->numero_calle;
+            $data['barrio'] = $prop->barrio->name ?? null;
+            $data['zona'] = $prop->zona->name ?? null;
+            $data['inmueble'] = $prop->tipoInmueble->inmueble ?? null;
+
+            $data['id_zona'] = $prop->id_zona;
+
+            unset($data['id_calle'], $data['id_barrio']);
             return $data;
         });
     }
@@ -211,8 +263,7 @@ class PropiedadService
         return Propiedad::find($id);
     }
 
-
-    //Este servicio guarda el historial de estados cuando se realiza SOLO UN CAMBIO EN EL ESTADO de venta o alquiler de una propiedad
+    // Este servicio guarda el historial de estados cuando se realiza SOLO UN CAMBIO EN EL ESTADO de venta o alquiler de una propiedad
     public function guardarHistorialEstadosSerbive(
         $id_propiedad,
         $nuevo_estado_venta,
@@ -220,12 +271,9 @@ class PropiedadService
         $descripcion_estado_alquiler,
         $descripcion_estado_venta,
         $fecha_baja_temporal_alquiler,
-        $fecha_baja_temporal_venta
+        $fecha_baja_temporal_venta,
+        $usuario_id
     ) {
-        // Usuario actual
-        $usuario = session('usuario');
-        $usuario_id = $usuario->id;
-
         // Últimos historiales (pueden ser null si nunca se guardó nada)
         $ultimo_historial_estado_venta = $this->obtenerUltimoHistorialEstadosVenta($id_propiedad);
         $ultimo_historial_estado_alquiler = $this->obtenerUltimoHistorialEstadosAlquiler($id_propiedad);
@@ -279,7 +327,7 @@ class PropiedadService
         }
     }
 
-    //Obtengo el ultimo historial de estados por el id de la propiedad (Se consume en el controlador de propiedad llamdo "edit") - SOLO DE VENTA
+    // Obtengo el último historial de estados por el id de la propiedad (Se consume en el controlador de propiedad llamando "edit") - SOLO DE VENTA
     public function obtenerUltimoHistorialEstadosVenta($id_propiedad)
     {
         return HistorialEstadosVenta::where('id_propiedad', $id_propiedad)
@@ -287,10 +335,9 @@ class PropiedadService
             ->first(); // devuelve el último registro guardado
     }
 
-    //Obtengo el ultimo historial de estados por el id de la propiedad (Se consume en el controlador de propiedad llamdo "edit") - SOLO DE ALQUILER
+    // Obtengo el último historial de estados por el id de la propiedad (Se consume en el controlador de propiedad llamando "edit") - SOLO DE ALQUILER
     public function obtenerUltimoHistorialEstadosAlquiler($id_propiedad)
     {
-        //tragio el ultimo historial de estados por el id de la propiedad
         return HistorialEstadosAlquiler::where('id_propiedad', $id_propiedad)
             ->orderBy('id', 'desc')
             ->first(); // devuelve el último registro guardado
@@ -299,7 +346,9 @@ class PropiedadService
     public function crearPropiedad(array $datos, int $userId): Propiedad
     {
         try {
-            return Propiedad::create([
+            DB::beginTransaction();
+
+            $propiedad = Propiedad::create([
                 'id_calle' => $datos['calle_id'],
                 'numero_calle' => $datos['altura'],
                 'ph' => $datos['ph'],
@@ -309,7 +358,7 @@ class PropiedadService
                 'id_zona' => $datos['zona_id'],
                 'id_provincia' => $datos['provincia_id'],
                 'llave' => $datos['llave'],
-                'comentario_llave' => $datos['observaciones_llave'],
+                'comentario_llave' => $datos['comentario_llave'],
                 'cartel' => $datos['cartel'],
                 'comentario_cartel' => $datos['observaciones_cartel'],
                 'id_estado_general' => $datos['comodidades']['estado_general'] ?? null,
@@ -336,8 +385,8 @@ class PropiedadService
                 'flyer' => $datos['venta']['flyer'] ?? null,
                 'reel' => $datos['venta']['reel'] ?? null,
                 'web' => $datos['venta']['web'] ?? null,
-                'captador_int' => $datos['venta']['captador_int'] ?? null,
-                'asesor' => $datos['venta']['asesor'] ?? null,
+                'captador_int' => $datos['venta']['captador_interno'] ?? null,
+                'asesor' => $datos['venta']['asesor_resultado'] ?? null,
                 'cod_alquiler' => $datos['alquiler']['cod_alquiler'] ?? null,
                 'id_estado_alquiler' => $datos['alquiler']['estado_alquiler'] ?? null,
                 'autorizacion_alquiler' => $datos['alquiler']['autorizacion_alquiler'] ?? null,
@@ -350,13 +399,15 @@ class PropiedadService
                 'condicion' => $datos['condicionAlquiler']['condicion'] ?? null,
                 'last_modified_by' => $userId,
             ]);
-        } catch (\Exception $e) {
-            Log::error('Error al crear propiedad: ' . $e->getMessage(), [
-                'user_id' => $userId,
-                'trace' => $e->getTraceAsString()
-            ]);
 
+            DB::commit();
+            return $propiedad;
+
+        } catch (\Exception $e) {
+            DB::rollBack();
             throw new \Exception('No se pudo crear la propiedad: ' . $e->getMessage());
         }
     }
+
+
 }

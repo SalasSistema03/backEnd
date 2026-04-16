@@ -11,7 +11,7 @@ use App\Models\At_cl\Calle;
 use App\Models\At_cl\Estado_alquiler;
 use Illuminate\Support\Facades\DB;
 use App\Models\At_cl\Padron;
-use App\Models\At_cl\Usuario;
+use App\Models\usuarios_y_permisos\Usuario;
 use App\Services\At_cl\documentacionService;
 use App\Services\At_cl\FotosService;
 use App\Services\At_cl\HistorialFechasService;
@@ -196,13 +196,13 @@ class Pdf_alquiler
      /* pdf de propiedad individual v/a */
     public function generarPDFpantillaPropiedad($id, $tipoBTN)
     {
-        $usuario = $this->usuario;
+      /*   $usuario = $this->usuario;
         $propiedad = $this->propiedadService->obtenerPropiedadConId($id);
 
         $contratoMasNuevo = $this->propiedadService->obtenerContratoMasReciente($id);
         $idCasas = $contratoMasNuevo->id_casa ?? null;
         $vencimiento_contratos = $contratoMasNuevo->vencimiento_contrato ?? null;
-        $inicio_contrato = $contratoMasNuevo->inicio_contrato ?? null;
+        $inicio_contrato = $contratoMasNuevo->inicio_contrato ?? null; */
 
 
         //$idCasas = $this->propiedadService->obtenerIdCasas($propiedad->folio);
@@ -213,7 +213,7 @@ class Pdf_alquiler
 
 
 
-        $propietarios = $this->propiedadService->obtenerPropietarios($id);
+        /* $propietarios = $this->propiedadService->obtenerPropietarios($id);
         $ultimoPrecio = $this->precioService->obtenerUltimoPrecio($id);
         $precio = $ultimoPrecio;
         $observaciones_propiedades_venta = $this->observacionesPropiedadesService->obtenerObservacionesVenta($id);
@@ -272,7 +272,38 @@ class Pdf_alquiler
             ->setOption('footer-font-size', 7) // Tamaño fuente pie (px)
             ->setOption('footer-center', $usuario->username)
             /* ->setOption('footer-center', 'Page [page] of [toPage]'); // pagina x de y */;
-        return $pdf->stream("propiedad_{$id}.pdf");
+       /*  return $pdf->stream("propiedad_{$id}.pdf"); */
+
+
+
+
+
+
+       $propiedad = Propiedad::findOrFail($id);
+       $html = "
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; font-size: 12px; }
+                .titulo { text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 20px; }
+                .campo { margin-bottom: 8px; }
+                label { font-weight: bold; }
+                hr { border: 1px solid #ccc; }
+            </style>
+        </head>
+        <body>
+            <div class='titulo'>FICHA DE ALQUILER</div>
+            <hr>
+            <div class='campo'><label>Código:</label> {$propiedad->id}</div>
+
+        </body>
+        </html>
+    ";
+
+    $pdf = \Barryvdh\Snappy\Facades\SnappyPdf::loadHTML($html);
+
+    return $pdf->stream("ficha_alquiler_{$id}.pdf");
+
     }
 
 

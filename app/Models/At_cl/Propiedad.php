@@ -7,8 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder;
 use App\Models\At_cl\Foto;
 use App\Models\At_cl\Empresas;
+use App\Models\cliente\Usuario_sector;
 use App\Models\usuarios_y_permisos\Usuario;
-
+use App\Models\sys\Propiedades_sys;
+use App\Models\sys\Contratos_detalle_sys;
+use Illuminate\Support\Facades\Log;
 
 class Propiedad extends Model
 {
@@ -92,7 +95,6 @@ class Propiedad extends Model
         'publicado',
         'venta_fecha_alta',
         'alquiler_fecha_alta',
-        'fecha_publicacion_ig',
         'zona_prop',
         'flyer',
         'reel',
@@ -131,6 +133,16 @@ class Propiedad extends Model
     {
         return $this->belongsTo(Calle::class, 'id_calle');
     }
+
+    public function usuarioAsesor()
+    {
+        return $this->belongsTo(Usuario::class, 'asesor', 'id');
+    }
+    public function usuarioCaptadorInt()
+    {
+        return $this->belongsTo(Usuario::class, 'captador_int', 'id');
+    }
+
 
     /**
      * Relación con el modelo `EstadoGeneral`.
@@ -262,7 +274,7 @@ class Propiedad extends Model
     }
     public function tasaciones()
     {
-        return $this->hasMany(Tasacion::class, 'propiedad_id');
+        return $this->hasMany(Tasacion::class, 'propiedad_id')->latest();
     }
 
 
@@ -274,118 +286,102 @@ class Propiedad extends Model
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    /* public function lastModifiedBy()
-    {
-        return $this->belongsTo(Usuario::class, 'last_modified_by');
-    } */
+
     public function usuario()
     {
         return $this->belongsTo(Usuario::class, 'last_modified_by', 'id');
     }
 
-    public function scopeFiltrar(Builder $query, array $filtros): Builder
+
+
+    public function scopeFiltrar($query, array $filtros)
     {
-
-        // Buscar por término de búsqueda (código de inmueble)
-        /*  if (!empty($filtros['search_term'])) {
-            $query->where(function ($q) use ($filtros) {
-                $q->where('cod_venta', 'LIKE', '%' . $filtros['search_term'] . '%')
-                    ->orWhere('cod_alquiler', 'LIKE', '%' . $filtros['search_term'] . '%');
-            });
-        } */
-        $query->where(function ($q) use ($filtros) {
-            if (!empty($filtros['search_term'])) {
-                // Si hay término de búsqueda, buscar coincidencias
-                $q->where('cod_venta', 'LIKE', '%' . $filtros['search_term'] . '%')
-                    ->orWhere('cod_alquiler', 'LIKE', '%' . $filtros['search_term'] . '%');
-            } else {
-                // Si no hay término, filtrar propiedades que tengan al menos uno de los dos códigos
-                $q->whereNotNull('cod_venta')
-                    ->orWhereNotNull('cod_alquiler');
-            }
-        });
-
-        // Filtrar por habitaicones
-        if (!empty($filtros['cantidad_dormitorios'])) {
-            $query->where('cantidad_dormitorios', $filtros['cantidad_dormitorios']);
-        }
-
-        // Filtrar por tipo de inmueble (acepta 1 o varios)
-        if (!empty($filtros['tipo_inmueble'])) {
-            $tipos = (array) $filtros['tipo_inmueble'];
-            $tipos = array_values(array_filter($tipos, function ($v) {
-                return $v !== null && $v !== '';
-            }));
-            if (!empty($tipos)) {
-                if (count($tipos) > 1) {
-                    $query->whereIn('id_inmueble', $tipos);
-                } else {
-                    $query->where('id_inmueble', $tipos[0]);
-                }
-            }
-        }
-
-        // Filtrar por zona
-        if (!empty($filtros['zonas'])) {
-            $query->whereIn('id_zona', $filtros['zonas']);
-        }
-
-        if (!empty($filtros['calle'])) {
-            $query->where('id_calle', $filtros['calle']);
-        }
-
-        if (!empty($filtros['oferta'])  && (!empty($filtros['importe_minimo']) || !empty($filtros['importe_maximo']))) {
-            $query->whereHas('precio', function ($q) use ($filtros) {
-                if ($filtros['oferta'] == 1) {
-                    $q->whereNotNull('moneda_venta_dolar');
-                    if (!empty($filtros['importe_minimo'])) {
-                        $q->where('moneda_venta_dolar', '>=', $filtros['importe_minimo']);
-                    }
-                    if (!empty($filtros['importe_maximo'])) {
-                        $q->where('moneda_venta_dolar', '<=', $filtros['importe_maximo']);
-                    }
-                } elseif ($filtros['oferta'] == 2) {
-                    $q->whereNotNull('moneda_alquiler_pesos');
-                    if (!empty($filtros['importe_minimo'])) {
-                        $q->where('moneda_alquiler_pesos', '>=', $filtros['importe_minimo']);
-                    }
-                    if (!empty($filtros['importe_maximo'])) {
-                        $q->where('moneda_alquiler_pesos', '<=', $filtros['importe_maximo']);
-                    }
-                }
-            });
-        }
-
-
-
-        // Filtrar por tipo de oferta (venta o alquiler)
-        if (!empty($filtros['oferta'])) {
-            if ($filtros['oferta'] == 1) {
+        // Filtro por tipo de búsqueda (venta/alquiler)
+        if (!empty($filtros['busqueda'])) {
+            if ($filtros['busqueda'] == 1) {
                 $query->whereNotNull('cod_venta');
-            } elseif ($filtros['oferta'] == 2) {
+            } elseif ($filtros['busqueda'] == 2) {
                 $query->whereNotNull('cod_alquiler');
             }
         }
 
-        if (!empty($filtros['cochera'])) {
-            if ($filtros['cochera'] == 1) {
-                $query->where('cochera', 'si');
-            } elseif ($filtros['cochera'] == 2) {
-                $query->where('cochera', 'no');
+        // Código
+        if (!empty($filtros['codigo'])) {
+            if ($filtros['busqueda'] == 1) {
+                $query->where('cod_venta', $filtros['codigo']);
+            } elseif ($filtros['busqueda'] == 2) {
+                $query->where('cod_alquiler', $filtros['codigo']);
             }
         }
 
+        // Calle
+        if (!empty($filtros['calle_id'])) {
+            $query->where('id_calle', $filtros['calle_id']);
+        }
+
+        // Tipos de inmueble
+        if (!empty($filtros['inmuebles'])) {
+            $query->whereIn('id_inmueble', $filtros['inmuebles']);
+        }
+
+        // Zonas
+        if (!empty($filtros['zonas'])) {
+            $query->whereIn('id_zona', $filtros['zonas']);
+        }
+
+        // Cochera
+        if (!empty($filtros['cochera'])) {
+            $query->where('cochera', $filtros['cochera']);
+        }
+
+        // Mascotas
+        if (!empty($filtros['mascotas'])) {
+            $query->where('mascota', $filtros['mascotas']);
+        }
+        if (isset($filtros['habitaciones']) && $filtros['habitaciones'] !== '') {
+            $query->where('cantidad_dormitorios', $filtros['habitaciones']);
+        }
+
+        // Rango de precios
+        if (!empty($filtros['desde']) || !empty($filtros['hasta'])) {
+            $query->whereHas('precioActual', function ($q) use ($filtros) {
+                // Venta
+                if (!empty($filtros['busqueda']) && $filtros['busqueda'] == 1) {
+                    $q->whereNotNull('moneda_venta_dolar');
+
+                    if (!empty($filtros['desde'])) {
+                        $q->where('moneda_venta_dolar', '>=', $filtros['desde']);
+                    }
+                    if (!empty($filtros['hasta'])) {
+                        $q->where('moneda_venta_dolar', '<=', $filtros['hasta']);
+                    }
+                }
+
+                // Alquiler
+                if (!empty($filtros['busqueda']) && $filtros['busqueda'] == 2) {
+                    $q->whereNotNull('moneda_alquiler_pesos');
+
+                    if (!empty($filtros['desde'])) {
+                        $q->where('moneda_alquiler_pesos', '>=', $filtros['desde']);
+                    }
+                    if (!empty($filtros['hasta'])) {
+                        $q->where('moneda_alquiler_pesos', '<=', $filtros['hasta']);
+                    }
+                }
+            });
+        }
+
         // Si el checkbox de ampliar no está marcado, filtrar por estados
-        if (!isset($filtros['ampliar'])) {
-            if (!empty($filtros['oferta'])) {
-                if ($filtros['oferta'] == 1) {
-                    // Para venta, excluir vendidas y baja temporal
+        if (!isset($filtros['ampliar']) || $filtros['ampliar'] == 0 || $filtros['ampliar'] === false) {
+            if (!empty($filtros['busqueda'])) {
+                if ($filtros['busqueda'] == 1) {
+                    // Para venta, excluir vendidas y baja temporal (IDs 3, 4, 5, 6, 7)
                     $estadosVentaExcluidos = Estado_venta::whereIn('id', ['3', '4', '5', '6', '7'])
                         ->pluck('id')
                         ->toArray();
                     $query->whereNotIn('id_estado_venta', $estadosVentaExcluidos);
-                } elseif ($filtros['oferta'] == 2) {
-                    // Para alquiler, excluir alquiladas y baja temporal
+                } elseif ($filtros['busqueda'] == 2) {
+                    // Para alquiler, excluir alquiladas y baja temporal (IDs 3, 4, 5, 6, 7)
                     $estadosAlquilerExcluidos = Estado_alquiler::whereIn('id', ['3', '4', '5', '6', '7'])
                         ->pluck('id')
                         ->toArray();
@@ -393,10 +389,10 @@ class Propiedad extends Model
                 }
             }
         }
+
         return $query;
     }
 
-    // En el modelo Propiedad
     public static function getPropertyDetails(string $id)
     {
         return self::with(['calle', 'zona', 'tipoInmueble', 'precio'])
@@ -407,7 +403,8 @@ class Propiedad extends Model
     {
         return $this->belongsToMany(Padron::class, 'propiedades_padron', 'propiedad_id', 'padron_id')
             ->withPivot('observaciones', 'baja', 'fecha_baja', 'observaciones_baja', 'last_modified_by')
-            ->withTimestamps();
+            ->withTimestamps()
+            ->with('telefonos');
     }
 
     public function empresasPropiedad()
@@ -418,5 +415,157 @@ class Propiedad extends Model
     public function folios()
     {
         return $this->hasMany(Empresas_propiedades::class, 'propiedad_id');
+    }
+
+    public function observacionesPropiedades()
+    {
+        return $this->hasMany(Observaciones_propiedades::class, 'propiedad_id');
+    }
+
+    public function buscarCasa()
+    {
+        $datos = [];
+
+        foreach ($this->folios as $folio) {
+            if ($folio->folio != null) {
+
+                $casasConContrato = Propiedades_sys::select('propiedades.id_casa')
+                    ->join('contratos_cabecera as c', 'propiedades.id_casa', '=', 'c.id_casa')
+                    ->where('propiedades.carpeta', $folio->folio)
+                    ->where('c.id_empresa', $folio->empresa_id)
+                    ->distinct()
+                    ->get();
+
+                if ($casasConContrato->count() > 0) {
+                    $datos[] = [
+                        'id_casa' => $casasConContrato->pluck('id_casa')->toArray(),
+                        'carpeta' => $folio->folio,
+                        'empresa_id' => $folio->empresa_id
+                    ];
+                }
+            }
+        }
+
+        return $datos;
+    }
+
+    public function buscarContratoMasReciente()
+    {
+        $datos = [];
+        $contratoMasAlto = null;
+
+        foreach ($this->folios as $folio) {
+            if ($folio->folio != null) {
+                // Obtener el contrato más alto para este folio
+                $contrato = Propiedades_sys::select('propiedades.id_casa', 'c.id_contrato_cabecera', 'c.comienza', 'c.rescicion')
+                    ->join('contratos_cabecera as c', 'propiedades.id_casa', '=', 'c.id_casa')
+                    ->where('propiedades.carpeta', $folio->folio)
+                    ->where('c.id_empresa', $folio->empresa_id)
+                    ->orderBy('c.id_contrato_cabecera', 'desc')
+                    ->first();
+
+                if ($contrato) {
+                    // Si es el primer contrato o es más alto que el actual
+                    if ($contratoMasAlto === null || $contrato->id_contrato_cabecera > $contratoMasAlto->id_contrato_cabecera) {
+                        $contratoMasAlto = $contrato;
+                        $datos = [
+                            'id_casa' => $contrato->id_casa,
+                            'carpeta' => $folio->folio,
+                            'empresa_id' => $folio->empresa_id,
+                            'id_contrato_cabecera' => $contrato->id_contrato_cabecera,
+                            'comienza' => $contrato->comienza,
+                            'rescicion' => $contrato->rescicion
+                        ];
+                    }
+                }
+            }
+        }
+
+        return $datos;
+    }
+
+    public function buscarDetalleContratoMasAlto($id_contrato_cabecera)
+    {
+        $detalle = Contratos_detalle_sys::select('monto_alquiler', 'hasta_fecha')
+            ->where('id_contrato_cabecera', $id_contrato_cabecera)
+            ->orderBy('monto_alquiler', 'desc')
+            ->first();
+
+        return $detalle ? [
+            'monto_alquiler' => $detalle->monto_alquiler,
+            'hasta_fecha' => $detalle->hasta_fecha
+        ] : null;
+    }
+
+    /**
+     * Relación con el modelo HistorialEstadosAlquiler.
+     * Una propiedad puede tener un historial de alquiler.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
+    public function historialEstadosAlquiler()
+    {
+        return $this->hasOne(HistorialEstadosAlquiler::class, 'id_propiedad');
+    }
+
+    /**
+     * Relación con el modelo HistorialEstadosVenta.
+     * Una propiedad puede tener un historial de venta.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
+    public function historialEstadosVenta()
+    {
+        return $this->hasOne(HistorialEstadosVenta::class, 'id_propiedad');
+    }
+
+    public function buscarPorCodigoCalle($codigo_calle, $sector)
+    {
+        // Primero busca por código de venta exacto
+        if ($sector == 'Ventas') {
+            $propiedad = Propiedad::where('cod_venta','like', '%' . $codigo_calle . '%')
+            ->where('id_estado_venta', '=', 1 || 2 || 5)
+            ->get();
+
+            // Si no encuentra por código, busca por nombre de calle
+            if (!$propiedad || $propiedad->isEmpty()) {
+                $propiedad = Propiedad::whereHas('calle', function ($query) use ($codigo_calle) {
+                    $query->where('name', 'like', '%' . $codigo_calle . '%')
+                        ->where('cod_venta', '!=', null)
+                        ->where('id_estado_venta', '=', 1 || 2 || 5);
+                })
+                    ->get();
+            }
+        }
+
+        if ($sector == 'Alquiler') {
+            $propiedad = Propiedad::where('cod_alquiler','like', '%' . $codigo_calle . '%')
+            ->where('id_estado_alquiler', '=', 1 || 2)
+            ->get();
+
+            // Si no encuentra por código, busca por nombre de calle
+            if (!$propiedad || $propiedad->isEmpty()) {
+                $propiedad = Propiedad::whereHas('calle', function ($query) use ($codigo_calle) {
+                    $query->where('name', 'like', '%' . $codigo_calle . '%')
+                        ->where('cod_alquiler', '!=', null)
+                        ->where('id_estado_alquiler', '=', 1 || 2);
+                })
+                    ->get();
+            }
+        }
+
+        $propiedad = $propiedad->map(function ($prop) {
+            return [
+                'id' => $prop->id,
+                'cod_venta' => $prop->cod_venta,
+                'cod_alquiler' => $prop->cod_alquiler,
+                'calle' => $prop->calle->name,
+                'numero_calle' => $prop->numero_calle,
+                'estado_venta' => $prop->estadoVenta->name ?? null,
+                'estado_alquiler' => $prop->estadoAlquiler->name ?? null,
+            ];
+        });
+
+        return $propiedad;
     }
 }

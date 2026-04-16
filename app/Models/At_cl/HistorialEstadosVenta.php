@@ -24,4 +24,15 @@ class HistorialEstadosVenta extends Model
         'created_at'
     ];
 
+    /**
+     * Relación con el modelo Propiedad.
+     * Un historial de venta pertenece a una propiedad.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function propiedad()
+    {
+        return $this->belongsTo(Propiedad::class, 'id_propiedad');
+    }
+
 }

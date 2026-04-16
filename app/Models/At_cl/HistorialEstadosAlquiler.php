@@ -23,4 +23,15 @@ class HistorialEstadosAlquiler extends Model
         'created_at'
     ];
 
+    /**
+     * Relación con el modelo Propiedad.
+     * Un historial de alquiler pertenece a una propiedad.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function propiedad()
+    {
+        return $this->belongsTo(Propiedad::class, 'id_propiedad');
+    }
+
 }

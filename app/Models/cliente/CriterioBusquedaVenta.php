@@ -49,4 +49,28 @@ class CriterioBusquedaVenta extends Model
     {
         return $this->belongsTo(clientes::class, 'id_cliente', 'id_cliente');
     }
+
+    public function historialMuestras()
+    {
+        return $this->hasMany(HistorialCodMuestra::class, 'id_criterio_venta', 'id_criterio_venta')
+                    ->latest('fecha_hora');
+    }
+
+    public function historialOfrecimientos()
+    {
+        return $this->hasMany(HistorialCodOfrecimiento::class, 'id_criterio_venta', 'id_criterio_venta')
+                    ->latest('fecha_hora');
+    }
+
+    public function historialConsultas()
+    {
+        return $this->hasMany(HistorialCodigoConsulta::class, 'id_criterio_venta', 'id_criterio_venta')
+                    ->latest('fecha_hora');
+    }
+
+    public function historialConversaciones()
+    {
+        return $this->hasMany(HistorialCriteriosConversacion::class, 'id_criterio_venta', 'id_criterio_venta')
+                    ->latest('fecha_hora');
+    }
 }
