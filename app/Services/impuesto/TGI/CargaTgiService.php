@@ -168,7 +168,7 @@ class CargaTgiService
     //Si se pasa a activo, se debe GENERAR NUEVAMENTE EL BROCHE
     public function modificarEstado(int $id, string $estado)
     {
-    
+
         $registro = Tgi_carga::findOrFail($id);
 
         $compartidos = json_decode($registro->compartidos ?? '[]', true);
@@ -527,7 +527,7 @@ class CargaTgiService
             $gruposPorFolio[$folioMinimo][] = $registro;
         }
 
-       // log::info('Grupos por folio: ' . json_encode($gruposPorFolio));
+        // log::info('Grupos por folio: ' . json_encode($gruposPorFolio));
 
         // Paso 2: Armar grupos con suma de importes
         $grupos = [];
@@ -575,7 +575,7 @@ class CargaTgiService
             }
 
             /* ///////////////// */
-           //Log::info("Asignando grupo folio {$grupo['folio']} (importe: {$importeGrupo}) al broche " . ($brocheActual + 1));
+            //Log::info("Asignando grupo folio {$grupo['folio']} (importe: {$importeGrupo}) al broche " . ($brocheActual + 1));
 
             foreach ($grupo['items'] as $registro) {
                 $registro->num_broche = $brocheActual + 1;
@@ -638,7 +638,7 @@ class CargaTgiService
 
     //Este servicio se consume en la EXPORTACION DE PDF
     //Este servicio obtiene todos los registros por, año, mes y ordenado por folio separados por grupos de num_broche
-    //  -- IMPORTANTE  --  SOLO ARMA BROCHE PARA REGISTROS QUE NO TENGAN FOLIOS 50000 EN ADELANTE 
+    //  -- IMPORTANTE  --  SOLO ARMA BROCHE PARA REGISTROS QUE NO TENGAN FOLIOS 50000 EN ADELANTE
     //    Y QUE TENGAN ASIGNADO UN NUM_BROCHE DIFERENTE DE NULL
     //    Y QUE NO TENGAN BAJADO EN "S"
     public function obtenerRegistrosPorBroche($anio, $mes)
@@ -688,34 +688,34 @@ class CargaTgiService
 
         // 4️⃣ Ordenar los registros por folio
         $registrosOrdenados = $registrosFiltrados
-    ->map(function ($registro) {
-        // Decodificar el JSON de compartidos
-        $compartidos = json_decode($registro['compartidos'], true);
+            ->map(function ($registro) {
+                // Decodificar el JSON de compartidos
+                $compartidos = json_decode($registro['compartidos'], true);
 
-        if (is_array($compartidos)) {
-            // Filtrar solo los activos
-            $activos = collect($compartidos)
-                ->where('estado', 'ACTIVO')
-                ->sortBy('folio')
-                ->values();
-                
+                if (is_array($compartidos)) {
+                    // Filtrar solo los activos
+                    $activos = collect($compartidos)
+                        ->where('estado', 'ACTIVO')
+                        ->sortBy('folio')
+                        ->values();
 
-            // Si hay activos, nos quedamos con el más chico
-            if ($activos->isNotEmpty()) {
-                $registro['compartidos'] = [$activos->first()];
-                $registro['folio'] = $activos->first()['folio']; // actualizar folio principal
-            } else {
-                // Si no hay activos, descartamos todos
-                $registro['compartidos'] = [];
-                $registro['folio'] = null;
-            }
-        }
 
-        return $registro;
-    })
-    ->filter(fn($registro) => !empty($registro['compartidos'])) // descartar los vacíos
-    ->sortBy('folio')
-    ->values();
+                    // Si hay activos, nos quedamos con el más chico
+                    if ($activos->isNotEmpty()) {
+                        $registro['compartidos'] = [$activos->first()];
+                        $registro['folio'] = $activos->first()['folio']; // actualizar folio principal
+                    } else {
+                        // Si no hay activos, descartamos todos
+                        $registro['compartidos'] = [];
+                        $registro['folio'] = null;
+                    }
+                }
+
+                return $registro;
+            })
+            ->filter(fn($registro) => !empty($registro['compartidos'])) // descartar los vacíos
+            ->sortBy('folio')
+            ->values();
 
         log::info('Registros ordenados para broches: ' . json_encode($registrosOrdenados));
         // 5️⃣ Agrupar por num_broche y sumar importes
@@ -952,7 +952,7 @@ class CargaTgiService
 
         //ahora tengo que conectar con la tabla tgi_padron mediante el id_tgiPadron para obtener los folios, clave y partida
         $padrones = Tgi_padron::whereIn('id', $jsonFolios)->get();
-/* dd($padrones); */
+        /* dd($padrones); */
 
         Log::info("Padrones: " . json_encode($padrones));
 
@@ -978,4 +978,78 @@ class CargaTgiService
             $registro->save();
         }
     }
+
+
+    public function PadronCargaTGI(Request $request)
+    {
+
+Log::info('Padron carga TGI request', $request->all());
+        // Recuperamos los filtros desde sesión si no vienen en el request
+        $anio = $request->input('anio');
+        $mes = $request->input('mes');
+        $folio = $request->input('folio');
+        $estado = $request->input('estado');
+        $bajado = $request->input('bajado');
+        $busqueda = $request->input('busqueda');
+
+        $query = $this->obtenerRegistros();
+
+
+        if ($anio) {
+            $query->where('periodo_anio', $anio);
+        }
+
+        if ($mes) {
+            $query->where('periodo_mes', $mes);
+        }
+
+
+        if ($folio) {
+            $query->where(function ($q) use ($folio) {
+                // Buscar en padron
+                $q->whereHas('padron', function ($sub) use ($folio) {
+                    $sub->where('folio', $folio);
+                });
+
+                // Buscar dentro del JSON embebido en 'compartidos'
+                $q->orWhere('compartidos', 'like', '%"folio":' . (int)$folio . '%');
+            });
+        }
+
+        if ($estado) {
+            $query->whereHas('padron', function ($sub) use ($estado) {
+                $sub->where('estado', $estado);
+            });
+        }
+
+        if ($bajado) {
+            if ($bajado === 'N') {
+                $query->where(function ($q) {
+                    $q->whereNull('bajado')
+                        ->orWhere('bajado', '=', 'N');
+                });
+            }
+        }
+
+        if ($busqueda) {
+            $query->where(function ($q) use ($busqueda) {
+                $q->whereHas('padron', function ($sub) use ($busqueda) {
+                    $sub->where('partida', 'like', "%{$busqueda}%")
+                        ->orWhere('clave', 'like', "%{$busqueda}%");
+                });
+
+                // Si el campo compartidos es texto plano con JSON embebido
+                $q->orWhere('compartidos', 'like', '%"partida":' . (int)$busqueda . '%');
+            });
+        }
+
+        $registros = $query->get();
+
+
+        log::info('Registros filtrados en TGI Controller: ', ['registros' => $registros]);
+        return json_encode($registros);
+       /*  return view('impuesto.tgi.carga_TGI', compact('registros', 'resultadoPermisoBoton')); */
+    }
+
+
 }

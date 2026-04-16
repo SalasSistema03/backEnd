@@ -31,25 +31,25 @@ class TgiController extends Controller
 
     public function index(Request $request)
     {
-        $this->usuario_id = session('usuario_id'); // Obtener el id del usuario actual desde la sesión
-        $this->usuario = Usuario::find($this->usuario_id);
+        //$this->usuario_id = session('usuario_id'); // Obtener el id del usuario actual desde la sesión
+        //$this->usuario = Usuario::find($this->usuario_id);
 
-        $vistaCargarTgi = 'carga_tgi';
-        $permisoService = new PermitirAccesoPropiedadService($this->usuario->id);
+        //$vistaCargarTgi = 'carga_tgi';
+       // $permisoService = new PermitirAccesoPropiedadService($this->usuario->id);
 
-        
+
                 // Verificar permisos de botones (Seleccionar el asesor)
-        $permisoBoton = "modificarBajado_tgi";
-        $resultadoPermisoBoton = $this->permisoService->verificarAccesoBotones_Elementos($permisoBoton);
+        //$permisoBoton = "modificarBajado_tgi";
+        //$resultadoPermisoBoton = $this->permisoService->verificarAccesoBotones_Elementos($permisoBoton);
 
         // Verificar si el usuario tiene acceso a la vista
-        if (!$permisoService->tieneAccesoAVista($vistaCargarTgi)) {
+        //if (!$permisoService->tieneAccesoAVista($vistaCargarTgi)) {
             // Redirigir o mostrar un mensaje de error si no tiene acceso
-            return redirect()->route('home')->with('error', 'No tienes acceso a esta vista.');
-        }
+            //return redirect()->route('home')->with('error', 'No tienes acceso a esta vista.');
+        //}
 
         // Si vienen nuevos filtros, los guardamos en sesión
-        if ($request->filled('anio') || $request->filled('mes') || $request->filled('busqueda')) {
+        /* if ($request->filled('anio') || $request->filled('mes') || $request->filled('busqueda')) {
             session([
                 'filtro_anio' => $request->input('anio'),
                 'filtro_mes' => $request->input('mes'),
@@ -58,7 +58,7 @@ class TgiController extends Controller
                 'filtro_bajado' => $request->input('bajado'),
                 'filtro_busqueda' => $request->input('busqueda'),
             ]);
-        }
+        } */
 
         // Recuperamos los filtros desde sesión si no vienen en el request
         $anio = $request->input('anio', session('filtro_anio'));
@@ -97,7 +97,7 @@ class TgiController extends Controller
                 $sub->where('estado', $estado);
             });
         }
-        
+
         if ($bajado) {
             if ($bajado === 'N') {
                 $query->where(function ($q) {

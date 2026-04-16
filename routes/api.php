@@ -25,6 +25,8 @@ use App\Http\Controllers\clientes\AsesoresController;
 use App\Http\Controllers\agenda\AgendaController;
 use App\Models\At_cl\Propiedad;
 use App\Http\Controllers\NotificacionController;
+use App\Http\Controllers\impuesto\TgiPadronController;
+use App\Http\Controllers\impuesto\ImpuestosController;
 
 Route::prefix('v1')->group(function () {
 
@@ -134,7 +136,19 @@ Route::prefix('v1')->group(function () {
         Route::put('/borrar-nota/{id}/{motivo}', [AgendaController::class, 'destroy']);
         Route::get('/api/notificaciones/traer-notificaciones', [NotificacionController::class, 'traerNotificaciones']);
         Route::post('/api/notificaciones/marcar-como-leida/{id}', [NotificacionController::class, 'marcarUnaComoLeida']);
-    }); // <--- Aquí cierra el middleware
+
+
+        //Impuestos
+        Route::get('/actualizar_padron/{impuesto}',[ImpuestosController::class, 'actualizarPadron']);
+        Route::get('/padron_impuesto/{impuesto}', [ImpuestosController::class, 'filtradoPadron']);
+        Route::put('/actualizar_registro_impuesto', [ImpuestosController::class, 'actualizarImpuesto']);
+
+
+        Route::get('/padron_carga', [ImpuestosController::class, 'padronCarga']);
+        Route::post('/carga_manual', [ImpuestosController::class, 'cargaManual']);
+        Route::post('/carga_nuevo_manual', [ImpuestosController::class, 'cargaNuevoManual']);
+
+        });
 });
 
 
