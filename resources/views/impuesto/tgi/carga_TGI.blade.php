@@ -224,6 +224,7 @@
                 $estaVencido = \Carbon\Carbon::parse($registro->rescicion)->lt(now());
                 @endphp
 
+
                 <tr>
                     <td class="codigo_barras">{{ $registro->codigo_barra }}</td>
 

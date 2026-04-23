@@ -3,7 +3,7 @@
 return [
     'paths' => ['api/*', 'sanctum/csrf-cookie'],
     'allowed_methods' => ['*'],
-    'allowed_origins' => ['http://miproyecto.local', 'http://127.0.0.1', 'http://localhost'], 
+    'allowed_origins' => ['http://miproyecto.local', 'http://127.0.0.1', 'http://localhost', 'http://localhost:5173', 'http://localhost:5174'],
     'supports_credentials' => true,
     'allowed_origins_patterns' => [],
     'allowed_headers' => ['*'],

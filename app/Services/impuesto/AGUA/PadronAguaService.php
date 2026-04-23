@@ -1,38 +1,21 @@
 <?php
 
-namespace App\Services\impuesto\TGI;
+namespace App\Services\impuesto\AGUA;
 
 
-use App\Models\impuesto\Tgi_padron;
+use App\Models\impuesto\Agua_padron;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Services\impuesto\AGUA\PadronAguaService;
 
-class PadronTgiService
+
+class PadronAguaService
 {
 
-    public function __construct() {}
-
-
-
-
-
-    //Este metodo busca una tgi por partida
-    public function buscarTgiPorPartida($partida)
-    {
-        // Buscar en la tabla tgi_padron por el campo 'partida'
-        $partida = trim($partida); // elimina espacios
-        $tgiPadron = Tgi_padron::where('partida', $partida)->first();
-
-        return $tgiPadron; // Retorna el registro encontrado o null si no existe
-    }
-
-
-    //Esta función obtiene el padrón TGI desde la base de datos propia
+    //Esta función obtiene el padrón Agua desde la base de datos propia
     public function obtenerPadronExistente()
     {
-        return Tgi_padron::orderByRaw("
+        return Agua_padron::orderByRaw("
         CASE
             WHEN folio LIKE '50%' AND LENGTH(folio) = 5 THEN 0
             ELSE 1
@@ -43,17 +26,9 @@ class PadronTgiService
             ->get();
     }
 
-    //Este metodo obtiene el registro de la tabla tgi_padron filtrado por folio y empresa
-    public function obtenerRegistroPadronManual($folio, $empresa)
-    {
-        return Tgi_padron::where('folio', $folio)
-            ->where('empresa', $empresa)
-            ->get();
-    }
 
-
-    //Esta consulta obtiene el padrón TGI desde la base de datos externa
-    public function consultaObtenerPadronTGI()
+    //Esta consulta obtiene el padrón AGUA desde la base de datos externa
+    public function consultaObtenerPadronAGUA()
     {
         $sql = "
         SELECT
@@ -74,7 +49,7 @@ class PadronTgiService
         LEFT JOIN desarrollo.impuestos i ON pi.id_casa = i.id_casa
         INNER JOIN desarrollo.contratos_cabecera cc ON cc.id_casa = p.id_casa
         INNER JOIN desarrollo.empresa e ON cc.id_empresa = e.id_empresa
-        WHERE ti.id_tipo_impuesto = 1
+        WHERE ti.id_tipo_impuesto = 2
           AND cc.comienza <= CURDATE()
           AND cc.rescicion >= CURDATE()
         GROUP BY
@@ -106,7 +81,13 @@ class PadronTgiService
 
 
 
+    //Este metodo busca una agua por partida
+    public function buscarAguaPorPartida($partida)
+    {
+        // Buscar en la tabla agua_padron por el campo 'partida'
+        $partida = trim($partida); // elimina espacios
+        $aguaPadron = Agua_padron::where('partida', $partida)->first();
 
-
-
+        return $aguaPadron; // Retorna el registro encontrado o null si no existe
+    }
 }

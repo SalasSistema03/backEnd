@@ -27,6 +27,9 @@ use App\Models\At_cl\Propiedad;
 use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\impuesto\TgiPadronController;
 use App\Http\Controllers\impuesto\ImpuestosController;
+use App\Http\Controllers\impuesto\Exportar_PDF_impuesto\Pdf_Tgi;
+use App\Http\Controllers\impuesto\Exportar_PDF_impuesto\PdfImpuestoController;
+use App\Services\impuesto\AGUA\CargaAguaService;
 
 Route::prefix('v1')->group(function () {
 
@@ -35,7 +38,7 @@ Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login']);
         Route::post('register', [AuthController::class, 'register']);
-        Route::middleware('auth:api')->group(function(){
+        Route::middleware('auth:api')->group(function () {
             Route::get('logout', [AuthController::class, 'logout'])->name('logout');
             Route::post('refresh', [AuthController::class, 'refresh']);
             Route::get('me', [AuthController::class, 'me']);
@@ -55,7 +58,6 @@ Route::prefix('v1')->group(function () {
             Route::get('propiedad/descargar-fotos/{id}', [PropiedadController::class, 'descargarFotos']);
             Route::post('propiedad/guardar-novedad', [PropiedadController::class, 'guardarNovedad']);
             Route::get('/propiedades/pdf/pdfPlantillaPropiedad/{id}/{tipoBTN}', [Pdf_alquiler::class, 'generarPDFpantillaPropiedad'])->name('propiedades.pdf.pdfPlantillaPropiedad');
-
         });
     });
     //CONTABLE - SELLADO
@@ -139,7 +141,7 @@ Route::prefix('v1')->group(function () {
 
 
         //Impuestos
-        Route::get('/actualizar_padron/{impuesto}',[ImpuestosController::class, 'actualizarPadron']);
+        Route::get('/actualizar_padron/{impuesto}', [ImpuestosController::class, 'actualizarPadron']);
         Route::get('/padron_impuesto/{impuesto}', [ImpuestosController::class, 'filtradoPadron']);
         Route::put('/actualizar_registro_impuesto', [ImpuestosController::class, 'actualizarImpuesto']);
 
@@ -147,8 +149,20 @@ Route::prefix('v1')->group(function () {
         Route::get('/padron_carga', [ImpuestosController::class, 'padronCarga']);
         Route::post('/carga_manual', [ImpuestosController::class, 'cargaManual']);
         Route::post('/carga_nuevo_manual', [ImpuestosController::class, 'cargaNuevoManual']);
+        Route::post('/nuevo_impuesto', [ImpuestosController::class, 'cargarNuevoImpuesto']);
+        Route::get('/exportar_faltantes', [ImpuestosController::class, 'exportarFaltantes']);
+        Route::get('/sumar_montos', [ImpuestosController::class, 'sumarMontos']);
+        Route::get('/mostrar_broches', [ImpuestosController::class, 'MostrarBroche']);
+        Route::get('/guardar_num_broches', [ImpuestosController::class, 'guardarBroches']);
+        Route::get('/guardar_num_broche_salas', [ImpuestosController::class, 'guardarBrocheSALAS']);
+        Route::get('/exportar_broches', [PdfImpuestoController::class, 'PDF_broche']);
+        Route::get('/exportar_broches_salas', [PdfImpuestoController::class, 'PDF_BorcheSalas']);
+        Route::get('/modificar_bajado', [ ImpuestosController::class, 'modificarBajadoController']);
+        Route::put('/modificar_estado', [ ImpuestosController::class, 'modificarEstadoTGIController']);
+        Route::delete('/eliminar_impuesto',[ImpuestosController::class, 'eliminarRegistro']);
+        Route::post('/broches/pdf', [ImpuestosController::class, 'descargaPdf']);
 
-        });
+     });
 });
 
 
