@@ -12,6 +12,8 @@ use App\Services\impuesto\AGUA\PadronAguaService;
 use App\Services\impuesto\TGI\PadronTgiService;
 use App\Models\impuesto\Agua_padron;
 use App\Models\impuesto\Agua_carga;
+use App\Models\impuesto\Gas_carga;
+use App\Models\impuesto\Gas_padron;
 use Carbon\Carbon;
 
 class CargaImpuestoService
@@ -19,7 +21,7 @@ class CargaImpuestoService
 
     public function obtenerRegistros($impuesto)
     {
-        $modelo = $impuesto === 'tgi' ? Tgi_carga::class : Agua_carga::class;
+        $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
         return $modelo::with('padron')->latest('id');
     }
 
@@ -69,6 +71,10 @@ class CargaImpuestoService
                     $q->whereNull('bajado')
                         ->orWhere('bajado', '=', 'N');
                 });
+            } else {
+                $query->where(function ($q) {
+                    $q->where('bajado', '=', 'S');
+                });
             }
         }
 
@@ -113,7 +119,7 @@ class CargaImpuestoService
     //Esta funcion detecta los FOLIOS compartidos por partida, y clave
     public function detectarFoliosCompartidos($partida, $clave, $impuesto)
     {
-        $modelo = $impuesto === 'tgi' ? Tgi_padron::class : Agua_padron::class;
+        $modelo = (new PadronImpuestoService)->obtenerModeloPorImpuesto($impuesto);
         return $modelo::where('partida', $partida)
             ->where('clave', $clave)
             ->get(['folio', 'estado'])
@@ -148,6 +154,13 @@ class CargaImpuestoService
                     $item->periodo_anio == $anio;
             });
         }
+        if ($impuesto === 'gas') {
+            $registroExistente = $lista->first(function ($item) use ($idPadron, $mes, $anio) {
+                return $item->id_gasPadron == $idPadron &&
+                    $item->periodo_mes == $mes &&
+                    $item->periodo_anio == $anio;
+            });
+        }
 
         return !is_null($registroExistente);
     }
@@ -155,7 +168,7 @@ class CargaImpuestoService
     // Esta función obtiene la fecha de vencimiento de los contratos  para un folio y empresa dados
     public function consultaVencimientoContratos($folio, $id_empresa, $impuesto)
     {
-        $modelo = $impuesto === 'tgi' ? Tgi_padron::class : Agua_padron::class;
+        $modelo = (new PadronImpuestoService)->obtenerModeloPorImpuesto($impuesto);
         return $modelo::where('folio', $folio)
             ->where('empresa', $id_empresa)
             ->select('comienza', 'rescicion', 'estado')
@@ -246,7 +259,6 @@ class CargaImpuestoService
             }
             return $nuevoRegistro;
         } catch (\Exception $e) {
-            Log::error("Error en cargarNuevoTgiServiceManual: " . $e->getMessage());
             throw $e;
         }
     }
@@ -274,6 +286,15 @@ class CargaImpuestoService
             $padrones = Agua_padron::whereIn('id', $jsonFolios)->get();
         }
 
+        if ($impuesto === 'gas') {
+            $jsonFolios = Gas_carga::where('periodo_anio', $anio)
+                ->where('periodo_mes', $mes)
+                ->pluck('id_gasPadron')
+                ->toArray();
+
+            $padrones = Gas_padron::whereIn('id', $jsonFolios)->get();
+        }
+
 
 
         return $padrones;
@@ -282,7 +303,7 @@ class CargaImpuestoService
     public function exportarFaltantesService($anio, $mes, $impuesto)
     {
         if (!is_numeric($anio) || !is_numeric($mes)) {
-            throw new \InvalidArgumentException('Año y mes deben ser numéricos.');
+            throw new \Exception('Año y mes deben ser numéricos.');
         }
 
         // 1️⃣ Obtener registros cargados
@@ -293,8 +314,14 @@ class CargaImpuestoService
             $padrones = Tgi_padron::where('estado', 'ACTIVO')
                 ->where('administra', 'L')
                 ->get();
-        } else {
+        }
+        if ($impuesto === 'agua') {
             $padrones = Agua_padron::where('estado', 'ACTIVO')
+                ->where('administra', 'L')
+                ->get();
+        }
+        if ($impuesto === 'gas') {
+            $padrones = Gas_padron::where('estado', 'ACTIVO')
                 ->where('administra', 'L')
                 ->get();
         }
@@ -319,10 +346,10 @@ class CargaImpuestoService
 
     public function sumarMontosService($anio, $mes, $impuesto)
     {
-        Log::info('llego al service', [$anio, $mes, $impuesto]);
+        //Log::info('llego al service', [$anio, $mes, $impuesto]);
         // Obtener registros del período
-        $model = $impuesto === 'tgi' ? Tgi_carga::class : Agua_carga::class;
-        $registros = $model::where('periodo_anio', $anio)
+        $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
+        $registros = $modelo::where('periodo_anio', $anio)
             ->where('periodo_mes', $mes)
             ->get();
 
@@ -375,7 +402,9 @@ class CargaImpuestoService
 
     public function sumarMontosSalasService($anio, $mes, $impuesto)
     {
-        $modelo = $impuesto === 'tgi' ? Tgi_carga::class : Agua_carga::class;
+        //Log::info('llego al service', [$anio, $mes, $impuesto]);
+        // Obtener registros del período
+        $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
         $registros = $modelo::where('periodo_anio', $anio)
             ->where('periodo_mes', $mes)
             ->get();
@@ -543,7 +572,7 @@ class CargaImpuestoService
     {
         try {
             foreach ($registrosFiltrados as $registro) {
-                $modelo = $impuesto === 'tgi' ? Tgi_carga::class : Agua_carga::class;
+                $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
                 $modelo::query()
                     ->where('id', $registro->id)
                     ->update(['num_broche' => $registro->num_broche]);
@@ -602,7 +631,7 @@ class CargaImpuestoService
     //Funcion que modifcia el bajado eN "S" de todos los registros de tgi_carga que tengan num_broche tenga un numero asignado y por anio y mes dados. Devueve men
     public function modificarBajadoService($anio, $mes, $impuesto)
     {
-        $modelo = $impuesto === 'tgi' ? Tgi_carga::class : Agua_carga::class;
+        $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
         $registros = $modelo::where('periodo_anio', $anio)
             ->where('periodo_mes', $mes)
             ->whereNotNull('num_broche')
@@ -644,10 +673,23 @@ class CargaImpuestoService
 
     public function eliminarRegistro($id, $impuesto)
     {
-        $modelo = $impuesto === 'tgi' ? Tgi_carga::class : Agua_carga::class;
+        $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
         $registro = $modelo::find($id);
         $registro->delete();
     }
 
+    public function obtenerModeloCargaPorImpuesto($impuesto)
+    {
+        $map = [
+            'tgi'  => Tgi_carga::class,
+            'agua' => Agua_carga::class,
+            'gas'  => Gas_carga::class,
+        ];
 
+        if (!isset($map[$impuesto])) {
+            throw new \Exception("Impuesto no válido");
+        }
+
+        return $map[$impuesto];
+    }
 }

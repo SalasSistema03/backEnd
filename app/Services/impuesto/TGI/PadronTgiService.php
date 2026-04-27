@@ -4,19 +4,13 @@ namespace App\Services\impuesto\TGI;
 
 
 use App\Models\impuesto\Tgi_padron;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use App\Services\impuesto\AGUA\PadronAguaService;
+
 
 class PadronTgiService
 {
 
     public function __construct() {}
-
-
-
-
 
     //Este metodo busca una tgi por partida
     public function buscarTgiPorPartida($partida)
@@ -30,6 +24,7 @@ class PadronTgiService
 
 
     //Esta función obtiene el padrón TGI desde la base de datos propia
+    //Funcion utilizada por el servicio PadronImpuestoService
     public function obtenerPadronExistente()
     {
         return Tgi_padron::orderByRaw("
@@ -43,16 +38,10 @@ class PadronTgiService
             ->get();
     }
 
-    //Este metodo obtiene el registro de la tabla tgi_padron filtrado por folio y empresa
-    public function obtenerRegistroPadronManual($folio, $empresa)
-    {
-        return Tgi_padron::where('folio', $folio)
-            ->where('empresa', $empresa)
-            ->get();
-    }
 
 
     //Esta consulta obtiene el padrón TGI desde la base de datos externa
+    //Funcion utilizada por el servicio PadronImpuestoService
     public function consultaObtenerPadronTGI()
     {
         $sql = "
@@ -101,12 +90,5 @@ class PadronTgiService
         }
         return $resultado;
     }
-
-
-
-
-
-
-
 
 }

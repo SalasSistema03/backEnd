@@ -10,6 +10,7 @@
 
 <body>
     @foreach ($broches as $index => $broche)
+
         <div class ="row ">
         <div class="header col-12 row">
             {{-- mi imagen esta dentro de public/image --}}
@@ -17,7 +18,7 @@
                 <img src="{{ public_path('image/logo.png') }}" class="logo">
             </div>
             <div class="col-6">
-                <div>TGI - Broche {{ $broche['num_broche'] }}</div>
+                <div>{{ strtoupper($impuesto) }} - Broche {{ $broche['num_broche'] }}</div>
             </div>
         </div>
 

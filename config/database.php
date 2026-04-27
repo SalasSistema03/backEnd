@@ -92,7 +92,7 @@ return [
             'charset' => 'utf8',
             'collation' => 'utf8_unicode_ci', // puedes usar 'utf8_general_ci' también
             'prefix' => '',
-            'strict' => true,
+            'strict' => false,
             'engine' => null,
         ],
         'mysql3' => [ //Tercer conexion

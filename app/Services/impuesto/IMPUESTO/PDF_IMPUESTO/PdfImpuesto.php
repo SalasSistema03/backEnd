@@ -12,6 +12,7 @@ use App\Services\impuesto\AGUA\PadronAguaService;
 use App\Services\impuesto\TGI\PadronTgiService;
 use App\Models\impuesto\Agua_padron;
 use App\Models\impuesto\Agua_carga;
+use App\Services\impuesto\IMPUESTO\CargaImpuestoService;
 use Carbon\Carbon;
 
 class PdfImpuesto
@@ -25,7 +26,7 @@ class PdfImpuesto
     public function obtenerRegistrosPorBroche($anio, $mes, $impuesto)
     {
         // 1️⃣ Traer los registros filtrados por año y mes
-        $modelo = $impuesto === 'tgi' ? Tgi_carga::class : Agua_carga::class;
+        $modelo = (new CargaImpuestoService())->obtenerModeloCargaPorImpuesto($impuesto);
         $registros = $modelo::where('periodo_anio', $anio)
             ->where('periodo_mes', $mes)
             ->get();

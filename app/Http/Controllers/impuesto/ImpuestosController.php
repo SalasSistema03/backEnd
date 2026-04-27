@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Response;
 use App\Services\impuesto\AGUA\PadronAguaService;
 use App\Services\impuesto\AGUA\CargaAguaService;
+use App\Services\impuesto\GAS\CargaGasService;
 use App\Services\impuesto\Impuesto\PadronImpuestoService;
 use App\Services\impuesto\Impuesto\CargaImpuestoService;
 
@@ -23,21 +24,21 @@ class ImpuestosController extends Controller
 
     public function actualizarPadron($impuesto)
     {
-        if ($impuesto === 'tgi' || $impuesto === 'agua') {
+        if ($impuesto === 'tgi' || $impuesto === 'agua' || $impuesto === 'gas') {
             return (new PadronImpuestoService())->actualizarPadronImpuesto($impuesto);
         }
     }
 
     public function filtradoPadron(Request $request, $impuesto)
     {
-        if ($impuesto === 'tgi' || $impuesto === 'agua') {
+        if ($impuesto === 'tgi' || $impuesto === 'agua' || $impuesto === 'gas') {
             return (new PadronImpuestoService())->ObtenerPadronFiltrado($impuesto, $request);
         }
     }
 
     public function actualizarImpuesto(Request $request)
     {
-        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua') {
+        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
             return (new PadronImpuestoService())->actualizarPadronConcreto($request);
         }
     }
@@ -47,7 +48,7 @@ class ImpuestosController extends Controller
 
     public function padronCarga(Request $request)
     {
-        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua') {
+        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
             return app(CargaImpuestoService::class)->padronCarga($request);
         }
     }
@@ -99,11 +100,25 @@ class ImpuestosController extends Controller
 
             return app(CargaAguaService::class)->cargarNuevoAguaService($codigoBarras);
         }
+
+        if($request->impuesto === 'gas'){
+            Log::info('controlador impyuesyo');
+            $codigoBarras = $request->codigo_barras;
+            if(!$codigoBarras){
+                return response()->json(['error' => 'El campo código de barras es obligatorio'], 400);
+            }
+            if (empty($codigoBarras) || strlen($codigoBarras) !== 52) {
+                Log::info($codigoBarras);
+                Log::info('El código de barras no tiene 51 caracteres');
+                return response()->json(['error' => 'Debés ingresar un código de barras válido de 51 caracteres'], 400);
+            }
+            return app(CargaGasService::class)->cargarNuevoGasService($codigoBarras);
+        }
     }
 
     public function exportarFaltantes(Request $request)
     {
-        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua') {
+        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
             $registros = app(CargaImpuestoService::class)->exportarFaltantesService($request->anio, $request->mes, $request->impuesto);
 
             $contenido = '';
@@ -136,14 +151,14 @@ class ImpuestosController extends Controller
 
     public function sumarMontos(Request $request)
     {
-        Log::info('llego al controller', [$request->all()]);
+       // Log::info('llego al controller', [$request->all()]);
 
-        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua') {
+        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
             $total = app(CargaImpuestoService::class)->sumarMontosService($request->anio, $request->mes, $request->impuesto);
             $totalSalas = app(CargaImpuestoService::class)->sumarMontosSalasService($request->anio, $request->mes, $request->impuesto);
 
 
-            Log::info('esta es la respuesta ', [$total, $totalSalas]);
+            //Log::info('esta es la respuesta ', [$total, $totalSalas]);
             return response()->json([
                 'total' => $total,
                 'totalSalas' => $totalSalas,
@@ -153,14 +168,14 @@ class ImpuestosController extends Controller
 
     public function MostrarBroche(Request $request)
     {
-        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua') {
+        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
             return app(CargaImpuestoService::class)->generarDistribucionBroches($request->anio, $request->mes, $request->cant_broches, $request->impuesto);
         }
     }
 
     public function guardarBroches(Request $request)
     {
-        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua') {
+        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
 
 
             $resultado = app(CargaImpuestoService::class)->generarDistribucionBroches($request->anio, $request->mes, $request->cant_broches, $request->impuesto);
@@ -195,7 +210,7 @@ class ImpuestosController extends Controller
 
     public function modificarBajadoController(Request $request)
     {
-        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua') {
+        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
             app(CargaImpuestoService::class)->modificarBajadoService($request->anio, $request->mes, $request->impuesto);
 
             return response()->json(['status' => 'success', 'message' => 'El bajado se modificó correctamente.']);
@@ -226,41 +241,6 @@ class ImpuestosController extends Controller
         return response()->json(['status' => 'success', 'message' => 'El registro se ha eliminado correctamente.']);
     }
 
-    public function descargaPdf(Request $request)
-    {
-        // Los datos que antes pasabas por props en Vue
-        $broches = $request->input('broches');
-        $anio = $request->input('anio');
-        $mes = $request->input('mes');
 
-        // Generamos el HTML usando una vista de Blade limpia
-        $html = view('pdfs.broches', compact('broches', 'anio', 'mes'))->render();
-
-        return response()->streamDownload(function () use ($html) {
-            echo \Spatie\Browsershot\Browsershot::html($html)
-                ->format('A4')
-                ->margins(10, 10, 10, 10)
-                ->emulateMedia('screen')
-                ->showBackground()
-                ->setOption('displayHeaderFooter', true)
-                ->setOption('headerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Broches de Impuestos</span><span style="text-align:right;" class="date"></span></div>')
-                ->setOption('footerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Salas Inmobiliaria</span><span style="text-align:right;">Usuario</span></div>')
-                ->pdf();
-        }, "broches_{$anio}_{$mes}.pdf");
-    }
 }
 
-/*
-->setOption('page-size', 'legal') // Tamaño de página (A4, Letter, etc.)
-->setOption('orientation', 'landscape') // 'portrait' (vertical) o 'landscape' (horizontal)
-->setOption('margin-top', 20) // Margen superior (mm)
-->setOption('margin-bottom', 15) // Margen inferior (mm)
-->setOption('margin-left', 5) // Margen izquierdo (mm)
-->setOption('margin-right', 15) // Margen derecho (mm)
-->setOption('disable-smart-shrinking', true) // Evita reducción automática
-->setOption('footer-left', 'Salas Inmobiliaria') // Texto pie izquierdo
-->setOption('footer-font-size', 7) // Tamaño fuente pie (px)
-->setOption('footer-center', 'Page [page] of [toPage]');
-
-
-*/

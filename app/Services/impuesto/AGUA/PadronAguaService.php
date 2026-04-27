@@ -74,11 +74,13 @@ class PadronAguaService
                 $row->partida = str_pad($row->partida, 8, '0', STR_PAD_LEFT);
             }
         }
+        foreach ($resultado as $row) {
+            if (isset($row->partida)) {
+                $row->partida = str_replace(['-', '/'], '', $row->partida);
+            }
+        }
         return $resultado;
     }
-
-
-
 
 
     //Este metodo busca una agua por partida

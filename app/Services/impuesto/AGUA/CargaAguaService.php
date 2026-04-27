@@ -91,7 +91,7 @@ class CargaAguaService
 
             return [$nuevoRegistro, $nuevoRegistro2];
         } catch (\Exception $e) {
-            Log::error("Error en cargarNuevoTgiService: " . $e->getMessage());
+
             throw $e;
         }
     }

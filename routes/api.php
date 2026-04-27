@@ -60,7 +60,6 @@ Route::prefix('v1')->group(function () {
             Route::get('/propiedades/pdf/pdfPlantillaPropiedad/{id}/{tipoBTN}', [Pdf_alquiler::class, 'generarPDFpantillaPropiedad'])->name('propiedades.pdf.pdfPlantillaPropiedad');
         });
     });
-    //CONTABLE - SELLADO
 
     // 2. GRUPO PROTEGIDO (URL: api/v1/...)
     // Requieren Token, pero NO llevan "auth" en la URL
@@ -160,7 +159,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/modificar_bajado', [ ImpuestosController::class, 'modificarBajadoController']);
         Route::put('/modificar_estado', [ ImpuestosController::class, 'modificarEstadoTGIController']);
         Route::delete('/eliminar_impuesto',[ImpuestosController::class, 'eliminarRegistro']);
-        Route::post('/broches/pdf', [ImpuestosController::class, 'descargaPdf']);
+        Route::post('/broches/pdf', [PdfImpuestoController::class, 'descargaPdf']);
 
      });
 });
