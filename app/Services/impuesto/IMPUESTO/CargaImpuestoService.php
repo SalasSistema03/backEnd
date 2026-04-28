@@ -98,7 +98,8 @@ class CargaImpuestoService
     //Este metodo obtiene el registro de la tabla tgi_padron filtrado por folio y empresa
     public function obtenerRegistroPadronManual($folio, $empresa, $impuesto)
     {
-        $modelo = $impuesto === 'tgi' ? Tgi_padron::class : Agua_padron::class;
+        $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
+        //$modelo = $impuesto === 'tgi' ? Tgi_padron::class : Agua_padron::class;
         return $modelo::where('folio', $folio)
             ->where('empresa', $empresa)
             ->get();
