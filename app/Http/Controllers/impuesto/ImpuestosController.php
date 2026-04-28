@@ -56,7 +56,8 @@ class ImpuestosController extends Controller
 
     public function cargaManual(Request $request)
     {
-        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua') {
+        Log::info('cargaManual', $request->all());
+        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
             return app(CargaImpuestoService::class)->obtenerRegistroPadronManual($request->folio, $request->empresa, $request->impuesto);
         }
     }
@@ -64,7 +65,7 @@ class ImpuestosController extends Controller
 
     public function cargaNuevoManual(Request $request)
     {
-        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua') {
+        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
             return app(CargaImpuestoService::class)->cargarNuevoImpuestoManual($request);
         }
     }

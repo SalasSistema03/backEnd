@@ -98,10 +98,18 @@ class CargaImpuestoService
     //Este metodo obtiene el registro de la tabla tgi_padron filtrado por folio y empresa
     public function obtenerRegistroPadronManual($folio, $empresa, $impuesto)
     {
-        $modelo = $impuesto === 'tgi' ? Tgi_padron::class : Agua_padron::class;
-        return $modelo::where('folio', $folio)
+        Log::info('obtenerRegistroPadronManual', [
+            'folio' => $folio,
+            'empresa' => $empresa,
+            'impuesto' => $impuesto
+        ]);
+        $modelo = $this->obtenerModeloPadronPorImpuesto($impuesto);
+        $resultado = $modelo::where('folio', $folio)
             ->where('empresa', $empresa)
             ->get();
+        Log::info('resultado', [$resultado]);
+
+        return $resultado;
     }
 
 
@@ -122,11 +130,12 @@ class CargaImpuestoService
         $modelo = (new PadronImpuestoService)->obtenerModeloPorImpuesto($impuesto);
         return $modelo::where('partida', $partida)
             ->where('clave', $clave)
-            ->get(['folio', 'estado'])
+            ->get(['folio', 'estado', 'empresa'])
             ->map(function ($item) {
                 return [
                     'folio' => $item->folio,
                     'estado' => $item->estado,
+                    'empresa' => $item->empresa,
                 ];
             })
             ->toArray();
@@ -221,6 +230,21 @@ class CargaImpuestoService
                     'id_tgiPadron' => $padron->id,
                 ];
                 $nuevoRegistro = Tgi_carga::create($registro);
+            }
+            if($request->impuesto === 'gas'){
+                $registro = [
+                    'codigo_barra' => null,
+                    'importe' => $request->importe,
+                    'compartidos' => json_encode($foliosCompartidos),
+                    'fecha_vencimiento' => $request->fecha_vencimiento,
+                    'periodo_anio' => $fecha->year,
+                    'periodo_mes' => $fecha->month,
+                    'num_broche' => null,
+                    'comienza' => $vencimientoContratos[0]->comienza,
+                    'rescicion' => $vencimientoContratos[0]->rescicion,
+                    'id_gasPadron' => $padron->id,
+                ];
+                $nuevoRegistro = Gas_carga::create($registro);
             }
             if ($request->impuesto === 'agua') {
                 $registro = [
@@ -684,6 +708,21 @@ class CargaImpuestoService
             'tgi'  => Tgi_carga::class,
             'agua' => Agua_carga::class,
             'gas'  => Gas_carga::class,
+        ];
+
+        if (!isset($map[$impuesto])) {
+            throw new \Exception("Impuesto no válido");
+        }
+
+        return $map[$impuesto];
+    }
+
+    public function obtenerModeloPadronPorImpuesto($impuesto)
+    {
+        $map = [
+            'tgi'  => Tgi_padron::class,
+            'agua' => Agua_padron::class,
+            'gas'  => Gas_padron::class,
         ];
 
         if (!isset($map[$impuesto])) {
