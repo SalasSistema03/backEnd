@@ -103,7 +103,7 @@ class PadronImpuestoService
                 'clave'      => is_numeric($registro->clave) ? $registro->clave : null,
                 'abona'      => $registro->abona      ?? '',
                 'administra' => $registro->administra ?? '',
-                'empresa'    => $registro->empresa    ?? 0,
+                'empresa'    => $registro->id_empresa,
                 'comienza'   => $registro->comienza   ?? 0,
                 'rescicion'  => $registro->rescicion  ?? null,
                 'estado'     => $estadoCalculado,
