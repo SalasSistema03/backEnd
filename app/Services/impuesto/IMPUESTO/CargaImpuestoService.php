@@ -35,16 +35,31 @@ class CargaImpuestoService
         $estado = $request->input('estado');
         $bajado = $request->input('bajado');
         $busqueda = $request->input('busqueda');
+        $dia = $request->input('dia');
 
         $query = $this->obtenerRegistros($request->impuesto);
 
-        if ($anio) {
-            $query->where('periodo_anio', $anio);
+        $diaPresente = !is_null($dia) && $dia !== '';
+
+        if ($request->impuesto === 'gas' && $diaPresente) {
+            if (!$anio || !$mes) {
+                return response()->json([
+                    'error' => 'Para filtrar por día en gas, los campos anio y mes son obligatorios.'
+                ], 422);
+            }
+
+            $fechaFiltro = Carbon::createFromDate((int) $anio, (int) $mes, (int) $dia)->format('Y-m-d');
+            $query->whereDate('fecha_vencimiento', $fechaFiltro);
+        } else {
+            if ($anio) {
+                $query->where('periodo_anio', $anio);
+            }
+
+            if ($mes) {
+                $query->where('periodo_mes', $mes);
+            }
         }
 
-        if ($mes) {
-            $query->where('periodo_mes', $mes);
-        }
 
 
         if ($folio) {
@@ -115,12 +130,19 @@ class CargaImpuestoService
 
     public function buscarImpuestoPorPartida($partida, $impuesto)
     {
-        // Buscar en la tabla tgi_padron por el campo 'partida'
-        $partida = trim($partida); // elimina espacios
-        $modelo = $impuesto === 'tgi' ? Tgi_padron::class : Agua_padron::class;
-        $tgiPadron = $modelo::where('partida', $partida)->first();
+        try {
+            // Buscar en la tabla tgi_padron por el campo 'partida'
+            $partida = trim($partida); // elimina espacios
+            /* $modelo = $impuesto === 'tgi' ? Tgi_padron::class : Agua_padron::class; */
 
-        return $tgiPadron; // Retorna el registro encontrado o null si no existe
+            $modelo = $this->obtenerModeloPadronPorImpuesto($impuesto);
+            $tgiPadron = $modelo::where('partida', $partida)->first();
+
+            return $tgiPadron; // Retorna el registro encontrado o null si no existe
+        } catch (\Exception $e) {
+            throw $e;
+            Log::error('Error al buscar el impuesto por partida: ' . $e->getMessage());
+        }
     }
 
 
@@ -190,6 +212,7 @@ class CargaImpuestoService
 
         try {
             $listaCargaCompleta = $this->obtenerRegistros($request->impuesto)->get();
+            Log::info('partida', [$request->partida]);
             $padron = $this->buscarImpuestoPorPartida($request->partida, $request->impuesto);
             $fecha = Carbon::parse($request->fecha_vencimiento);
             $fecha2 = Carbon::parse($request->fecha_vencimiento2);
@@ -231,20 +254,25 @@ class CargaImpuestoService
                 ];
                 $nuevoRegistro = Tgi_carga::create($registro);
             }
-            if($request->impuesto === 'gas'){
-                $registro = [
-                    'codigo_barra' => null,
-                    'importe' => $request->importe,
-                    'compartidos' => json_encode($foliosCompartidos),
-                    'fecha_vencimiento' => $request->fecha_vencimiento,
-                    'periodo_anio' => $fecha->year,
-                    'periodo_mes' => $fecha->month,
-                    'num_broche' => null,
-                    'comienza' => $vencimientoContratos[0]->comienza,
-                    'rescicion' => $vencimientoContratos[0]->rescicion,
-                    'id_gasPadron' => $padron->id,
-                ];
-                $nuevoRegistro = Gas_carga::create($registro);
+            if ($request->impuesto === 'gas') {
+                try {
+                    $registro = [
+                        'codigo_barra' => null,
+                        'importe' => $request->importe,
+                        'compartidos' => json_encode($foliosCompartidos),
+                        'fecha_vencimiento' => $request->fecha_vencimiento,
+                        'periodo_anio' => $fecha->year,
+                        'periodo_mes' => $fecha->month,
+                        'num_broche' => null,
+                        'comienza' => $vencimientoContratos[0]->comienza,
+                        'rescicion' => $vencimientoContratos[0]->rescicion,
+                        'id_gasPadron' => $padron->id,
+                    ];
+                    $nuevoRegistro = Gas_carga::create($registro);
+                } catch (\Exception $e) {
+                    throw $e;
+                    Log::error('Error al crear el registro de gas: ' . $e->getMessage());
+                }
             }
             if ($request->impuesto === 'agua') {
                 $registro = [
@@ -346,6 +374,7 @@ class CargaImpuestoService
         }
         if ($impuesto === 'gas') {
             $padrones = Gas_padron::where('estado', 'ACTIVO')
+                ->orWhere('estado', 'PENDIENTE')
                 ->where('administra', 'L')
                 ->get();
         }
@@ -368,6 +397,63 @@ class CargaImpuestoService
         return $faltantes; // limpia los índices
     }
 
+    public function sumarMontosGasService($anio, $mes, $dia)
+    {
+
+        $fechaFiltro = Carbon::createFromDate((int) $anio, (int) $mes, (int) $dia)->format('Y-m-d');
+        $registros = Gas_Carga::whereDate('fecha_vencimiento', $fechaFiltro)
+            ->get();
+
+        // Filtrar registros que:
+        // - NO tengan folios 50xxx
+        // - NO tengan todos los folios INACTIVOS
+        // - Si baja esta en "S", NO se incluye
+        $registrosFiltrados = $registros->filter(function ($registro) {
+            $compartidos = json_decode($registro->compartidos, true);
+
+            // Si no se puede decodificar, lo conservamos
+            if (!is_array($compartidos)) return true;
+
+            // Si tiene folio 50xxx, lo descartamos
+            foreach ($compartidos as $comp) {
+                if (
+                    isset($comp['folio']) &&
+                    preg_match('/^50\d{3}$/', $comp['folio'])
+                ) {
+                    return false;
+                }
+            }
+
+            // Si el registro está bajado en "S", lo descartamos
+            if (isset($registro->bajado) && $registro->bajado === 'S') {
+                return false;
+            }
+
+            // Si todos los folios están INACTIVOS, lo descartamos
+            $hayActivo = collect($compartidos)->contains(function ($c) {
+                return strtoupper($c['estado']) === 'ACTIVO';
+            });
+
+            return $hayActivo;
+        });
+
+        // Calcular total sobre registros filtrados
+        /* $total = $registrosFiltrados->sum(function ($r) {
+            return (float) str_replace(',', '.', $r->importe);
+        }); */
+        $total = round(
+            $registrosFiltrados->sum(function ($r) {
+                return (float) str_replace(',', '.', $r->importe);
+            }),
+            2 // cantidad de decimales
+        );
+
+        // Retornar objeto con total y registros filtrados
+        return (object)[
+            'total' => $total,
+            'registros' => $registrosFiltrados
+        ];
+    }
     public function sumarMontosService($anio, $mes, $impuesto)
     {
         //Log::info('llego al service', [$anio, $mes, $impuesto]);
@@ -424,6 +510,7 @@ class CargaImpuestoService
         ];
     }
 
+
     public function sumarMontosSalasService($anio, $mes, $impuesto)
     {
         //Log::info('llego al service', [$anio, $mes, $impuesto]);
@@ -465,6 +552,144 @@ class CargaImpuestoService
         return $total;
     }
 
+    public function generarDistribucionGasBroches($anio, $mes, $dia, $cantidadBroches)
+    {
+        $totalMontoBroche = $this->sumarMontosGasService($anio, $mes, $dia);
+
+        $registros = $totalMontoBroche->registros;
+
+        $topePorBroche = $totalMontoBroche->total / $cantidadBroches;
+
+
+        //Log::info('dia', ['dia' => $dia]);
+        //Filtrar registros del año y mes indicados
+        $registrosFiltrados = [];
+
+        foreach ($registros as $r) {
+            // Convertimos la fecha a un timestamp para extraer sus partes
+            $timestamp = strtotime($r->fecha_vencimiento);
+
+            $vencimientoAnio = (int)date('Y', $timestamp);
+            $vencimientoMes = (int)date('n', $timestamp); // 'n' devuelve el mes sin ceros iniciales (1-12)
+
+            if ($vencimientoAnio === (int)$anio && $vencimientoMes === (int)$mes) {
+                $registrosFiltrados[] = $r;
+            }
+        }
+
+        // Paso 1: Agrupar por folio mínimo ACTIVO
+        $gruposPorFolio = [];
+
+        foreach ($registrosFiltrados as $registro) {
+            $folios = json_decode($registro->compartidos, true);
+            //Log::info('Foliosssssss: ' . json_encode($registro));
+
+            $foliosActivos = [];
+            foreach ($folios as $f) {
+                // Validar que exista estado y folio
+                if (isset($f['estado'], $f['folio']) && strtoupper($f['estado']) === 'ACTIVO') {
+                    $foliosActivos[] = (int)$f['folio'];
+                }
+            }
+
+            // Si no hay folios activos, podés decidir qué hacer:
+            if (empty($foliosActivos)) {
+                continue; // lo excluyo, pero podés cambiar la lógica
+            }
+
+            // Tomar el folio activo más chico
+            $folioMinimo = min($foliosActivos);
+
+            if (!isset($gruposPorFolio[$folioMinimo])) {
+                $gruposPorFolio[$folioMinimo] = [];
+            }
+
+            $gruposPorFolio[$folioMinimo][] = $registro;
+        }
+
+        // Paso 2: Armar grupos con suma de importes
+        $grupos = [];
+        foreach ($gruposPorFolio as $folio => $items) {
+
+            $importeGrupo = 0;
+
+            foreach ($items as $r) {
+                $importeGrupo += (float) str_replace(',', '.', $r->importe);
+            }
+
+            $grupos[] = [
+                'folio'  => $folio,
+                'importe' => $importeGrupo,
+                'items'   => $items
+            ];
+        }
+
+        // Paso 3: Ordenar por folio ascendente
+        usort($grupos, function ($a, $b) {
+            return $a['folio'] <=> $b['folio'];
+        });
+
+        // Paso 4: Asignar secuencialmente a broches
+        $broches = [];
+        for ($i = 0; $i < $cantidadBroches; $i++) {
+            $broches[$i] = [
+                'importe' => 0,
+                'items'   => []
+            ];
+        }
+
+        $brocheActual = 0;
+        $importeAcumulado = 0;
+
+        foreach ($grupos as $grupo) {
+            $importeGrupo = $grupo['importe'];
+
+            // Si el broche actual ya llegó al tope, pasamos al siguiente
+            if ($brocheActual < $cantidadBroches - 1 && $importeAcumulado >= $topePorBroche) {
+                $brocheActual++;
+                $importeAcumulado = 0;
+            }
+
+
+            foreach ($grupo['items'] as $registro) {
+                $registro->num_broche = $brocheActual + 1;
+
+                $importe = (float) str_replace(',', '.', $registro->importe);
+                $broches[$brocheActual]['importe'] += $importe;
+                $broches[$brocheActual]['items'][] = $registro;
+            }
+
+            $importeAcumulado += $importeGrupo;
+        }
+
+        // Paso 5: Verificar resumen por broche
+        $totalFinal = 0;
+        foreach ($broches as $i => $broche) {
+            $numero = $i + 1;
+            $importeTotal = number_format($broche['importe'], 2, ',', '.');
+            $totalFinal += $broche['importe'];
+        }
+
+        // Paso 6: Verificar duplicados
+        $idsAsignados = [];
+        foreach ($broches as $broche) {
+            foreach ($broche['items'] as $r) {
+                if (in_array($r->id, $idsAsignados)) {
+                    Log::warning("Registro duplicado: ID {$r->id}");
+                }
+                $idsAsignados[] = $r->id;
+            }
+        }
+
+        Log::info('broches', ['broches' => $broches]);
+        Log::info('registrosFiltrados', ['registrosFiltrados' => $registrosFiltrados]);
+        Log::info('total', ['total' => $totalFinal]);
+        return [
+            'broches' => $broches,
+            'registrosFiltrados' => $registrosFiltrados,
+            'total' => $totalFinal
+        ];
+    }
     //Este servicio sirve para enviar en formato JSON la info de los broches, y que sea consumia por el front JS
     public function generarDistribucionBroches($anio, $mes, $cantidadBroches, $impuesto)
     {
@@ -673,7 +898,7 @@ class CargaImpuestoService
     //Si se pasa a activo, se debe GENERAR NUEVAMENTE EL BROCHE
     public function modificarEstado($id, $estado, $impuesto)
     {
-        $modelo = $impuesto === 'tgi' ? Tgi_carga::class : Agua_carga::class;
+        $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
         $registro = $modelo::findOrFail($id);
 
         $compartidos = json_decode($registro->compartidos ?? '[]', true);

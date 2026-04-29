@@ -102,10 +102,10 @@ class ImpuestosController extends Controller
             return app(CargaAguaService::class)->cargarNuevoAguaService($codigoBarras);
         }
 
-        if($request->impuesto === 'gas'){
+        if ($request->impuesto === 'gas') {
             Log::info('controlador impyuesyo');
             $codigoBarras = $request->codigo_barras;
-            if(!$codigoBarras){
+            if (!$codigoBarras) {
                 return response()->json(['error' => 'El campo código de barras es obligatorio'], 400);
             }
             if (empty($codigoBarras) || strlen($codigoBarras) !== 52) {
@@ -152,9 +152,15 @@ class ImpuestosController extends Controller
 
     public function sumarMontos(Request $request)
     {
-       // Log::info('llego al controller', [$request->all()]);
+        //Log::info('llego al controller', [$request->all()]);
+        if ($request->impuesto === 'gas') {
+            $total = app(CargaImpuestoService::class)->sumarMontosGasService($request->anio, $request->mes,  $request->dia);
+            return response()->json([
+                'total' => $total,
+            ]);
+        }
 
-        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
+        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua') {
             $total = app(CargaImpuestoService::class)->sumarMontosService($request->anio, $request->mes, $request->impuesto);
             $totalSalas = app(CargaImpuestoService::class)->sumarMontosSalasService($request->anio, $request->mes, $request->impuesto);
 
@@ -169,6 +175,9 @@ class ImpuestosController extends Controller
 
     public function MostrarBroche(Request $request)
     {
+        if ($request->impuesto === 'gas') {
+            return app(CargaImpuestoService::class)->generarDistribucionGasBroches($request->anio, $request->mes, $request->dia, $request->cant_broches);
+        }
         if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
             return app(CargaImpuestoService::class)->generarDistribucionBroches($request->anio, $request->mes, $request->cant_broches, $request->impuesto);
         }
@@ -176,6 +185,14 @@ class ImpuestosController extends Controller
 
     public function guardarBroches(Request $request)
     {
+        if ($request->impuesto === 'gas') {
+            $resultado = app(CargaImpuestoService::class)->generarDistribucionGasBroches($request->anio, $request->mes, $request->dia, $request->cant_broches);
+            app(CargaImpuestoService::class)->guardarDistribucionBroches($resultado['registrosFiltrados'], $request->impuesto);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Los broches se guardaron correctamente.'
+            ]);
+        }
         if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
 
 
@@ -222,7 +239,7 @@ class ImpuestosController extends Controller
     {
         $data = $request->data ?? $request->all()[0]['data'] ?? null;
 
-        if ($data['impuesto'] === 'tgi' || $data['impuesto'] === 'agua') {
+        if ($data['impuesto'] === 'tgi' || $data['impuesto'] === 'agua' || $data['impuesto'] === 'gas') {
 
             $estado = $data['estado'];
             $id = $data['padron'] ?? $data['id'] ?? null;
@@ -241,7 +258,4 @@ class ImpuestosController extends Controller
 
         return response()->json(['status' => 'success', 'message' => 'El registro se ha eliminado correctamente.']);
     }
-
-
 }
-
