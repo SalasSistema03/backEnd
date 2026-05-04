@@ -10,57 +10,68 @@
 
 <body>
     @foreach ($broches as $index => $broche)
-
         <div class ="row ">
-        <div class="header col-12 row">
-            {{-- mi imagen esta dentro de public/image --}}
-            <div class= "col-6">
-                <img src="{{ public_path('image/logo.png') }}" class="logo">
+            <div class="header col-12 row">
+                {{-- mi imagen esta dentro de public/image --}}
+                <div class= "col-6">
+                    <img src="{{ public_path('image/logo.png') }}" class="logo">
+                </div>
+                <div class="col-6">
+                    <div>{{ strtoupper($impuesto) }}  {{ $broche['num_broche'] }}</div>
+                </div>
             </div>
-            <div class="col-6">
-                <div>{{ strtoupper($impuesto) }} - Broche {{ $broche['num_broche'] }}</div>
-            </div>
-        </div>
 
-        <div class="col-12 row mt-1 mb-1 impuestos_datos_broche">
-            <div class="col-6 d-flex justify-content-end align-items-center">
-                Periodo:
-                {{ str_pad($broche['items'][0]['periodo_mes'], 2, '0', STR_PAD_LEFT) }}/{{ $broche['items'][0]['periodo_anio'] }}
+            <div class="col-12 row mt-1 mb-1 impuestos_datos_broche">
+                <div class="col-6 d-flex justify-content-end align-items-center">
+                    Periodo:
+                    {{ str_pad($broche['items'][0]['periodo_mes'], 2, '0', STR_PAD_LEFT) }}/{{ $broche['items'][0]['periodo_anio'] }}
+                </div>
+                <div class="col-6 d-flex justify-content-start align-items-center">
+                    Total:
+                    ${{ number_format($broche['total'], 2, ',', '.') }}
+                </div>
             </div>
-            <div class="col-6 d-flex justify-content-start align-items-center">
-                Total:
-                ${{ number_format($broche['total'], 2, ',', '.') }}
-            </div>
-        </div>
 
-        <table class="table-responsive table table-striped">
-            <thead class= " impuestos_tabla_titulo">
-                <tr>
-                    <th>Folio</th>
-                    <th>Importe</th>
-                    <th>Vencimiento</th>
-                    <th>Comienza</th>
-                    <th>Finaliza</th>
-                </tr>
-            </thead>
-            <tbody class="impuestos_tabla">
-                @foreach ($broche['items'] as $item)
+            <table class="table-responsive table table-striped">
+                <thead class= " impuestos_tabla_titulo">
                     <tr>
-                        <td>{{ $item['folio'] }}</td>
-                        <td>${{ number_format($item['importe'], 2, ',', '.') }}</td>
-                        <td>{{ \Carbon\Carbon::parse($item['fecha_vencimiento'])->format('d/m/Y') }}</td>
-                        <td>{{ \Carbon\Carbon::parse($item['comienza'])->format('d/m/Y') }}</td>
-                        <td>{{ \Carbon\Carbon::parse($item['rescicion'])->format('d/m/Y') }}</td>
+                        <th>Folio</th>
+                        <th>Importe</th>
+                        <th>Vencimiento</th>
+                        <th>Comienza</th>
+                        <th>Finaliza</th>
                     </tr>
-                @endforeach
-            </tbody>
-        </table>
+                </thead>
+                <tbody class="impuestos_tabla">
+                    @foreach ($broche['items'] as $item)
+                        @php
+                            // Obtenemos la empresa del primer elemento de compartidos
+                            $idEmpresa = $item['compartidos'][0]['empresa'] ?? 1;
+                            $folio = $item['folio'];
+
+                            // Lógica de etiquetas
+                            if ($idEmpresa == 3) {
+                                $folioTexto = 'TRIB ' . $folio;
+                            } elseif ($idEmpresa == 2) {
+                                $folioTexto = 'CAN ' . $folio;
+                            } else {
+                                $folioTexto = $folio; // Empresa 1 o por defecto
+                            }
+                        @endphp
+                        <tr>
+                          <td>{{ $folioTexto }}</td>
+                            <td>${{ number_format($item['importe'], 2, ',', '.') }}</td>
+                            <td>{{ \Carbon\Carbon::parse($item['fecha_vencimiento'])->format('d/m/Y') }}</td>
+                            <td>{{ \Carbon\Carbon::parse($item['comienza'])->format('d/m/Y') }}</td>
+                            <td>{{ \Carbon\Carbon::parse($item['rescicion'])->format('d/m/Y') }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
         </div>
         @if (!$loop->last)
-
-        <div class="page-break"></div>
+            <div class="page-break"></div>
         @endif
-
     @endforeach
 </body>
 

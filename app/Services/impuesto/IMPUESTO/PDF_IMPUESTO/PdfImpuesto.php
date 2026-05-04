@@ -69,38 +69,44 @@ class PdfImpuesto
             $registro->folio = $folio ?? 0;
         }
 
-        // 4️⃣ Ordenar los registros por folio
+        // 4️⃣ Ordenar los registros por EMPRESA (1, 2, 3) y luego por FOLIO (ASC)
         $registrosOrdenados = $registrosFiltrados
             ->map(function ($registro) {
-                // Decodificar el JSON de compartidos
                 $compartidos = json_decode($registro['compartidos'], true);
 
                 if (is_array($compartidos)) {
-                    // Filtrar solo los activos
                     $activos = collect($compartidos)
                         ->where('estado', 'ACTIVO')
                         ->sortBy('folio')
                         ->values();
 
-
-                    // Si hay activos, nos quedamos con el más chico
                     if ($activos->isNotEmpty()) {
-                        $registro['compartidos'] = [$activos->first()];
-                        $registro['folio'] = $activos->first()['folio']; // actualizar folio principal
+                        $primero = $activos->first();
+                        $registro['compartidos'] = [$primero];
+                        $registro['folio'] = $primero['folio'];
+                        // Extraemos la empresa para poder ordenar por ella después
+                        $registro['empresa_para_ordenar'] = $primero['empresa'] ?? 99;
                     } else {
-                        // Si no hay activos, descartamos todos
                         $registro['compartidos'] = [];
                         $registro['folio'] = null;
+                        $registro['empresa_para_ordenar'] = 99;
                     }
                 }
-
                 return $registro;
             })
-            ->filter(fn($registro) => !empty($registro['compartidos'])) // descartar los vacíos
-            ->sortBy('folio')
+            ->filter(fn($registro) => !empty($registro['compartidos']))
+            // ORDENAMIENTO CRUCIAL AQUÍ:
+            ->sort(function ($a, $b) {
+                // Primero comparamos por empresa (1, 2, 3)
+                if ($a['empresa_para_ordenar'] != $b['empresa_para_ordenar']) {
+                    return $a['empresa_para_ordenar'] <=> $b['empresa_para_ordenar'];
+                }
+                // Si la empresa es igual, comparamos por folio
+                return $a['folio'] <=> $b['folio'];
+            })
             ->values();
 
-        // 5️⃣ Agrupar por num_broche y sumar importes
+        // 5️⃣ Agrupar por num_broche (manteniendo el orden que ya traemos)
         $grupos = [];
 
         foreach ($registrosOrdenados as $registro) {
@@ -116,11 +122,14 @@ class PdfImpuesto
 
             $importe = floatval(str_replace(',', '.', $registro->importe));
             $grupos[$numBroche]['total'] += $importe;
+
+            // Al hacer push aquí, se mantiene el orden de Empresa -> Folio que hicimos arriba
             $grupos[$numBroche]['items'][] = $registro;
         }
 
         // 6️⃣ Ordenar los grupos por número de broche
         ksort($grupos);
+        Log::info('grupos', ['grupos' => $grupos]);
 
         // 7️⃣ Calcular total general
         $totalGeneral = array_sum(array_column($grupos, 'total'));

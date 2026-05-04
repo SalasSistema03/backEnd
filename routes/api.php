@@ -160,6 +160,9 @@ Route::prefix('v1')->group(function () {
         Route::put('/modificar_estado', [ ImpuestosController::class, 'modificarEstadoTGIController']);
         Route::delete('/eliminar_impuesto',[ImpuestosController::class, 'eliminarRegistro']);
         Route::post('/broches/pdf', [PdfImpuestoController::class, 'descargaPdf']);
+        Route::get('/broches/sin_controlar', [ImpuestosController::class, 'sinControlar']);
+        Route::put('/gas_bajado', [ImpuestosController::class, 'gasBajado']);
+        Route::put('/gas_rechazar', [ImpuestosController::class, 'gasRechazar']);
 
      });
 });

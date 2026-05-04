@@ -31,7 +31,9 @@ class Agua_carga extends Model
         'comienza',
         'rescicion',
         'bajado',
-        'id_aguaPadron'
+        'id_aguaPadron',
+        'armado',
+        'controlado'
     ];
 
 

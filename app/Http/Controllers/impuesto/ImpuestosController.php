@@ -193,7 +193,7 @@ class ImpuestosController extends Controller
                 'message' => 'Los broches se guardaron correctamente.'
             ]);
         }
-        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
+        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua') {
 
 
             $resultado = app(CargaImpuestoService::class)->generarDistribucionBroches($request->anio, $request->mes, $request->cant_broches, $request->impuesto);
@@ -209,7 +209,7 @@ class ImpuestosController extends Controller
 
     public function guardarBrocheSALAS(Request $request)
     {
-        Log::info('guardo el broche salas?', [$request->all()]);
+        //Log::info('guardo el broche salas?', [$request->all()]);
         if ($request->impuesto === 'tgi' || $request->impuesto === 'agua') {
 
             try {
@@ -257,5 +257,19 @@ class ImpuestosController extends Controller
         app(CargaImpuestoService::class)->eliminarRegistro($id, $request->impuesto);
 
         return response()->json(['status' => 'success', 'message' => 'El registro se ha eliminado correctamente.']);
+    }
+
+    public function sinControlar(){
+        return app(CargaImpuestoService::class)->sinControlar();
+    }
+
+    public function gasRechazar(Request $request){
+        //Log::info('gas rechazar', [$request->all()]);
+        return app(CargaImpuestoService::class)->gasRechazar($request->all());
+    }
+
+    public function gasBajado(Request $request){
+        //Log::info('gas bajado', [$request->all()]);
+        return app(CargaImpuestoService::class)->gasBajado($request->all());
     }
 }

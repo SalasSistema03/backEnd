@@ -31,7 +31,9 @@ class Tgi_carga extends Model
         'comienza',
         'rescicion',
         'bajado',
-        'id_tgiPadron'
+        'id_tgiPadron',
+        'armado',
+        'controlado'
     ];
 
 

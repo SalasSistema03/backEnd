@@ -652,7 +652,7 @@ class CargaImpuestoService
 
 
             foreach ($grupo['items'] as $registro) {
-                $registro->num_broche = $brocheActual + 1;
+                $registro->num_broche = 'Dia ' . $dia . ' - Broche N°' . ($brocheActual + 1);
 
                 $importe = (float) str_replace(',', '.', $registro->importe);
                 $broches[$brocheActual]['importe'] += $importe;
@@ -819,12 +819,13 @@ class CargaImpuestoService
 
     public function guardarDistribucionBroches($registrosFiltrados, $impuesto)
     {
+        $usuarioId = auth('api')->id();
         try {
             foreach ($registrosFiltrados as $registro) {
                 $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
                 $modelo::query()
                     ->where('id', $registro->id)
-                    ->update(['num_broche' => $registro->num_broche]);
+                    ->update(['num_broche' => $registro->num_broche, 'armado' => $usuarioId]);
             }
         } catch (\Exception $e) {
             throw $e; // Propaga el error al controlador
@@ -865,15 +866,16 @@ class CargaImpuestoService
         });
         //Log::info('medio servicio');
         try {
+            $usuarioId = auth('api')->id();
             foreach ($registrosFiltrados as $registro) {
                 $modelo::where('id', $registro->id)
-                    ->update(['num_broche' => 'salas']);
+                    ->update(['num_broche' => 'salas', 'controlado' => $usuarioId]);
             }
         } catch (\Exception $e) {
             Log::error('Error al actualizar num_broche: ' . $e->getMessage());
             throw $e;
         }
-        Log::info('fin servicio');
+        //Log::info('fin servicio');
         return true;
     }
 
@@ -955,5 +957,31 @@ class CargaImpuestoService
         }
 
         return $map[$impuesto];
+    }
+
+    public function SinControlar()
+    {
+        $datos = Gas_carga::select('num_broche', 'fecha_vencimiento')
+            ->where('bajado', 'N')
+            ->distinct()
+            ->get();
+
+        Log::info($datos);
+        return $datos;
+    }
+
+    public function gasRechazar($datos)
+    {
+        Gas_carga::where('fecha_vencimiento', $datos['fecha_vencimiento'])
+            ->update(['num_broche' => null]);
+        return response()->json(['message' => 'Gas rechazado correctamente'], 200);
+    }
+
+    public function gasBajado($datos)
+    {
+        $usuarioId = auth('api')->id();
+        Gas_carga::where('fecha_vencimiento', $datos['fecha_vencimiento'])
+            ->update(['bajado' => 'S', 'controlado' => $usuarioId]);
+        return response()->json(['message' => 'Gas bajado correctamente'], 200);
     }
 }

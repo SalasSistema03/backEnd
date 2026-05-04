@@ -34,7 +34,9 @@ class Gas_carga extends Model
         'id_gasPadron',
         'inicio_liquidacion',
         'fin_liquidacion',
-        'liquidacion'
+        'liquidacion',
+        'armado',
+        'controlado'
     ];
 
 
