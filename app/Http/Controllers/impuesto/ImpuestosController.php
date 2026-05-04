@@ -15,6 +15,7 @@ use App\Services\impuesto\AGUA\CargaAguaService;
 use App\Services\impuesto\GAS\CargaGasService;
 use App\Services\impuesto\Impuesto\PadronImpuestoService;
 use App\Services\impuesto\Impuesto\CargaImpuestoService;
+use App\Services\contable\sellado\PermitirAccesoSelladoService;
 
 
 class ImpuestosController extends Controller
@@ -24,6 +25,7 @@ class ImpuestosController extends Controller
 
     public function actualizarPadron($impuesto)
     {
+
         if ($impuesto === 'tgi' || $impuesto === 'agua' || $impuesto === 'gas') {
             return (new PadronImpuestoService())->actualizarPadronImpuesto($impuesto);
         }
@@ -31,8 +33,33 @@ class ImpuestosController extends Controller
 
     public function filtradoPadron(Request $request, $impuesto)
     {
+        // 1. Obtener el ID del usuario autenticado vía JWT/Token
+        $usuario_id = auth('api')->id();
+        // 2. Instanciar el servicio de permisos localmente
+        $accessService = new PermitirAccesoSelladoService($usuario_id);
+        $botones = [];
+        if ($impuesto === 'tgi') {
+            $botones = [
+                'actualizaPadron_tgi' => $accessService->tieneAcceso('actualizaPadron_tgi')
+            ];
+        }
+        if($impuesto === 'agua'){
+            $botones = [
+                'actualizaPadron_agua' => $accessService->tieneAcceso('actualizaPadron_agua')
+            ];
+        }
+        if($impuesto === 'gas'){
+            $botones = [
+                'actualizaPadron_gas' => $accessService->tieneAcceso('actualizaPadron_gas')
+            ];
+        }
+
         if ($impuesto === 'tgi' || $impuesto === 'agua' || $impuesto === 'gas') {
-            return (new PadronImpuestoService())->ObtenerPadronFiltrado($impuesto, $request);
+            $resultado = (new PadronImpuestoService())->ObtenerPadronFiltrado($impuesto, $request);
+            return response()->json([
+                'resultado' => $resultado,
+                'botones' => $botones,
+            ]);
         }
     }
 
@@ -48,8 +75,39 @@ class ImpuestosController extends Controller
 
     public function padronCarga(Request $request)
     {
+        // 1. Obtener el ID del usuario autenticado vía JWT/Token
+        $usuario_id = auth('api')->id();
+        // 2. Instanciar el servicio de permisos localmente
+        $accessService = new PermitirAccesoSelladoService($usuario_id);
+        $botones = [];
+        if($request->impuesto === 'tgi'){
+            $botones = [
+                'modificarBajado_tgi' => $accessService->tieneAcceso('modificarBajado_tgi'),
+                'modificarEstado_tgi' => $accessService->tieneAcceso('modificarEstado_tgi'),
+                'eliminarImpuesto_tgi' => $accessService->tieneAcceso('eliminarImpuesto_tgi')
+            ];
+        }
+        if($request->impuesto === 'agua'){
+            $botones = [
+                'modificarBajado_agua' => $accessService->tieneAcceso('modificarBajado_agua'),
+                'modificarEstado_agua' => $accessService->tieneAcceso('modificarEstado_agua'),
+                'eliminarImpuesto_agua' => $accessService->tieneAcceso('eliminarImpuesto_agua')
+            ];
+        }
+        if($request->impuesto === 'gas'){
+            $botones = [
+                'modificarBajado_gas' => $accessService->tieneAcceso('modificarBajado_gas'),
+                'modificarEstado_gas' => $accessService->tieneAcceso('modificarEstado_gas'),
+                'eliminarImpuesto_gas' => $accessService->tieneAcceso('eliminarImpuesto_gas')
+            ];
+        }
         if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
-            return app(CargaImpuestoService::class)->padronCarga($request);
+            //return app(CargaImpuestoService::class)->padronCarga($request);
+            $resultado = app(CargaImpuestoService::class)->padronCarga($request);
+            return response()->json([
+                'botones' => $botones,
+                'resultado' => $resultado
+            ]);
         }
     }
 
@@ -259,16 +317,19 @@ class ImpuestosController extends Controller
         return response()->json(['status' => 'success', 'message' => 'El registro se ha eliminado correctamente.']);
     }
 
-    public function sinControlar(){
+    public function sinControlar()
+    {
         return app(CargaImpuestoService::class)->sinControlar();
     }
 
-    public function gasRechazar(Request $request){
+    public function gasRechazar(Request $request)
+    {
         //Log::info('gas rechazar', [$request->all()]);
         return app(CargaImpuestoService::class)->gasRechazar($request->all());
     }
 
-    public function gasBajado(Request $request){
+    public function gasBajado(Request $request)
+    {
         //Log::info('gas bajado', [$request->all()]);
         return app(CargaImpuestoService::class)->gasBajado($request->all());
     }
