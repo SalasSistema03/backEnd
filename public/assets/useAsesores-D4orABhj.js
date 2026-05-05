@@ -1,0 +1,1 @@
+import{o as t}from"./AtclApi-DFjfdbcW.js";import{r as e}from"./index-DTRFve0n.js";function u(){const s=e([]),o=e(null);async function a(){try{const r=await t();s.value=r.data.original||r.data,console.log(s.value)}catch(r){o.value=r}}return{asesores:s,error:o,cargarAsesores:a}}export{u};
