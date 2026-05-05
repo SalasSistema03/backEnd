@@ -97,10 +97,10 @@ return [
         ],
         'mysql3' => [ //Tercer conexion
             'driver' => 'mysql',
-            'host'     => env('DB_HOST_SELLADO'),     // Busca específicamente esta
-            'database' => env('DB_DATABASE_SELLADO'), // Busca específicamente esta
-            'username' => env('DB_USERNAME_SELLADO'), // Busca específicamente esta
-            'password' => env('DB_PASSWORD_SELLADO'), // Busca específicamente esta'unix_socket' => env('DB_SOCKET', ''),
+            'host'     => env('DB_HOST', '127.0.0.1'),     // Busca específicamente esta
+            'database' => env('DB_DATABASE3', 'sistema_sellado'), // Busca específicamente esta
+            'username' => env('DB_USERNAME', 'root'), // Busca específicamente esta
+            'password' => env('DB_PASSWORD', ''), // Busca específicamente esta'unix_socket' => env('DB_SOCKET', ''),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
             'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
             'prefix' => '',
@@ -113,11 +113,12 @@ return [
         ],
         'mysql4' => [ //Cuarta conexion
             'driver' => 'mysql',
-             'host' => env('DB_HOST_4', '10.10.10.66'), // Variable única para esta conexión
-            'port' => env('DB_PORT_4', '3306'),
+            'url' => env('DB_URL'),
+             'host' => env('DB_HOST', '127.0.0.1'), // Variable única para esta conexión
+            'port' => env('DB_PORT', '3306'),
             'database' => env('DB_DATABASE4', 'sistema_usuarios_y_permisos'),
-            'username' => env('DB_USERNAME_4', 'root'), // Variable única
-            'password' => env('DB_PASSWORD_4', 'GALEON'), // Variable única'unix_socket' => env('DB_SOCKET', ''),
+            'username' => env('DB_USERNAME', 'root'), // Variable única
+            'password' => env('DB_PASSWORD', ''), // Variable única'unix_socket' => env('DB_SOCKET', ''),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
             'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
             'prefix' => '',

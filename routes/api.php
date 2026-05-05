@@ -93,7 +93,7 @@ Route::prefix('v1')->group(function () {
         Route::post('padron/cargar', [PadronController::class, 'CargarPadron']);
 
         // Turnos (URL: api/v1/turnos/...)
-        Route::get('sectores', [TurnoController::class, 'getSectores']);
+        Route::get('sectoresturno', [TurnoController::class, 'getSectores']);
         Route::get('turnos/pendientes', [TurnoController::class, 'getTurnosPendientes']);
         Route::get('turnos/llamados', [TurnoController::class, 'getTurnosLlamados']);
         Route::get('turnos/completados', [TurnoController::class, 'getTurnosCompletados']);
