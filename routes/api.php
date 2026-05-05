@@ -30,6 +30,7 @@ use App\Http\Controllers\impuesto\ImpuestosController;
 use App\Http\Controllers\impuesto\Exportar_PDF_impuesto\Pdf_Tgi;
 use App\Http\Controllers\impuesto\Exportar_PDF_impuesto\PdfImpuestoController;
 use App\Services\impuesto\AGUA\CargaAguaService;
+use App\Http\Controllers\contable\retenciones\RetencionController;
 
 Route::prefix('v1')->group(function () {
 
@@ -58,6 +59,25 @@ Route::prefix('v1')->group(function () {
             Route::get('propiedad/descargar-fotos/{id}', [PropiedadController::class, 'descargarFotos']);
             Route::post('propiedad/guardar-novedad', [PropiedadController::class, 'guardarNovedad']);
             Route::get('/propiedades/pdf/pdfPlantillaPropiedad/{id}/{tipoBTN}', [Pdf_alquiler::class, 'generarPDFpantillaPropiedad'])->name('propiedades.pdf.pdfPlantillaPropiedad');
+            Route::get('turnos/pendientes', [TurnoController::class, 'getTurnosPendientes']);
+            Route::get('turnos/llamados', [TurnoController::class, 'getTurnosLlamados']);
+            Route::get('turnos/completados', [TurnoController::class, 'getTurnosCompletados']);
+            Route::post('turnos/cargar', [TurnoController::class, 'postCargarTurnoController']);
+            Route::put('turnos/finalizar/{id}', [TurnoController::class, 'finalizarturno']);
+            Route::put('turnos/llamar/{id}', [TurnoController::class, 'putLlamarTurno']);
+            //rutas que se usan a services/Api/Atcl/atclApi
+            Route::get('calles', [CalleController::class, 'getCalles']);
+            Route::get('tipos-inmueble', [Tipo_inmuebleController::class, 'getTiposInmueble']);
+            Route::get('zonas', [ZonaController::class, 'getZonas']);
+            Route::get('provincias', [ProvinciaController::class, 'getProvincias']);
+            Route::get('estado-general', [EstadoGeneralController::class, 'getEstadoGeneral']);
+            Route::get('estado-venta', [EstadoVentaController::class, 'getEstadoVenta']);
+            Route::get('captador-interno', [UsuariosController::class, 'getCaptadorInterno']);
+            Route::get('asesor', [UsuariosController::class, 'getAsesor']);
+            Route::get('estado-alquiler', [EstadoAlquilerController::class, 'getEstadoAlquiler']);
+            Route::post('propiedad/guardar/{id}', [PropiedadController::class, 'guardarPropiedad']);
+            Route::get('padron/buscar', [PadronService::class, 'BuscarPadron']);
+            Route::post('padron/cargar', [PadronController::class, 'CargarPadron']);
         });
     });
 
@@ -164,8 +184,25 @@ Route::prefix('v1')->group(function () {
         Route::put('/gas_bajado', [ImpuestosController::class, 'gasBajado']);
         Route::put('/gas_rechazar', [ImpuestosController::class, 'gasRechazar']);
 
-     });
-});
+        // CONTABLE - RETENCIONES (URL: api/v1/retenciones)
+        Route::get('retenciones/padronRetencion/{cuil}', [RetencionController::class, 'getPadronRetencionCUILController']);
+        Route::get('retenciones/basePorcentual', [RetencionController::class, 'getBasePorcentualController']);
+        Route::get('retenciones/retencionPorCUIT/{cuit}', [RetencionController::class, 'getRetencionPorCUITController']);
+        Route::post('retenciones/calcularRetencion', [RetencionController::class, 'getCalculoRetencion']);
+        Route::get('retenciones/provincias', [RetencionController::class, 'getProvinciasController']);
+        Route::get('retenciones/verificar-comprobante', [RetencionController::class, 'getVerficarComprobanteController']);
+        Route::get('retenciones/tablaRetenciones', [RetencionController::class, 'getTablaRetencionesController']);
+        Route::put('retenciones/modificarBasePorcentual', [RetencionController::class, 'modificarBasePorcentualController']);
+        Route::post('retenciones/guardarComprobante', [RetencionController::class, 'postComprobanteController']);
+        Route::post('retenciones/guardarPersonaRetencion', [RetencionController::class, 'postPersonaRetencionController']);
+        Route::put('retenciones/modificarRegistro/{id}', [RetencionController::class, 'modgiciarRegistroRetencionController']);
+        Route::get('/retenciones/suma-quincena', [RetencionController::class, 'obtenerSumasMensualesController']);
+        Route::get('/retenciones/exportar-retenciones', [RetencionController::class, 'exportarRetencionesTXTController']);
+
+    });
+}); // <--- Aquí cierra el middleware
+
+
 
 
 // Ruta de redirección por defecto si falla el token
