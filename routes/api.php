@@ -27,7 +27,7 @@ Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('login', [AuthController::class, 'login']);
         Route::post('register', [AuthController::class, 'register']);
-        Route::middleware('auth:api')->group(function(){
+        Route::middleware('auth:api')->group(function () {
             Route::get('logout', [AuthController::class, 'logout'])->name('logout');
             Route::post('refresh', [AuthController::class, 'refresh']);
             Route::get('me', [AuthController::class, 'me']);
@@ -56,7 +56,6 @@ Route::prefix('v1')->group(function () {
             Route::post('propiedad/guardar/{id}', [PropiedadController::class, 'guardarPropiedad']);
             Route::get('padron/buscar', [PadronService::class, 'BuscarPadron']);
             Route::post('padron/cargar', [PadronController::class, 'CargarPadron']);
-
         });
     });
     //CONTABLE - SELLADO
@@ -64,12 +63,12 @@ Route::prefix('v1')->group(function () {
     // 2. GRUPO PROTEGIDO (URL: api/v1/...)
     // Requieren Token, pero NO llevan "auth" en la URL
     Route::middleware('auth:api')->group(function () {
-        
+
         // Sesión y Usuario
         Route::get('logout', [AuthController::class, 'logout'])->name('logout');
         Route::post('refresh', [AuthController::class, 'refresh']);
         Route::get('me', [AuthController::class, 'me']);
-        
+
         // Servicios de Navegación y Usuarios
         Route::get('nav', [PermisoService::class, 'getMenuData']);
         Route::get('permisos-navegacion', [PermisoService::class, 'getPermisosNavegacion']);
@@ -97,7 +96,20 @@ Route::prefix('v1')->group(function () {
         Route::post('sellado/guardar', [SelladoController::class, 'guardarSelladoController']);
         Route::delete('sellado/eliminar', [SelladoController::class, 'eliminarRegistroSelladoController']);
 
-        
+        // CONTABLE - RETENCIONES (URL: api/v1/retenciones)
+        Route::get('retenciones/padronRetencion/{cuil}', [RetencionController::class, 'getPadronRetencionCUILController']);
+        Route::get('retenciones/basePorcentual', [RetencionController::class, 'getBasePorcentualController']);
+        Route::get('retenciones/retencionPorCUIT/{cuit}', [RetencionController::class, 'getRetencionPorCUITController']);
+        Route::post('retenciones/calcularRetencion', [RetencionController::class, 'getCalculoRetencion']);
+        Route::get('retenciones/provincias', [RetencionController::class, 'getProvinciasController']);
+        Route::get('retenciones/verificar-comprobante', [RetencionController::class, 'getVerficarComprobanteController']);
+        Route::get('retenciones/tablaRetenciones', [RetencionController::class, 'getTablaRetencionesController']);
+        Route::put('retenciones/modificarBasePorcentual', [RetencionController::class, 'modificarBasePorcentualController']);
+        Route::post('retenciones/guardarComprobante', [RetencionController::class, 'postComprobanteController']);
+        Route::post('retenciones/guardarPersonaRetencion', [RetencionController::class, 'postPersonaRetencionController']);
+        Route::put('retenciones/modificarRegistro/{id}', [RetencionController::class, 'modgiciarRegistroRetencionController']);
+        Route::get('/retenciones/suma-quincena', [RetencionController::class, 'obtenerSumasMensualesController']);
+        Route::get('/retenciones/exportar-retenciones', [RetencionController::class, 'exportarRetencionesTXTController']);
     }); // <--- Aquí cierra el middleware
 });
 
