@@ -8,6 +8,7 @@ use App\Models\Contable\retenciones\Padron_retenciones;
 use App\Services\At_cl\ProvinciaService;
 use App\Services\contable\retenciones\RetencionService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class RetencionController extends Controller
 {
@@ -228,6 +229,9 @@ class RetencionController extends Controller
                 'data' => $resultado
             ], 200);
         } catch (\Exception $e) {
+            Log::info('error persona', [
+    'exception' => $e
+]);
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error al guardar la persona',
