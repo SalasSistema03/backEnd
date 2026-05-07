@@ -108,6 +108,7 @@ Route::prefix('v1')->group(function () {
         Route::get('propiedades/buscar-venta', [PropiedadController::class, 'buscarPropiedadesVenta']);
         Route::get('padron/buscar', [PadronService::class, 'BuscarPadron']);
         Route::post('padron/cargar', [PadronController::class, 'CargarPadron']);
+        Route::post('/broches/pdf/fichaPropiedad', [PropiedadController::class, 'fichaPropiedad']);
 
         // Turnos (URL: api/v1/turnos/...)
         Route::get('sectoresturno', [TurnoController::class, 'getSectores']);

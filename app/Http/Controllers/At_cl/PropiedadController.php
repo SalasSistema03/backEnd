@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Log;
 use App\Services\At_cl\EmpresaPropiedadService;
 use App\Services\contable\sellado\PermitirAccesoSelladoService;
 use App\Services\contable\sellado\RegistroSelladoService;
+use App\Models\usuarios_y_permisos\Usuario;
 
 
 
@@ -310,6 +311,8 @@ class PropiedadController
                 'mascota' => $propiedad->mascota,
                 'precio_alquiler' => $propiedad->precioActual?->moneda_alquiler_pesos ?? $propiedad->precioActual?->moneda_alquiler_dolar,
                 'precio_venta' => $propiedad->precioActual?->moneda_venta_dolar ?? $propiedad->precioActual?->moneda_venta_pesos,
+                'estado_alquiler' => $propiedad->estadoAlquiler?->name,
+                'estado_venta' => $propiedad->estadoVenta?->name,
             ];
         });
 
@@ -889,5 +892,49 @@ class PropiedadController
             }
         }
         return $cleaned;
+    }
+
+
+     public function fichaPropiedad(Request $request)
+    {
+        Log::info('informacion del request', ['request' => $request->all()]);
+
+        // Los datos que antes pasabas por props en Vue
+        $propiedad = $request->propiedad;
+        $ubicacion = $request->ubicacion;
+        $usuario_id = auth('api')->id();
+        $username = Usuario::where('id', $usuario_id)->first()->username;
+         $fotosOrdenadas = [];
+        // Ordenar fotos por campo 'orden', null al final
+        usort($propiedad['fotos'], function($a, $b) {
+            $ordenA = $a['orden'] ?? PHP_INT_MAX;
+            $ordenB = $b['orden'] ?? PHP_INT_MAX;
+            return $ordenA <=> $ordenB;
+        });
+        // Tomar las primeras 3 fotos
+        foreach($propiedad['fotos'] as $foto) {
+            if(count($fotosOrdenadas) < 3) {
+                $fotosOrdenadas[] = $foto['url'];
+            }
+        }
+
+        //Log::info('fotosOrdenadas', ['fotosOrdenadas' => $fotosOrdenadas]);
+
+        //Log::info('informacion del broche', ['broches' => $broches, 'anio' => $anio, 'mes' => $mes, 'impuesto' => $impuesto, 'request' => $request->all()]);
+
+        // Generamos el HTML usando una vista de Blade limpia
+        $html = view('pdfs.atcl.ficha_propiedad', compact('propiedad', 'ubicacion', 'fotosOrdenadas'))->render();
+
+        return response()->streamDownload(function () use ($html, $username) {
+            echo \Spatie\Browsershot\Browsershot::html($html)
+                ->format('A4')
+                ->margins(10, 10, 10, 10)
+                ->emulateMedia('screen')
+                ->showBackground()
+                ->setOption('displayHeaderFooter', true)
+                ->setOption('headerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Ficha de Propiedad</span><span style="text-align:right;" class="date"></span></div>')
+                ->setOption('footerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Salas Inmobiliaria</span><span style="text-align:right;">' . $username . '</span></div>')
+                ->pdf();
+        }, "ficha_propiedad.pdf");
     }
 }
