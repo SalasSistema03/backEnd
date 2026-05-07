@@ -22,6 +22,7 @@ use App\Services\contable\sellado\RegistroSelladoService;
 
 
 
+
 /**
  * Controlador encargado de gestionar la búsqueda y CRUD completo de las propiedades,
  * incluyendo filtrado avanzado, ordenamiento dinámico,restricciones de acceso
@@ -194,15 +195,20 @@ class PropiedadController
             // Crear la propiedad usando el servicio
             $propiedad_creada = (new PropiedadService())->crearPropiedad($datos, $id);
 
+           // Log::info('Propiedad creada: ' . $propiedad_creada->id);
+           // Log::info('DB_DATABASE: ' . config('database.connections.mysql.database'));
+           // Log::info('DB_HOST: ' . config('database.connections.mysql.host'));
             // Crear tasación si hay datos de venta
             (new TasacionService())->crearDesdeRequest($venta, $propiedad_creada->id);
 
             // Crear registro de precios
             (new PrecioService())->crearDesdeRequest($venta, $alquiler, $propiedad_creada->id);
-
-            // Carga de archivos multimedia
-            (new PropiedadMediaService())->subirDesdeRequest($request, $propiedad_creada->id);
-
+            try {
+                // Carga de archivos multimedia
+                (new PropiedadMediaService())->subirDesdeRequest($request, $propiedad_creada->id);
+            } catch (\Exception $e) {
+                Log::error("Fallo multimedia: " . $e->getMessage());
+            }
             // Asociación de la propiedad a empresas (folios)
             $folios = [
                 1 => $alquiler['FCentral'] ?? null,
@@ -215,7 +221,7 @@ class PropiedadController
             }
 
             // Asociación de la propiedad con los propietarios
-            if (!empty($propietario)) {
+             if (!empty($propietario)) {
                 $propietario_decoded = is_array($propietario) ? $propietario : json_decode($propietario, true);
 
                 if ($propietario_decoded) {
@@ -227,6 +233,7 @@ class PropiedadController
                 }
             }
 
+            //Log::info('Contante de filas: ' . DB::table('propiedades')->count());
             DB::commit();
 
             return response()->json([
@@ -236,13 +243,13 @@ class PropiedadController
                     'id' => $propiedad_creada->id,
                 ],
             ], 200);
-
         } catch (\Exception $e) {
             DB::rollBack();
-
+            //Log::error("ERROR FATAL: " . $e->getMessage()); // Revisa el log de laravel después de esto
             return response()->json([
                 'success' => false,
-                'message' => 'Error al guardar la propiedad: ' . $e->getMessage()
+                'message' => 'Error: ' . $e->getMessage(),
+                'trace' => $e->getTraceAsString() // Solo para desarrollo
             ], 500);
         }
     }
@@ -387,7 +394,7 @@ class PropiedadController
                 'modificar' => $accessService->tieneAcceso('modificar')
             ];
             //Log::info('despues del array de botones', $botones);
-           // $resultado = $this->registro_sellado->getRegistroSellado();
+            // $resultado = $this->registro_sellado->getRegistroSellado();
 
             //Log::info('despues de resultado', $resultado);
             return response()->json([
@@ -399,7 +406,6 @@ class PropiedadController
                     'registro_sellado' => $resultado
                 ] */
             ]);
-
         } catch (\Exception $e) {
 
             return response()->json([
@@ -594,7 +600,6 @@ class PropiedadController
                 'success' => true,
                 'message' => 'Propiedad actualizada correctamente'
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -669,7 +674,6 @@ class PropiedadController
                 'Content-Type' => 'application/zip',
                 'Content-Disposition' => 'attachment; filename="' . $zipFileName . '"'
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -714,7 +718,6 @@ class PropiedadController
             DB::commit();
 
             return redirect()->back()->with('success', 'Novedad cargada correctamente.');
-
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -746,7 +749,6 @@ class PropiedadController
                 'success' => true,
                 'data'    => $novedad
             ]);
-
         } catch (\Exception $e) {
 
             return response()->json([
@@ -783,7 +785,6 @@ class PropiedadController
                 'status' => 'success',
                 'message' => 'Cambio guardado correctamente en la sesión.'
             ]);
-
         } catch (\Exception $e) {
 
             return response()->json([
@@ -828,7 +829,6 @@ class PropiedadController
             }
 
             return response()->json($props->values());
-
         } catch (\Exception $e) {
 
             return response()->json([
@@ -890,6 +890,4 @@ class PropiedadController
         }
         return $cleaned;
     }
-
-
 }

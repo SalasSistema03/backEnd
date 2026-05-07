@@ -1,11 +1,9 @@
 <?php
 
-namespace App\Http\Controllers\buscadorPdf;
+namespace App\Http\Controllers\contable\buscadorComprobante;
 
 use Illuminate\Http\Request;
 use setasign\Fpdi\Fpdi;
-use Illuminate\Support\Facades\Response;
-
 
 class BuscadorPdfController
 {
@@ -34,26 +32,26 @@ class BuscadorPdfController
         $numeros = str_pad($numero, 8, '0', STR_PAD_LEFT);
         $nombreArchivo = sprintf('%s-%s-%s.pdf', $letra, $puntos, $numeros);
 
+
         if ($comprobante == 'Opp Concatenadas') {
             // Buscar y combinar PDFs similares
+
             return $this->buscarYCombinarPDFs($rutaBase, $empresa, $comprobante, $tipo, $numero, $letra, $puntos,$numeros);
         } else {
             // Ruta base donde se encuentran los PDFs
             $rutaCompleta = $rutaBase . $empresa . "\\" . $comprobante . "\\" . $quien . "\\" . $tipo . "\\" . $letra . "\\" . $nombreArchivo;
-            
+
             if (!file_exists($rutaCompleta)) {
                 return back()->with('error', 'Archivo no encontrado: ' . $nombreArchivo);
             }
             // Crear nuevo nombre de archivo con el tipo de comprobante
             $nombreDescarga = $comprobante . ' ' . $nombreArchivo;
-
             return response(file_get_contents($rutaCompleta))
                 ->header('Content-Type', 'application/pdf')
                 ->header('Content-Disposition', 'inline; filename="' . $nombreDescarga . '"');
 
-
-              
         }
+
     }
 
     /**
@@ -63,7 +61,7 @@ class BuscadorPdfController
     {
         // Directorio donde buscar los PDFs
         $directorioBase = $rutaBase . $empresa . "\\" . $comprobante . "\\" . $tipo;
-        
+
         // Verificar si el directorio existe
         if (!is_dir($directorioBase)) {
             return back()->with('error', 'Directorio no encontrado: ' . $directorioBase);
@@ -75,7 +73,7 @@ class BuscadorPdfController
         $contador = 0;
         $nombreArchivo = sprintf('%s %s-%s-%s.pdf',"OppConcatenada", "X", $puntos, $numero);
 
-       
+
 
         foreach ($archivos as $archivo) {
             if (pathinfo($archivo, PATHINFO_EXTENSION) === 'pdf') {
@@ -84,10 +82,6 @@ class BuscadorPdfController
                }
             }
         }
-        
- 
-        /* dd($archivosEncontrados); */
-        
 
         if (empty($archivosEncontrados)) {
             return back()->with('error', 'No se encontraron PDFs similares');
@@ -97,8 +91,8 @@ class BuscadorPdfController
         // En una implementación real, aquí es donde combinarías los PDFs
         if (count($archivosEncontrados) == 1) {
             // Si solo hay un PDF, devolverlo directamente
-            
-            
+
+
             return response()->file($archivosEncontrados[0], [
                 'Content-Type' => 'application/pdf',
             ]);
@@ -107,28 +101,20 @@ class BuscadorPdfController
 
             foreach ($archivosEncontrados as $archivoEncontrado) {
                 $pageCount = $pdf->setSourceFile($archivoEncontrado);
-        
+
                 for ($page = 1; $page <= $pageCount; $page++) {
                     $templateId = $pdf->importPage($page);
                     $size = $pdf->getTemplateSize($templateId);
-        
+
                     $pdf->AddPage($size['orientation'], [$size['width'], $size['height']]);
                     $pdf->useTemplate($templateId);
                 }
             }
-            
+
             // Capturamos el contenido sin guardarlo
             return response($pdf->Output('S')) // 'S' = return as string
                 ->header('Content-Type', 'application/pdf')
                 ->header('Content-Disposition', 'inline; filename="' . $nombreArchivo . '"');
-            // Si hay múltiples PDFs, intentar combinarlos usando un método alternativo
-            
         }
-    }
-
-
-    public function index()
-    {
-        return view('buscaPdf.buscadorPdf');
     }
 }

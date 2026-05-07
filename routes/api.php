@@ -1,6 +1,5 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\contable\sellado\SelladoController;
@@ -25,12 +24,10 @@ use App\Http\Controllers\clientes\AsesoresController;
 use App\Http\Controllers\agenda\AgendaController;
 use App\Models\At_cl\Propiedad;
 use App\Http\Controllers\NotificacionController;
-use App\Http\Controllers\impuesto\TgiPadronController;
 use App\Http\Controllers\impuesto\ImpuestosController;
-use App\Http\Controllers\impuesto\Exportar_PDF_impuesto\Pdf_Tgi;
 use App\Http\Controllers\impuesto\Exportar_PDF_impuesto\PdfImpuestoController;
-use App\Services\impuesto\AGUA\CargaAguaService;
 use App\Http\Controllers\contable\retenciones\RetencionController;
+use App\Http\Controllers\contable\buscadorComprobante\BuscadorPdfController;
 
 Route::prefix('v1')->group(function () {
 
@@ -199,6 +196,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/retenciones/suma-quincena', [RetencionController::class, 'obtenerSumasMensualesController']);
         Route::get('/retenciones/exportar-retenciones', [RetencionController::class, 'exportarRetencionesTXTController']);
 
+        // CONTABLE - BUSCADOR PDF (URL: api/v1/buscador-pdf)
+        Route::post('contable/comprobantes/verPDF', [BuscadorPdfController::class, 'verPDF']);
     });
 }); // <--- Aquí cierra el middleware
 
