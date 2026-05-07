@@ -187,7 +187,7 @@ protected function getRegistroSelladoOrenados(): array
 
         //dd(json_encode($valor_adm));
 
-        if ($tipo_contrato == "Cochera") {
+        if ($tipo_contrato == 3) {
             if ($meses <= 6) {
                 $g_adm = $valor_adm[0]->valor;
             } else {
@@ -238,7 +238,7 @@ protected function getRegistroSelladoOrenados(): array
         $total_alquiler = 0;
         $iva_total = $this->iva($inq_prop, $tipo_c, $monto_a);
 
-        if ($tipo_c == "Vivienda" || $tipo_c == "Vivienda Comercial") {
+        if ($tipo_c == 1 ) {
             $valor = $valor_tipos[0]->valor;
         } else {
             $valor = $valor_tipos[1]->valor;
@@ -262,7 +262,7 @@ protected function getRegistroSelladoOrenados(): array
 
     protected function iva($inq_prop, $tipo_c, $monto_a)
     {
-        if ($monto_a <= 1500 || $inq_prop == "SI" || $tipo_c == "Vivienda") {
+        if ($monto_a <= 1500 || $inq_prop == "SI" || $tipo_c == 1 ) {
             return 1;
         }
         return 1.21;
@@ -309,7 +309,7 @@ protected function getRegistroSelladoOrenados(): array
     {
         $monto_alquiler_comercial = 0;
         $monto_alquiler_vivienda = 0;
-        if ($tipo_c == "Vivienda") {
+        if ($tipo_c == 1 ) {
             $monto_alquiler_vivienda = $monto_alquiler;
         } else {
             $monto_alquiler_comercial = $monto_alquiler;
