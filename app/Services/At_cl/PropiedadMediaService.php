@@ -38,7 +38,7 @@ class PropiedadMediaService
     public function subirDesdeRequest(Request $request, int $propiedadId): void
     {
         try {
-            DB::beginTransaction();
+           // DB::beginTransaction();
 
             if (!$request->hasFile('images') && !$request->hasFile('videos') && !$request->hasFile('pdfs')) {
                 return;
@@ -82,10 +82,10 @@ class PropiedadMediaService
                 }
             }
 
-            DB::commit();
+            //DB::commit();
 
         } catch (\Exception $e) {
-            DB::rollBack();
+            //DB::rollBack();
             throw new \Exception('Error al guardar archivos multimedia: ' . $e->getMessage());
         }
     }
@@ -193,7 +193,7 @@ class PropiedadMediaService
     public function modificarFoto($fotos_modificadas)
     {
         try {
-            DB::beginTransaction();
+            //DB::beginTransaction();
 
             //Log::info('modificarFoto', ['fotos_modificadas' => $fotos_modificadas]);
             foreach ($fotos_modificadas as $foto) {
@@ -208,10 +208,10 @@ class PropiedadMediaService
                 }
             }
 
-            DB::commit();
+            //DB::commit();
 
         } catch (\Exception $e) {
-            DB::rollBack();
+            //DB::rollBack();
             throw new \Exception('Error al modificar fotos: ' . $e->getMessage());
         }
     }
@@ -219,7 +219,7 @@ class PropiedadMediaService
     public function modificarDocumento($documentos_modificados)
     {
         try {
-            DB::beginTransaction();
+            //DB::beginTransaction();
 
             foreach ($documentos_modificados as $documento) {
                 $documentoModel = Documentacion::find($documento['id']);
@@ -231,10 +231,10 @@ class PropiedadMediaService
                 }
             }
 
-            DB::commit();
+            //DB::commit();
 
         } catch (\Exception $e) {
-            DB::rollBack();
+            //DB::rollBack();
             throw new \Exception('Error al modificar documentos: ' . $e->getMessage());
         }
     }
@@ -242,7 +242,7 @@ class PropiedadMediaService
     public function modificarVideo($videos_modificados)
     {
         try {
-            DB::beginTransaction();
+           // DB::beginTransaction();
 
             foreach ($videos_modificados as $video) {
                 $videoModel = Video::find($video['id']);
@@ -255,10 +255,10 @@ class PropiedadMediaService
                 }
             }
 
-            DB::commit();
+            //DB::commit();
 
         } catch (\Exception $e) {
-            DB::rollBack();
+            //DB::rollBack();
             throw new \Exception('Error al modificar videos: ' . $e->getMessage());
         }
     }
@@ -266,7 +266,7 @@ class PropiedadMediaService
     public function eliminarFoto($fotos_eliminadas)
     {
         try {
-            DB::beginTransaction();
+            //DB::beginTransaction();
 
             foreach ($fotos_eliminadas as $foto) {
                 $fotoId = is_array($foto) ? $foto['id'] : $foto;
@@ -278,17 +278,17 @@ class PropiedadMediaService
                 }
             }
 
-            DB::commit();
+            //DB::commit();
 
         } catch (\Exception $e) {
-            DB::rollBack();
+            //DB::rollBack();
             throw new \Exception('Error al eliminar fotos: ' . $e->getMessage());
         }
     }
     public function eliminarDocumento($documentos_eliminados)
     {
         try {
-            DB::beginTransaction();
+            //DB::beginTransaction();
 
             foreach ($documentos_eliminados as $documento) {
                 $documentoId = is_array($documento) ? $documento['id'] : $documento;
@@ -300,10 +300,10 @@ class PropiedadMediaService
                 }
             }
 
-            DB::commit();
+            //DB::commit();
 
         } catch (\Exception $e) {
-            DB::rollBack();
+            //DB::rollBack();
             throw new \Exception('Error al eliminar documentos: ' . $e->getMessage());
         }
     }
@@ -311,7 +311,7 @@ class PropiedadMediaService
     public function eliminarVideo($videos_eliminados)
     {
         try {
-            DB::beginTransaction();
+            //DB::beginTransaction();
 
             foreach ($videos_eliminados as $video) {
                 $videoId = is_array($video) ? $video['id'] : $video;
@@ -323,10 +323,10 @@ class PropiedadMediaService
                 }
             }
 
-            DB::commit();
+            //DB::commit();
 
         } catch (\Exception $e) {
-            DB::rollBack();
+            //DB::rollBack();
             throw new \Exception('Error al eliminar videos: ' . $e->getMessage());
         }
     }
@@ -377,7 +377,7 @@ class PropiedadMediaService
     public function subirdesdeUpdate(Request $request, $propiedadId)
     {
         try {
-            DB::beginTransaction();
+            //DB::beginTransaction();
 
             $idFolder = 'propiedad_' . $propiedadId;
             $paths = [
@@ -481,10 +481,10 @@ class PropiedadMediaService
                 }
             }
 
-            DB::commit();
+            //DB::commit();
 
         } catch (\Exception $e) {
-            DB::rollBack();
+            //DB::rollBack();
             throw new \Exception('Error al subir archivos multimedia: ' . $e->getMessage());
         }
     }
