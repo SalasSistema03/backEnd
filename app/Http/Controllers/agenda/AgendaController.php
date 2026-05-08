@@ -224,7 +224,7 @@ class AgendaController extends Controller
     // Desactivar (eliminar lógicamente) una nota
     public function destroy($id, $motivo)
     {
-        Log::info('entro', ['id' => $id, 'motivo' => $motivo]);
+       // Log::info('entro', ['id' => $id, 'motivo' => $motivo]);
         // Inicia la transacción
         DB::beginTransaction();
         try {
