@@ -212,4 +212,22 @@ class SelladoController extends Controller
         }
     }
 
+
+    /* Esta funcion es para exportar en formato excel los registros del sellado */
+    public function exportarexportarRegistrosSelladoController()
+    {
+        try {
+            $registros = $this->registro_sellado->exportarRegistrosSelladoService();
+            return response()->json([
+                'registros' => $registros,
+                'status' => 'success',
+                'message' => 'Exportación a Excel iniciada correctamente.'
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al exportar a Excel: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

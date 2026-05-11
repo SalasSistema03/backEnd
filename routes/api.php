@@ -128,6 +128,7 @@ Route::prefix('v1')->group(function () {
         Route::post('sellado/calcular', [SelladoController::class, 'calcularSelladoController']);
         Route::post('sellado/guardar', [SelladoController::class, 'guardarSelladoController']);
         Route::delete('sellado/eliminar', [SelladoController::class, 'eliminarRegistroSelladoController']);
+        Route::get('sellado/exportar-registros', [SelladoController::class, 'exportarexportarRegistrosSelladoController']);
 
 
         //clientes
