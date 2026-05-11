@@ -179,6 +179,35 @@ protected function getRegistroSelladoOrenados(): array
 
 
 
+public function exportarRegistrosSelladoService()
+{
+    $registros = Registro_sellado::all();
+
+    return $registros->map(function ($registro) {
+        $monto_vivienda = $registro->monto_alquiler_vivienda * $registro->cantidad_meses;
+        
+        $monto_comercial = ($registro->inq_prop == 'SI') 
+            ? $registro->monto_alquiler_comercial * $registro->cantidad_meses 
+            : $registro->monto_alquiler_comercial * $registro->cantidad_meses * 1.21;
+
+        return [
+            'folio'         => $registro->folio,
+            'nombre'        => $registro->nombre,
+            'informe'       => $registro->informe,
+            'fecha_Inicio'  => $registro->fecha_inicio,
+            'tipo_Contrato' => $registro->tipo_contrato,
+            'monto_Vivienda'=> $monto_vivienda,
+            'monto_Comercial'=> $monto_comercial,
+            'hojas'         => $registro->hojas,
+            'fecha_Carga'   => $registro->fecha_carga,
+            'inq_Prop'      => $registro->inq_prop,
+        ];
+    });
+}
+
+    /* ------------------- */
+
+
     //En esta seccion se creara la logica para calcular el registro sellado
     protected function calculateGastoAdministrativo($monto_alquiler, $monto_documento, $tipo_contrato, $meses)
     {
