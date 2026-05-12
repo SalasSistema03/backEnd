@@ -966,7 +966,7 @@ class CargaImpuestoService
             ->distinct()
             ->get();
 
-        Log::info($datos);
+        //Log::info('datos', ['datos' => $datos]);
         return $datos;
     }
 

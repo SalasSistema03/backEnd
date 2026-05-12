@@ -1,0 +1,1 @@
+import{c as t,b as e,_ as a,F as o,j as r}from"./index-DhMliYuT.js";import{_ as s}from"./PadronImpuesto-CEcr1gc9.js";import"./useDateFormatter-Ca4_OelW.js";import"./tgiApi-0Xe8kjiz.js";import"./BaseModal-DCOZ2FWC.js";const m="gas",d={__name:"PadronGASView",setup(_){return(c,n)=>(r(),t(o,null,[e(a),e(s,{impuesto:m})],64))}};export{d as default};

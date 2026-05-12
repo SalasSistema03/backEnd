@@ -200,6 +200,9 @@ Route::prefix('v1')->group(function () {
 
         // CONTABLE - BUSCADOR PDF (URL: api/v1/buscador-pdf)
         Route::post('contable/comprobantes/verPDF', [BuscadorPdfController::class, 'verPDF']);
+
+        //LISTADO ATCL
+        Route::post('/broches/pdf/listadoPropiedad', [Pdf_alquiler::class, 'listadoPropiedad']);
     });
 }); // <--- Aquí cierra el middleware
 

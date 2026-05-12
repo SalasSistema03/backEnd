@@ -73,7 +73,7 @@ class AgendaController extends Controller
     // Método para guardar una nueva nota en la agenda
     public function store(Request $request)
     {
-        Log::info('llego la informacion', $request->all());
+        //Log::info('llego la informacion', $request->all());
         //dd($request->all());
         $cliente = null;
 
@@ -107,13 +107,15 @@ class AgendaController extends Controller
             }
 
             if ($request->telefono) {
+                //Log::info('entro al telefono');
                 $cliente = Clientes::where('telefono', $request->telefono)->first();
                 if (!$cliente) {
                     $cliente = Clientes::create([
-                        'nombre' => $request->nombrecliente,
+                        'nombre' => $request->nombreCliente,
                         'telefono' => $request->telefono
                     ]);
                 }
+                //Log::info('cliente', ['cliente' => $cliente]);
             }
             $usuario_id = auth('api')->id();
 
@@ -156,7 +158,7 @@ class AgendaController extends Controller
                 ]);
             }
 
-            Log::info('Nota creada correctamente');
+            //Log::info('Nota creada correctamente');
             // Si se proporciona un criterio, crear el evento en el historial
             if ($request->criterioSeleccionado != null) {
                 if($propiedadV === null){
@@ -166,19 +168,19 @@ class AgendaController extends Controller
                         'message' => 'Ingrese una propiedad'
                     ], 404);
                 }
-                Log::info('antes de buscar cliente');
+                //Log::info('antes de buscar cliente');
                 $busca_cliente = CriterioBusquedaVenta::where('id_criterio_venta', $request->criterioSeleccionado)->first();
-                Log::info('despues de buscar cliente');
+                //Log::info('despues de buscar cliente');
                 // Buscar la propiedad correspondiente al sector y usuario
                 $propiedadNC = Propiedad::where('id', $propiedadV)->first();
-                Log::info('despues de buscar propiedad');
+                //Log::info('despues de buscar propiedad');
                 // Buscar el nombre de la calle
                 $calleName = Calle::where('id', $propiedadNC->id_calle)->first()->name;
 
                 // Dia formato dd/mm/yyyy
                 $fecha = Carbon::parse($request->fecha)->format('d/m/Y');
 
-                Log::info('antes de crear historial');
+                //Log::info('antes de crear historial');
                 // Crear el evento en el historial
                 HistorialCodMuestra::create([
                     'codigo_muestra' => $propiedadNC->cod_venta,
@@ -191,7 +193,7 @@ class AgendaController extends Controller
                     'id_criterio_venta' => $request->criterioSeleccionado
                 ]);
 
-                Log::info('despues de crear historial');
+                //Log::info('despues de crear historial');
                 $notas->update([
                     'cliente_id' => $busca_cliente->id_cliente
                 ]);
@@ -222,7 +224,7 @@ class AgendaController extends Controller
     // Desactivar (eliminar lógicamente) una nota
     public function destroy($id, $motivo)
     {
-        Log::info('entro');
+       // Log::info('entro', ['id' => $id, 'motivo' => $motivo]);
         // Inicia la transacción
         DB::beginTransaction();
         try {
