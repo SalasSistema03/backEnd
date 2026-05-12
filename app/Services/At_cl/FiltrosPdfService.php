@@ -120,7 +120,7 @@ class FiltrosPdfService
         });
     }
 
-    private function aplicarOrden(Builder $query, array $filtros): void
+    public function aplicarOrden(Builder $query, array $filtros): void
     {
         if (empty($filtros['orden'])) {
             return;

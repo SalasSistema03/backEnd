@@ -2,27 +2,29 @@
 
 namespace App\Http\Controllers\At_cl\Exportar_PDF_atcl;
 
-use App\Models\At_cl\Propiedades_padron;
-use Illuminate\Http\Request;
-use App\Models\At_cl\Propiedad;
-use App\Models\At_cl\Tipo_inmueble;
-use App\Models\At_cl\Zona;
 use App\Models\At_cl\Calle;
 use App\Models\At_cl\Estado_alquiler;
-use Illuminate\Support\Facades\DB;
 use App\Models\At_cl\Padron;
+use App\Models\At_cl\Propiedad;
+use App\Models\At_cl\Propiedades_padron;
+use App\Models\At_cl\Tipo_inmueble;
+use App\Models\At_cl\Zona;
 use App\Models\usuarios_y_permisos\Usuario;
 use App\Services\At_cl\documentacionService;
+use App\Services\At_cl\FiltrosPdfService;
 use App\Services\At_cl\FotosService;
 use App\Services\At_cl\HistorialFechasService;
+use App\Services\At_cl\ObservacionesPropiedadesService;
 use App\Services\At_cl\PermitirAccesoPropiedadService;
 use App\Services\At_cl\PrecioService;
-use App\Services\At_cl\PropiedadService;
-use App\Services\At_cl\ObservacionesPropiedadesService;
-use App\Services\At_cl\TasacionService;
 use App\Services\At_cl\Propiedades_padronService;
+use App\Services\At_cl\PropiedadService;
+use App\Services\At_cl\TasacionService;
 use Barryvdh\Snappy\Facades\SnappyPdf;
-use App\Services\At_cl\FiltrosPdfService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use App\Services\contable\sellado\PermitirAccesoSelladoService;
 
 use function PHPUnit\Framework\isEmpty;
 
@@ -219,19 +221,20 @@ class Pdf_alquiler
 
  */
 
-
     public function listadoPropiedad(Request $request)
     {
 
+        Log::info('request', $request->toArray());
+        $informacionMostrar = $request->informacionMostrar;
         $calle_id = $request->calle;
         $zona_id = [];
-        if ($request->zona_id != null || !isEmpty($request->zona_id)) {
+        if ($request->zona_id != null || ! isEmpty($request->zona_id)) {
             foreach ($request->zona_id as $zona) {
                 $zona_id[] = $zona;
             }
         }
         $tipo = [];
-        if ($request->tipo != null || !isEmpty($request->tipo)) {
+        if ($request->tipo != null || ! isEmpty($request->tipo)) {
             foreach ($request->tipo as $t) {
                 $tipo[] = $t;
             }
@@ -241,13 +244,15 @@ class Pdf_alquiler
         $importe_minimo = $request->importe_minimo;
         $importe_maximo = $request->importe_maximo;
         $pertenece = $request->pertenece;
+        $orden = $request->orden;
 
         $propiedades = collect();
         $username = '-';
 
         if ($pertenece === 'listadoPropiedadesAlquiler') {
 
-            $propiedades = (new FiltrosPdfService())->aplicarFiltrosA($request->all())
+            //Aplicamos los filtros por defecto
+            $propiedades = (new FiltrosPdfService)->aplicarFiltrosA($request->all())
                 ->whereNotNull('cod_alquiler')
                 ->with('calle') // <-- Agrega este filtro aquí
                 ->get()
@@ -255,11 +260,13 @@ class Pdf_alquiler
                     return $propiedad->calle->name ?? ''; // Cambia "name" por el campo real de calle
                 });
 
+            //Obtenemos los usernames de los usuarios que han modificado las propiedades
             $modifierIds = $propiedades->pluck('last_modified_by')->filter()->unique()->values();
             $usernamesById = $modifierIds->isNotEmpty()
                 ? Usuario::whereIn('id', $modifierIds)->pluck('username', 'id')->all()
                 : [];
 
+            //Asignamos el username a cada propiedad
             foreach ($propiedades as $propiedad) {
                 $modId = $propiedad->last_modified_by;
                 $propiedad->username = ($modId && isset($usernamesById[$modId]))
@@ -267,17 +274,58 @@ class Pdf_alquiler
                     : '-';
             }
 
+
+
+
+
+
+            //Obtenemos el username del usuario actual
             $usuario_id = auth('api')->id();
+
+            // 1. Instanciar el servicio de permisos localmente
+           $accessService = new PermitirAccesoSelladoService($usuario_id);
+           $botones = [];
+           $botones = [
+                'listarPropiedadesAlquiler' => $accessService->tieneAcceso('listarPropiedadesAlquiler')
+            ];
+
+
+
             $authUser = $usuario_id ? Usuario::find($usuario_id) : null;
             $username = $authUser->username ?? '-';
+            // Orden final: precios por valor; estado/tipo/zona/calle por FK asc; código por cod_alquiler asc
+            if ($orden !== null && $orden !== '') {
+                if ($orden === 'precio_asc') {
+                    $propiedades = $propiedades->sortBy(function ($propiedad) {
+                        return $propiedad->precio?->moneda_alquiler_pesos
+
+                            ?? 0;
+                    });
+                } elseif ($orden === 'precio_desc') {
+                    $propiedades = $propiedades->sortByDesc(function ($propiedad) {
+                        return $propiedad->precio?->moneda_alquiler_pesos
+                            ?? 0;
+                    });
+                } elseif ($orden === 'estado') {
+                    $propiedades = $propiedades->sortBy('id_estado_alquiler');
+                } elseif ($orden === 'tipo') {
+                    $propiedades = $propiedades->sortBy('id_inmueble');
+                } elseif ($orden === 'zona') {
+                    $propiedades = $propiedades->sortBy('id_zona');
+                } elseif ($orden === 'calle') {
+                    $propiedades = $propiedades->sortBy('id_calle');
+                } elseif ($orden === 'codigo') {
+                    $propiedades = $propiedades->sortBy('cod_alquiler');
+                }
+            }
         }
         // Generamos el HTML usando una vista de Blade limpia
-        $html = view('pdfs.atcl.listadoPropiedad', compact('propiedades', 'username'))->render();
+        $html = view('pdfs.atcl.listadoPropiedad', compact('propiedades', 'username', 'informacionMostrar','botones'))->render();
 
         return response()->streamDownload(function () use ($html, $username) {
             echo \Spatie\Browsershot\Browsershot::html($html)
                 ->format('A4')
-                #quiero poner vertical o horizontal
+                //quiero poner vertical o horizontal
                 ->margins(10, 1, 10, 1)
                 //->emulateMedia('screen')
                 ->showBackground()
@@ -288,6 +336,6 @@ class Pdf_alquiler
                 ->landscape() // 'portrait' (vertical) o 'landscape' (horizontal)
                 ->setOption('footerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Salas Inmobiliaria</span><span style="text-align:center;">' . $username . '</span>  <span style="text-align:right;" class="date"></span></div>')
                 ->pdf();
-        }, "ficha_propiedad.pdf");
+        }, 'ficha_propiedad.pdf');
     }
 }
