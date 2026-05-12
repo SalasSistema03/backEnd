@@ -433,6 +433,7 @@ class PropiedadController
      */
     public function actualizarPropiedad(Request $request)
     {
+        Log::info('actualizarPropiedad', $request->all());
         try {
             $propiedad = Propiedad::find($request->id);
             if (!$propiedad) {
@@ -563,6 +564,7 @@ class PropiedadController
                 (new Propiedades_padronService())->eliminarPropietario($propiedad->id, $propietarios_eliminados);
             }
             if ($request->has('propietarios_nuevos')) {
+               // Log::info('propietarios_nuevos', $request->propietarios_nuevos);
                 $propietarios_nuevos = json_decode($request->propietarios_nuevos, true);
                 (new Propiedades_padronService())->vincularActualizacion($propiedad->id, $propietarios_nuevos);
             }
@@ -762,40 +764,6 @@ class PropiedadController
     }
 
 
-    /**
-     * Guarda un cambio en la sesión del usuario
-     *
-     * Este método almacena temporalmente valores en la sesión
-     * para mantener estado entre solicitudes.
-     *
-     * @param Request $request Contiene el campo y valor a guardar
-     * @return \Illuminate\Http\JsonResponse Respuesta JSON con el resultado
-     */
-    public function guardarCambio(Request $request)
-    {
-        // Validar que el campo y el valor se han enviado correctamente
-        $request->validate([
-            'campo' => 'required|string',
-            'valor' => 'required|string',
-        ]);
-
-        try {
-            // Almacenar el cambio en la sesión
-            session()->put($request->campo, $request->valor);
-            session()->save();
-
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Cambio guardado correctamente en la sesión.'
-            ]);
-        } catch (\Exception $e) {
-
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Ocurrió un error al guardar el cambio.'
-            ], 500);
-        }
-    }
 
 
     /**
@@ -897,8 +865,6 @@ class PropiedadController
 
      public function fichaPropiedad(Request $request)
     {
-        Log::info('informacion del request', ['request' => $request->all()]);
-
         // Los datos que antes pasabas por props en Vue
         $propiedad = $request->propiedad;
         $ubicacion = $request->ubicacion;
@@ -918,9 +884,7 @@ class PropiedadController
             }
         }
 
-        //Log::info('fotosOrdenadas', ['fotosOrdenadas' => $fotosOrdenadas]);
 
-        //Log::info('informacion del broche', ['broches' => $broches, 'anio' => $anio, 'mes' => $mes, 'impuesto' => $impuesto, 'request' => $request->all()]);
 
         // Generamos el HTML usando una vista de Blade limpia
         $html = view('pdfs.atcl.ficha_propiedad', compact('propiedad', 'ubicacion', 'fotosOrdenadas'))->render();
@@ -932,8 +896,8 @@ class PropiedadController
                 ->emulateMedia('screen')
                 ->showBackground()
                 ->setOption('displayHeaderFooter', true)
-                ->setOption('headerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Ficha de Propiedad</span><span style="text-align:right;" class="date"></span></div>')
-                ->setOption('footerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Salas Inmobiliaria</span><span style="text-align:right;">' . $username . '</span></div>')
+                ->setOption('headerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Ficha de Propiedad</span></div>')
+                ->setOption('footerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Salas Inmobiliaria</span><span style="text-align:center;">' . $username . '</span>  <span style="text-align:right;" class="date"></span></div>')
                 ->pdf();
         }, "ficha_propiedad.pdf");
     }

@@ -14,4 +14,10 @@ class Empresas extends Model
        protected $fillable = [
         'nombre',
     ];
+
+    public function propiedades()
+    {
+        return $this->belongsToMany(Propiedad::class, 'empresa_propiedad', 'empresa_id', 'propiedad_id')
+            ->withPivot('folio');
+    }
 }

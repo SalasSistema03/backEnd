@@ -61,33 +61,38 @@ class Propiedades_padronService
 
     public function vincularActualizacion($propiedad_id, $propietarios_nuevos)
     {
+        //Log::info('vincularActualizacion', ['propiedad_id' => $propiedad_id, 'propietarios_nuevos' => $propietarios_nuevos]);
         DB::beginTransaction(); // Iniciar transacción
 
         try {
-            $vinculados = 0;
+
 
             foreach ($propietarios_nuevos as $propietario) {
-                // Crear la relación en la tabla intermedia
-                Propiedades_padron::create([
-                    'propiedad_id' => $propiedad_id,
-                    'padron_id' => $propietario['id'],
-                    'observaciones' => $propietario['pivot']['observaciones'] ?? '',
-                    'baja' => $propietario['pivot']['baja'] ?? 'no',
-                ]);
-                $vinculados++;
+                //Verificar que el propietario no exista
+                $existe = Propiedades_padron::where('propiedad_id', $propiedad_id)
+                ->where('padron_id', $propietario['id'])->first();
+                if ($existe) {
+                    $existe->update([
+                        'baja' => $propietario['pivot']['baja'],
+                        'observaciones_baja' =>$propietario['pivot']['observaciones_baja']
+                    ]);
+                }else{
+                    Propiedades_padron::create([
+                        'propiedad_id' => $propiedad_id,
+                        'padron_id' => $propietario['id'],
+                        'observaciones' => $propietario['pivot']['observaciones'] ?? '',
+                        'baja' => $propietario['pivot']['baja'] ?? 'no',
+                    ]);
+                }
             }
 
             DB::commit(); // Confirmar la operación
 
-            $message = $vinculados > 1
-                ? "Propietarios vinculados correctamente a la propiedad."
-                : "Propietario vinculado correctamente a la propiedad.";
 
             return response()->json([
-                'success' => true,
-                'message' => $message,
-                'vinculados' => $vinculados
+                'success' => true
             ]);
+
         } catch (\Exception $e) {
             DB::rollBack(); // Revertir cambios si algo falla
             Log::error("Error al vincular propietarios: " . $e->getMessage());

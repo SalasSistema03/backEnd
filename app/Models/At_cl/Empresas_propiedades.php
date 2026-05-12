@@ -18,7 +18,13 @@ class Empresas_propiedades extends Model
         'folio',
     ];
 
+    public function propiedad()
+    {
+        return $this->belongsTo(Propiedad::class, 'propiedad_id');
+    }
 
-
-
+    public function empresa()
+    {
+        return $this->belongsTo(Empresas::class, 'empresa_id');
+    }
 }
