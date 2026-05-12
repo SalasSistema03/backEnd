@@ -267,7 +267,7 @@ public function exportarRegistrosSelladoService()
         $total_alquiler = 0;
         $iva_total = $this->iva($inq_prop, $tipo_c, $monto_a);
 
-        if ($tipo_c == 1 ) {
+        if ($tipo_c == 1 || $tipo_c == "Vivienda") {
             $valor = $valor_tipos[0]->valor;
         } else {
             $valor = $valor_tipos[1]->valor;
