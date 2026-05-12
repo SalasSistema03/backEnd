@@ -27,16 +27,6 @@ class FiltrosPdfService
         if (!empty($filtros['estado_id'])) {
             $query->where('id_estado_alquiler', $filtros['estado_id']);
         }
-        /* if (!empty($filtros['importe_minimo']) || !empty($filtros['importe_maximo'])) {
-            $query->whereHas('precio', function ($q) use ($filtros) {
-                if (!empty($filtros['importe_minimo'])) {
-                    $q->where('moneda_alquiler_pesos', '>=', $filtros['importe_minimo']);
-                }
-                if (!empty($filtros['importe_maximo'])) {
-                    $q->where('moneda_alquiler_pesos', '<=', $filtros['importe_maximo']);
-                }
-            });
-        } */
         if (!empty($filtros['importe_minimo']) || !empty($filtros['importe_maximo'])) {
             $query->whereHas('precio', function ($q) use ($filtros) {
                 $q->where(function ($subQ) use ($filtros) {
@@ -55,7 +45,7 @@ class FiltrosPdfService
         }
 
 
-        return $query->with(['fotos', 'documentacion', 'calle', 'zona', 'tipoInmueble', 'precio', 'estadoAlquiler'])->orderBy('created_at', 'desc');
+        return $query->with(['fotos', 'documentacion', 'calle', 'zona', 'tipoInmueble', 'precio', 'estadoAlquiler', 'folios.empresa'])->orderBy('created_at', 'desc');
     }
 
     public function aplicarFiltrosV(array $filtros): Builder
@@ -70,7 +60,7 @@ class FiltrosPdfService
 
 
 
-        return $query->with(['fotos', 'documentacion', 'calle', 'zona', 'tipoInmueble', 'precio', 'estadoAlquiler']);
+        return $query->with(['fotos', 'documentacion', 'calle', 'zona', 'tipoInmueble', 'precio', 'estadoAlquiler', 'folios.empresa']);
     }
 
     private function aplicarFiltroCalle(Builder $query, array $filtro): void
@@ -196,7 +186,7 @@ class FiltrosPdfService
     /* public function traerFolio($propiedades){
      foreach ($propiedades as $propiedad) {
         $propiedad->folio = Empresas_propiedades::where('propiedad_id', $propiedad->id)->get();
-        
+
      }
      dd($propiedades);
     } */

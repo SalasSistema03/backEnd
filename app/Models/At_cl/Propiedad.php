@@ -223,9 +223,8 @@ class Propiedad extends Model
 
     public function empresas()
     {
-        return $this->belongsToMany(Empresas::class, 'empresa_propiedad')
-            ->withPivot('folio')
-            ->withTimestamps();
+        return $this->belongsToMany(Empresas::class, 'empresa_propiedad', 'propiedad_id', 'empresa_id')
+            ->withPivot('folio');
     }
 
     /**
@@ -409,7 +408,7 @@ class Propiedad extends Model
 
     public function empresasPropiedad()
     {
-        return $this->belongsToMany(Empresas_propiedades::class, 'propiedad_id', 'empresa_id');
+        return $this->hasMany(Empresas_propiedades::class, 'propiedad_id');
     }
     // App\Models\At_cl\Propiedad.php
     public function folios()
