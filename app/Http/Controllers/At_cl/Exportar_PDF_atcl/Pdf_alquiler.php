@@ -226,8 +226,8 @@ class Pdf_alquiler
 
         Log::info('request', $request->toArray());
         $informacionMostrar = $request->informacionMostrar;
-        $calle_id = $request->calle;
-        $zona_id = [];
+        /* $calle_id = $request->calle; */
+        /* $zona_id = [];
         if ($request->zona_id != null || ! isEmpty($request->zona_id)) {
             foreach ($request->zona_id as $zona) {
                 $zona_id[] = $zona;
@@ -238,18 +238,20 @@ class Pdf_alquiler
             foreach ($request->tipo as $t) {
                 $tipo[] = $t;
             }
-        }
+        } */
 
-        $estado = $request->estado_id;
+        /* $estado = $request->estado_id;
         $importe_minimo = $request->importe_minimo;
-        $importe_maximo = $request->importe_maximo;
+        $importe_maximo = $request->importe_maximo; */
         $pertenece = $request->pertenece;
-        $orden = $request->orden;
 
-        $propiedades = collect();
+
+
         $username = '-';
 
         if ($pertenece === 'listadoPropiedadesAlquiler') {
+            $orden = $request->orden;
+            $propiedades = collect();
 
             //Aplicamos los filtros por defecto
             $propiedades = (new FiltrosPdfService)->aplicarFiltrosA($request->all())
@@ -274,23 +276,8 @@ class Pdf_alquiler
                     : '-';
             }
 
-
-
-
-
-
             //Obtenemos el username del usuario actual
             $usuario_id = auth('api')->id();
-
-            // 1. Instanciar el servicio de permisos localmente
-           $accessService = new PermitirAccesoSelladoService($usuario_id);
-           $botones = [];
-           $botones = [
-                'listarPropiedadesAlquiler' => $accessService->tieneAcceso('listarPropiedadesAlquiler')
-            ];
-
-
-
             $authUser = $usuario_id ? Usuario::find($usuario_id) : null;
             $username = $authUser->username ?? '-';
             // Orden final: precios por valor; estado/tipo/zona/calle por FK asc; código por cod_alquiler asc
@@ -318,9 +305,61 @@ class Pdf_alquiler
                     $propiedades = $propiedades->sortBy('cod_alquiler');
                 }
             }
+
+            // Generamos el HTML usando una vista de Blade limpia
+            $html = view('pdfs.atcl.listadoPropiedad', compact('propiedades', 'username', 'informacionMostrar', 'pertenece'))->render();
         }
-        // Generamos el HTML usando una vista de Blade limpia
-        $html = view('pdfs.atcl.listadoPropiedad', compact('propiedades', 'username', 'informacionMostrar','botones'))->render();
+        if ($pertenece === 'estadoPropietarioA') {
+
+            $propietario = $request->propietario;
+            if ($propietario !== null) {
+                $propiedades = Propiedades_padron::where('padron_id', $propietario)
+                    ->with([
+                        'propiedad.propietarios',
+                        'propiedad.fotos',
+                        'propiedad.documentacion',
+                        'propiedad.video',
+                        'propiedad.calle',
+                        'propiedad.folios.empresa',
+                        'propiedad.tipoInmueble',
+                        'propiedad.precio'
+                    ])
+                    ->get()
+                    ->map(function ($pp) {
+                        return $pp->propiedad;
+                    })
+                    ->filter(function ($propiedad) {
+                        return $propiedad && $propiedad->cod_alquiler;
+                    })
+                    ->sortBy(function ($propiedad) {
+                        return $propiedad->calle->name ?? ''; // Cambia "name" si el campo de calle es otro
+                    });
+            } else {
+
+                // Si no hay propietario seleccionado, mostrar todas las propiedades en alquiler
+                $propiedades = Propiedad::whereNotNull('cod_alquiler')
+                    ->with([
+                        'fotos',
+                        'documentacion',
+                        'video',
+                        'calle',
+                        'zona',
+                        'tipoInmueble',
+                        'precio',
+                        'estadoVenta',
+                        'folios.empresa',
+                        'tipoInmueble'
+                    ])
+                    ->get()
+                    ->sortBy(function ($propiedad) {
+                        return $propiedad->calle->name ?? ''; // Igual aquí
+                    });
+            }
+            Log::info($propiedades);
+            // Generamos el HTML usando una vista de Blade limpia
+            $html = view('pdfs.atcl.listadoPropiedad', compact('propiedades', 'username', 'pertenece'))->render();
+        }
+
 
         return response()->streamDownload(function () use ($html, $username) {
             echo \Spatie\Browsershot\Browsershot::html($html)
