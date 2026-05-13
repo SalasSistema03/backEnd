@@ -106,6 +106,7 @@ class AgendaController extends Controller
                 $propiedadV = null;
             }
 
+            $usuario_id = auth('api')->id();
             if ($request->telefono) {
                 //Log::info('entro al telefono');
                 $cliente = Clientes::where('telefono', $request->telefono)->first();
@@ -113,12 +114,13 @@ class AgendaController extends Controller
                     $cliente = Clientes::create([
                         'nombre' => $request->nombreCliente,
                         'telefono' => $request->telefono,
-
+                        'usuario_id' => $usuario_id,
+                        'ingreso' => 'Agenda',
                     ]);
                 }
                 //Log::info('cliente', ['cliente' => $cliente]);
             }
-            $usuario_id = auth('api')->id();
+
 
 
             // Crear la nota con horas redondeadas

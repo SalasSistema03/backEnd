@@ -107,7 +107,7 @@ class ClientesController extends Controller
      */
     public function guardar(Request $request)
     {
-        Log::info('Logs provenientes de clientescontroller ', $request->all());
+        //Log::info('Logs provenientes de clientescontroller ', $request->all());
 
         try {
 
@@ -200,8 +200,8 @@ class ClientesController extends Controller
 
 
                 $usuarioId =   auth('api')->id();
-                Log::info('sssssssssssssssssssssssss');
-                Log::info('criteriosVenta', $criteriosVenta);
+                //Log::info('sssssssssssssssssssssssss');
+                //Log::info('criteriosVenta', $criteriosVenta);
                 //mensajes
                 try{
                 // Encontrar el criterioventa con el ID más grande
