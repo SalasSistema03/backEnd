@@ -112,7 +112,8 @@ class AgendaController extends Controller
                 if (!$cliente) {
                     $cliente = Clientes::create([
                         'nombre' => $request->nombreCliente,
-                        'telefono' => $request->telefono
+                        'telefono' => $request->telefono,
+
                     ]);
                 }
                 //Log::info('cliente', ['cliente' => $cliente]);
