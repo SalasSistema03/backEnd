@@ -230,60 +230,80 @@ class RetencionService
     }
 
 
+public function generarContenidoTxtService()
+{
+    $fechaUpdate = Carbon::now()->toDateString();
+    $comprobantes = Comprobante_retencion::whereNull('fecha_retencion')->get();
+    
+    $contenido = "";
 
-    public function generarContenidoTxtService()
-    {
-        $fechaUpdate = Carbon::now()->toDateString();
-        // Nota: Agregué el filtro de año y mes si fuera necesario, 
-        // pero mantengo tu lógica de 'fecha_retencion' null.
-        $comprobantes = Comprobante_retencion::whereNull('fecha_retencion')->get();
+    foreach ($comprobantes as $comprobante) {
+        // 1. Fechas (10 caracteres cada una: DD/MM/YYYY)
+        $fechaObj = (empty($comprobante->fecha_comprobante) || $comprobante->fecha_comprobante === '0000-00-00') 
+            ? now() 
+            : Carbon::parse($comprobante->fecha_comprobante);
+
+        $fecha = $fechaObj->format('d/m/Y');
+        $fechaEmision = now()->format('d/m/Y'); 
+
+        // 2. Formateo de campos
+        $codigo = str_pad("6", 2, "0", STR_PAD_LEFT); // Largo 2
+        $numeroComprobante = str_pad($comprobante->numero_comprobante, 12, "0", STR_PAD_LEFT); // Largo 12
         
-        $contenido = "";
+        // Importe Comprobante (Largo 20)
+        $impCompFormateado = number_format((float)$comprobante->importe_comprobante, 2, ',', '');
+        $importeComprobante = str_pad($impCompFormateado, 20, " ", STR_PAD_LEFT);
+        
+        $codigo_impr = str_pad("217", 4, "0", STR_PAD_LEFT); // Largo 4
+        $codigo_reg = str_pad("31", 3, "0", STR_PAD_LEFT);   // Largo 3
+        $codigo_opera = "1";                                 // Largo 1
+        
+        // Base de Cálculo (Largo 14)
+        $baseCalculoStr = number_format((float)$comprobante->importe_comprobante, 2, ',', '');
+        $baseCalculo = str_pad($baseCalculoStr, 14, " ", STR_PAD_LEFT);
+        
+        $codigoCod = str_pad("1", 2, "0", STR_PAD_LEFT);    // Largo 2
+        $ret_suj_cond = "0";                                // Largo 1
+        
+        // Importe Retención (Largo 14) - CORREGIDO AQUÍ
+        $impRetFormateado = number_format((float)$comprobante->importe_retencion, 2, ',', '');
+        $importeRetencion = str_pad($impRetFormateado, 14, " ", STR_PAD_LEFT);
+        
+        $porcentajeExc = str_pad("0,00", 6, " ", STR_PAD_LEFT); // Largo 6
+        $fechaPublicacion = str_pad(" ", 10, " ", STR_PAD_LEFT); // Largo 10
+        $tipoDoc = str_pad("80", 2, " ", STR_PAD_LEFT);          // Largo 2
+        $documentoRetencion = str_pad($comprobante->cuit_retencion, 20, " ", STR_PAD_RIGHT); // Largo 20
+        $numeroCero = str_pad("0", 28, "0", STR_PAD_LEFT);      // Largo 28
 
-        foreach ($comprobantes as $comprobante) {
-            // Lógica de fechas
-            $fechaObj = (empty($comprobante->fecha_comprobante) || $comprobante->fecha_comprobante === '0000-00-00') 
-                ? now() 
-                : Carbon::parse($comprobante->fecha_comprobante);
+        // 3. Construcción de línea
+        $linea = $codigo . 
+                 $fecha . 
+                 $numeroComprobante . 
+                 $importeComprobante . 
+                 $codigo_impr . 
+                 $codigo_reg . 
+                 $codigo_opera . 
+                 $baseCalculo . 
+                 $fechaEmision . 
+                 $codigoCod . 
+                 $ret_suj_cond . 
+                 $importeRetencion . 
+                 $porcentajeExc . 
+                 $fechaPublicacion . 
+                 $tipoDoc . 
+                 $documentoRetencion . 
+                 $numeroCero . "\r\n";
+                 
+        $contenido .= $linea;
 
-            $fecha = $fechaObj->format('d/m/Y');
-            $fechaEmision = now()->format('d/m/Y'); 
-
-            // Formateo de campos (Padding)
-            $codigo = str_pad("6", 2, "0", STR_PAD_LEFT);
-            $numeroComprobante = str_pad($comprobante->numero_comprobante, 12, "0", STR_PAD_LEFT);
-            
-            $importeComp = str_replace(".", ",", $comprobante->importe_comprobante);
-            $importeComprobante = str_pad($importeComp, 20, " ", STR_PAD_LEFT);
-            
-            $codigo_impr = str_pad("217", 4, "0", STR_PAD_LEFT);
-            $codigo_reg = str_pad("31", 3, "0", STR_PAD_LEFT);
-            $codigo_opera = "1";
-            $baseCalculo = str_pad($importeComp, 14, " ", STR_PAD_LEFT);
-            $codigoCod = str_pad("1", 2, "0", STR_PAD_LEFT);
-            $ret_suj_cond = "0";
-            
-            $importeRet = str_replace(".", ",", $comprobante->importe_retencion);
-            $importeRetencion = str_pad($importeRet, 14, " ", STR_PAD_LEFT);
-            
-            $porcentajeExc = str_pad("0,00", 6, " ", STR_PAD_LEFT);
-            $fechaPublicacion = str_pad(" ", 10, " ", STR_PAD_LEFT);
-            $tipoDoc = str_pad("80", 2, " ", STR_PAD_LEFT);
-            $documentoRetencion = str_pad($comprobante->cuit_retencion, 20, " ", STR_PAD_RIGHT);
-            $numeroCero = str_pad("0", 28, "0", STR_PAD_LEFT);
-
-            // Construcción de línea
-            $linea = $codigo . $fecha . $numeroComprobante . $importeComprobante . $codigo_impr . $codigo_reg . $codigo_opera . $baseCalculo . $fechaEmision . $codigoCod . $ret_suj_cond . $importeRetencion . $porcentajeExc . $fechaPublicacion . $tipoDoc . $documentoRetencion . $numeroCero . "\r\n";
-            $contenido .= $linea;
-
-            // Actualización del registro
-            $comprobante->update([
-                'fecha_retencion' => $fechaUpdate,
-                'last_modified_by' => Auth::id(),
-            ]);
-        }
-
-        return $contenido;
+        // Actualización
+        $comprobante->update([
+            'fecha_retencion' => $fechaUpdate,
+            'last_modified_by' => Auth::id(),
+        ]);
     }
+
+    return $contenido;
+}
 
 }
