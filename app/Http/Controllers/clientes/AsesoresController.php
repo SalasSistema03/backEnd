@@ -314,7 +314,7 @@ class AsesoresController
     public function modificarCriterio(Request $request)
     {
 
-        Log::info('modificarCriterio', ['request' => $request->all()]);
+        //Log::info('modificarCriterio', ['request' => $request->all()]);
 
         /*dd('hola'); */
         //guardamos el criterio real, que no es el mismo que el que llega por funcion
