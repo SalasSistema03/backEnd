@@ -17,7 +17,7 @@ use App\Http\Controllers\At_cl\EstadoAlquilerController;
 use App\Http\Controllers\At_cl\PropiedadController;
 use App\Services\At_cl\PadronService;
 use App\Http\Controllers\At_cl\PadronController;
-use App\Http\Controllers\At_cl\Exportar_PDF_atcl\Pdf_alquiler;
+use App\Http\Controllers\At_cl\Exportar_PDF_atcl\ListadoPdfAtcl;
 use App\Http\Controllers\clientes\ClientesController;
 use App\Services\clientes\Permisos;
 use App\Http\Controllers\clientes\AsesoresController;
@@ -55,7 +55,6 @@ Route::prefix('v1')->group(function () {
             Route::post('propiedad/actualizar', [PropiedadController::class, 'actualizarPropiedad']);
             Route::get('propiedad/descargar-fotos/{id}', [PropiedadController::class, 'descargarFotos']);
             Route::post('propiedad/guardar-novedad', [PropiedadController::class, 'guardarNovedad']);
-            Route::get('/propiedades/pdf/pdfPlantillaPropiedad/{id}/{tipoBTN}', [Pdf_alquiler::class, 'generarPDFpantillaPropiedad'])->name('propiedades.pdf.pdfPlantillaPropiedad');
             Route::get('turnos/pendientes', [TurnoController::class, 'getTurnosPendientes']);
             Route::get('turnos/llamados', [TurnoController::class, 'getTurnosLlamados']);
             Route::get('turnos/completados', [TurnoController::class, 'getTurnosCompletados']);
@@ -202,7 +201,8 @@ Route::prefix('v1')->group(function () {
         Route::post('contable/comprobantes/verPDF', [BuscadorPdfController::class, 'verPDF']);
 
         //LISTADO ATCL
-        Route::post('/broches/pdf/listadoPropiedad', [Pdf_alquiler::class, 'listadoPropiedad']);
+        Route::post('/broches/pdf/listadoPropiedad', [ListadoPdfAtcl::class, 'listadoPropiedad']);
+        Route::get('propietarios/activos', [PadronController::class, 'padronActivos']);
     });
 }); // <--- Aquí cierra el middleware
 

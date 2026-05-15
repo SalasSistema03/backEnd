@@ -28,7 +28,7 @@ use App\Services\contable\sellado\PermitirAccesoSelladoService;
 
 use function PHPUnit\Framework\isEmpty;
 
-class Pdf_alquiler
+class ListadoPdfAtcl
 {
     /* protected $tipo_inmueble, $zona, $calle, $estado_alquileres, $estado_general,
         $estado_venta, $localidad, $barrio, $Propiedades, $contrato_cabecera, $observaciones_propiedades, $provincia,
@@ -221,46 +221,38 @@ class Pdf_alquiler
 
  */
 
-    public function listadoPropiedad(Request $request)
+    /* public function listadoPropiedad(Request $request)
     {
 
         Log::info('request', $request->toArray());
         $informacionMostrar = $request->informacionMostrar;
-        /* $calle_id = $request->calle; */
-        /* $zona_id = [];
-        if ($request->zona_id != null || ! isEmpty($request->zona_id)) {
-            foreach ($request->zona_id as $zona) {
-                $zona_id[] = $zona;
-            }
-        }
-        $tipo = [];
-        if ($request->tipo != null || ! isEmpty($request->tipo)) {
-            foreach ($request->tipo as $t) {
-                $tipo[] = $t;
-            }
-        } */
-
-        /* $estado = $request->estado_id;
-        $importe_minimo = $request->importe_minimo;
-        $importe_maximo = $request->importe_maximo; */
         $pertenece = $request->pertenece;
-
-
-
         $username = '-';
+        $sector = $request->sector;
 
-        if ($pertenece === 'listadoPropiedadesAlquiler') {
+        if ($pertenece === 'listadoPropiedades') {
             $orden = $request->orden;
             $propiedades = collect();
 
-            //Aplicamos los filtros por defecto
-            $propiedades = (new FiltrosPdfService)->aplicarFiltrosA($request->all())
-                ->whereNotNull('cod_alquiler')
-                ->with('calle') // <-- Agrega este filtro aquí
-                ->get()
-                ->sortBy(function ($propiedad) {
-                    return $propiedad->calle->name ?? ''; // Cambia "name" por el campo real de calle
-                });
+            //Aplicamos los filtros por defecto dependiendo del sector
+            if ($sector === 'Alquiler') {
+                $propiedades = (new FiltrosPdfService)->aplicarFiltrosA($request->all())
+                    ->whereNotNull('cod_alquiler')
+                    ->with('calle') // <-- Agrega este filtro aquí
+                    ->get()
+                    ->sortBy(function ($propiedad) {
+                        return $propiedad->calle->name ?? ''; // Cambia "name" por el campo real de calle
+                    });
+            }else{
+                 $propiedades = (new FiltrosPdfService)->aplicarFiltrosV($request->all())
+                    ->whereNotNull('cod_venta')
+                    ->with('calle') // <-- Agrega este filtro aquí
+                    ->get()
+                    ->sortBy(function ($propiedad) {
+                        return $propiedad->calle->name ?? ''; // Cambia "name" por el campo real de calle
+                    });
+            }
+
 
             //Obtenemos los usernames de los usuarios que han modificado las propiedades
             $modifierIds = $propiedades->pluck('last_modified_by')->filter()->unique()->values();
@@ -309,7 +301,7 @@ class Pdf_alquiler
             // Generamos el HTML usando una vista de Blade limpia
             $html = view('pdfs.atcl.listadoPropiedad', compact('propiedades', 'username', 'informacionMostrar', 'pertenece'))->render();
         }
-        if ($pertenece === 'estadoPropietarioA') {
+        if ($pertenece === 'estadoPropietario') {
 
             $propietario = $request->propietario;
             if ($propietario !== null) {
@@ -355,7 +347,7 @@ class Pdf_alquiler
                         return $propiedad->calle->name ?? ''; // Igual aquí
                     });
             }
-            Log::info($propiedades);
+
             // Generamos el HTML usando una vista de Blade limpia
             $html = view('pdfs.atcl.listadoPropiedad', compact('propiedades', 'username', 'pertenece'))->render();
         }
@@ -373,6 +365,129 @@ class Pdf_alquiler
                 //hoja actual a la derecha
                 ->setOption('headerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Ficha de Propiedad</span><span style="text-align:right;">Página <span class="pageNumber"></span> de <span class="totalPages"></span></span></div>')
                 ->landscape() // 'portrait' (vertical) o 'landscape' (horizontal)
+                ->setOption('footerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Salas Inmobiliaria</span><span style="text-align:center;">' . $username . '</span>  <span style="text-align:right;" class="date"></span></div>')
+                ->pdf();
+        }, 'ficha_propiedad.pdf');
+    } */
+
+
+
+    /**
+     * Listado de propiedades unificado para Venta y Alquiler
+     */
+    public function listadoPropiedad(Request $request)
+    {
+        //Log::info('request', $request->toArray());
+        $informacionMostrar = $request->informacionMostrar;
+        $pertenece = $request->pertenece;
+        $username = '-';
+        $sector = $request->sector; // 'Venta' o 'Alquiler'
+
+        if ($pertenece === 'listadoPropiedades') {
+            //$orden = $request->orden;
+
+            // Usar el filtro unificado (el ordenamiento se aplica dentro, excepto precio)
+            $query = (new FiltrosPdfService)->aplicarFiltrosUnificados($request->all());
+
+            // Ejecutar la query
+            $propiedades = $query->get();
+
+            // Solo ordenar por precio si es necesario (post-query)
+             if ($request->orden === 'precio_asc' || $request->orden === 'precio_desc') {
+                $propiedades = (new FiltrosPdfService)->ordenarPorPrecio($propiedades, $request->orden, $sector);
+            }
+
+            // Obtener usernames
+            $modifierIds = $propiedades->pluck('last_modified_by')->filter()->unique()->values();
+            $usernamesById = $modifierIds->isNotEmpty()
+                ? Usuario::whereIn('id', $modifierIds)->pluck('username', 'id')->all()
+                : [];
+
+            foreach ($propiedades as $propiedad) {
+                $modId = $propiedad->last_modified_by;
+                $propiedad->username = ($modId && isset($usernamesById[$modId]))
+                    ? $usernamesById[$modId]
+                    : '-';
+            }
+
+            //Modificar captador_int
+            foreach ($propiedades as $propiedad){
+                $usernameCaptador = $propiedad->captador_int ? Usuario::find($propiedad->captador_int)->username : '-';
+                $propiedad->captador_int = $usernameCaptador;
+            }
+
+            //Modificar asesor
+            foreach($propiedades as $propiedad){
+                $usernameAsesor = $propiedad->asesor ? Usuario::find($propiedad->asesor)->username : '-';
+                $propiedad->asesor = $usernameAsesor;
+            }
+            // Usuario actual
+            $usuario_id = auth('api')->id();
+            $authUser = $usuario_id ? Usuario::find($usuario_id) : null;
+            $username = $authUser->username ?? '-';
+
+            Log::info('propiedades', [$propiedades]);
+
+            // Generar HTML
+            $html = view('pdfs.atcl.listadoPropiedad', compact('propiedades', 'username', 'informacionMostrar', 'pertenece', 'sector'))->render();
+        }
+
+        if ($pertenece === 'estadoPropietario') {
+            $propietario = $request->propietario;
+            $campoCodigo = ($sector === 'Alquiler') ? 'cod_alquiler' : 'cod_venta';
+
+            if ($propietario !== null) {
+                $propiedades = Propiedades_padron::where('padron_id', $propietario)
+                    ->with([
+                        'propiedad.propietarios',
+                        'propiedad.fotos',
+                        'propiedad.documentacion',
+                        'propiedad.video',
+                        'propiedad.calle',
+                        'propiedad.folios.empresa',
+                        'propiedad.tipoInmueble',
+                        'propiedad.precio'
+                    ])
+                    ->get()
+                    ->map(function ($pp) {
+                        return $pp->propiedad;
+                    })
+                    ->filter(function ($propiedad) use ($campoCodigo) {
+                        return $propiedad && !is_null($propiedad->$campoCodigo);
+                    })
+                    ->sortBy(function ($propiedad) {
+                        return $propiedad->calle->name ?? '';
+                    });
+            } else {
+                $propiedades = Propiedad::whereNotNull($campoCodigo)
+                    ->with([
+                        'fotos',
+                        'documentacion',
+                        'video',
+                        'calle',
+                        'zona',
+                        'tipoInmueble',
+                        'precio',
+                        'folios.empresa'
+                    ])
+                    ->get()
+                    ->sortBy(function ($propiedad) {
+                        return $propiedad->calle->name ?? '';
+                    });
+            }
+
+            $html = view('pdfs.atcl.listadoPropiedad', compact('propiedades', 'username', 'pertenece', 'sector'))->render();
+        }
+
+        return response()->streamDownload(function () use ($html, $username) {
+            echo \Spatie\Browsershot\Browsershot::html($html)
+                ->format('A4')
+                ->margins(10, 1, 10, 1)
+                ->showBackground()
+                ->emulateMedia('print')
+                ->setOption('displayHeaderFooter', true)
+                ->setOption('headerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Ficha de Propiedad</span><span style="text-align:right;">Página <span class="pageNumber"></span> de <span class="totalPages"></span></span></div>')
+                ->landscape()
                 ->setOption('footerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Salas Inmobiliaria</span><span style="text-align:center;">' . $username . '</span>  <span style="text-align:right;" class="date"></span></div>')
                 ->pdf();
         }, 'ficha_propiedad.pdf');

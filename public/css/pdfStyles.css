@@ -148,4 +148,17 @@ table tbody tr {
   border-right: 1px solid grey;
   /* border-bottom: 1px solid grey */
   /* border-bottom: 1px solid $azulSalas */
+}
+
+.listado_estado_en_ambos {
+  font-weight: 800;
+  font-style: italic;
+  color: rgba(0, 175, 154, 0.96) !important;
+}
+
+.listado_estado_alquilado {
+  font-style: italic;
+  text-decoration: none;
+  color: rgb(0, 85, 185) !important;
+  font-size: 6px;
 }/*# sourceMappingURL=pdfStyles.css.map */

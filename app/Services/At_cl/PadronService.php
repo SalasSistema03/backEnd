@@ -3,6 +3,7 @@
 namespace App\Services\At_cl;
 
 use App\Models\At_cl\Padron;
+use App\Models\At_cl\Propiedades_padron;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -115,5 +116,13 @@ class PadronService
                 'message' => 'Error al actualizar el padrón'
             ], 500);
         }
+    }
+
+    public function padronActivoAlquiler(){
+        $padron = Propiedades_padron::where('baja', 'no')
+        ->join('padron', 'propiedades_padron.padron_id', '=', 'padron.id')
+        ->select('padron.*')
+        ->get();
+        return $padron;
     }
 }

@@ -22,20 +22,22 @@
             </div>
 
             <div class="col-9 text-end">
-                Listado
+                Listado {{ $sector }}
                 <br>
             </div>
 
             <hr>
         </div>
 
-        @if ($pertenece === 'listadoPropiedadesAlquiler')
+        @if ($pertenece === 'listadoPropiedades')
             <div class="col-md-12">
                 <table class="table table-striped w-100">
                     <thead class="listado_tabla_titulo">
                         <tr>
-                            @if (in_array('cod_alquiler', $campos))
+                            @if ($sector === 'Alquiler')
                                 <th>Código Alquiler</th>
+                            @elseif ($sector === 'Venta')
+                                <th>Código Venta</th>
                             @endif
                             @if (in_array('folio', $campos))
                                 <th>Folio / Empresa</th>
@@ -48,6 +50,12 @@
                             @endif
                             @if (in_array('p_d', $campos))
                                 <th>Piso / Depto</th>
+                            @endif
+                            @if (in_array('propietario', $campos) && $sector === 'Venta')
+                                <th>Propietario</th>
+                            @endif
+                            @if (in_array('fecha alta', $campos) && $sector === 'Venta')
+                                <th>Fecha Alta</th>
                             @endif
                             @if (in_array('dormitorio', $campos))
                                 <th>Dormitorios</th>
@@ -64,8 +72,23 @@
                             @if (in_array('precio', $campos))
                                 <th>Precio</th>
                             @endif
+                            @if (in_array('clausula venta', $campos) && $sector === 'Venta')
+                                <th>Clausula Venta</th>
+                            @endif
+                            @if (in_array('descripcion', $campos) && $sector === 'Venta')
+                                <th>Descripcion</th>
+                            @endif
+                            @if (in_array('llave', $campos) && $sector === 'Venta')
+                                <th>LLave</th>
+                            @endif
                             @if (in_array('cartel', $campos))
                                 <th>Cartel</th>
+                            @endif
+                            @if (in_array('autorizacion', $campos) && $sector === 'Venta')
+                                <th>Autorización</th>
+                            @endif
+                            @if (in_array('compartida', $campos) && $sector === 'Venta')
+                                <th>Compartida</th>
                             @endif
                             @if (in_array('foto', $campos))
                                 <th>Foto</th>
@@ -75,6 +98,24 @@
                             @endif
                             @if (in_array('documentacion', $campos))
                                 <th>Documentación</th>
+                            @endif
+                            @if (in_array('reel', $campos) && $sector === 'Venta')
+                                <th>Reel</th>
+                            @endif
+                            @if (in_array('flyer', $campos) && $sector === 'Venta')
+                                <th>Flyer</th>
+                            @endif
+                            @if (in_array('captador', $campos) && $sector === 'Venta')
+                                <th>Captador</th>
+                            @endif
+                            @if (in_array('zonaprop', $campos) && $sector === 'Venta')
+                                <th>ZonaProp</th>
+                            @endif
+                            @if (in_array('web', $campos) && $sector === 'Venta')
+                                <th>WEB</th>
+                            @endif
+                            @if (in_array('vendedor', $campos) && $sector === 'Venta')
+                                <th>Vendedor</th>
                             @endif
                             @if (in_array('usuario', $campos))
                                 <th>Usuario</th>
@@ -86,8 +127,20 @@
                         @foreach ($propiedades as $propiedad)
                             <tr>
 
-                                @if (in_array('cod_alquiler', $campos))
-                                    <td>{{ $propiedad->cod_alquiler ?? '' }}</td>
+                                @if ($sector === 'Alquiler')
+                                    <td @if ($propiedad->estadoVenta?->name === 'EN VENTA') class="listado_estado_en_ambos" @endif>
+                                        {{ $propiedad->cod_alquiler ?? '' }}
+
+                                    </td>
+                                @elseif ($sector === 'Venta')
+                                    <td @if ($propiedad->estadoAlquiler?->name === 'EN ALQUILER' || $propiedad->estadoAlquiler?->name === 'ALQUILADA') class="listado_estado_en_ambos" @endif>
+                                        <span class="">{{ $propiedad->cod_venta ?? '' }} </span>
+                                        @if ($propiedad->estadoAlquiler?->name === 'ALQUILADA')
+                                            <span class="listado_estado_alquilado">ALQ</span>
+                                        @elseif($propiedad->estadoAlquiler?->name === 'EN ALQUILER')
+                                            <span class="listado_estado_alquilado">DISP</span>
+                                        @endif
+                                    </td>
                                 @endif
 
                                 @if (in_array('folio', $campos))
@@ -132,6 +185,19 @@
                                     </td>
                                 @endif
 
+                                @if (in_array('propietario', $campos) && $sector === 'Venta')
+                                    <td>
+                                        @foreach ($propiedad->propietarios as $propietario)
+                                            {{ $propietario->nombre }} {{ $propietario->apellido }}
+                                            @if (!$loop->last)
+                                                ,
+                                            @endif
+                                        @endforeach
+                                    </td>
+                                @endif
+                                @if (in_array('fecha alta', $campos) && $sector === 'Venta')
+                                    <td>{{ $propiedad->venta_fecha_alta ?? '' }}</td>
+                                @endif
                                 @if (in_array('dormitorio', $campos))
                                     <td>{{ $propiedad->cantidad_dormitorios ?? '' }}</td>
                                 @endif
@@ -144,11 +210,13 @@
                                     <td>{{ $propiedad->tipoInmueble->inmueble ?? '' }}</td>
                                 @endif
 
-                                @if (in_array('estado', $campos))
+                                @if ($sector === 'Alquiler')
                                     <td>{{ $propiedad->estadoAlquiler->name ?? '' }}</td>
+                                @elseif($sector === 'Venta')
+                                    <td>{{ $propiedad->estadoVenta->name ?? '' }}</td>
                                 @endif
 
-                                @if (in_array('precio', $campos))
+                                @if ($sector === 'Alquiler')
                                     <td style="white-space: nowrap;">
                                         @if ($propiedad->precio && $propiedad->precio->moneda_alquiler_pesos && $propiedad->precio->moneda_alquiler_pesos != 0)
                                             $ {{ $propiedad->precio->moneda_alquiler_pesos }}
@@ -156,12 +224,41 @@
                                             u$s {{ $propiedad->precio->moneda_alquiler_dolar }}
                                         @endif
                                     </td>
+                                @elseif($sector === 'Venta')
+                                    <td style="white-space: nowrap;">
+                                        @if ($propiedad->precio && $propiedad->precio->moneda_venta_dolar && $propiedad->precio->moneda_venta_dolar != null)
+                                            u$s {{ $propiedad->precio->moneda_venta_dolar }}
+                                        @elseif($propiedad->precio && $propiedad->precio->moneda_venta_pesos && $propiedad->precio->moneda_venta_pesos != null)
+                                            $ {{ $propiedad->precio->moneda_venta_pesos }}
+                                        @endif
+                                    </td>
                                 @endif
 
+                                @if (in_array('clausula venta', $campos) && $sector === 'Venta')
+                                    <td>{{ $propiedad->clausula_de_venta }}</td>
+                                @endif
+                                @if (in_array('descripcion', $campos) && $sector === 'Venta')
+                                    <td>{{ $propiedad->descipcion_propiedad }}</td>
+                                @endif
+                                @if (in_array('llave', $campos) && $sector === 'Venta')
+                                    <td>
+                                        @if ($propiedad->llave > 0)
+                                            SI
+                                        @else
+                                            NO
+                                        @endif
+                                    </td>
+                                @endif
                                 @if (in_array('cartel', $campos))
                                     <td>{{ $propiedad->cartel ?? '' }}</td>
                                 @endif
 
+                                @if (in_array('autorizacion', $campos) && $sector === 'Venta')
+                                    <td>{{ $propiedad->autorizacion_venta ?? '' }}</td>
+                                @endif
+                                @if (in_array('compartida', $campos) && $sector === 'Venta')
+                                    <td>{{ $propiedad->comparte_venta ?? '' }}</td>
+                                @endif
                                 @if (in_array('foto', $campos))
                                     <td>
                                         @if ($propiedad->fotos && $propiedad->fotos->isNotEmpty())
@@ -191,6 +288,38 @@
                                         @endif
                                     </td>
                                 @endif
+                                @if (in_array('reel', $campos) && $sector === 'Venta')
+                                    @if ($propiedad->reel)
+                                        <td>SI</td>
+                                    @else
+                                        <td>NO</td>
+                                    @endif
+                                @endif
+                                @if (in_array('flyer', $campos) && $sector === 'Venta')
+                                    @if ($propiedad->flyer)
+                                        <td>SI</td>
+                                    @else
+                                        <td>NO</td>
+                                    @endif
+                                @endif
+                                @if (in_array('captador', $campos) && $sector === 'Venta')
+                                    <td>{{ $propiedad->captador_int ?? '' }}</td>
+                                @endif
+                                @if (in_array('zonaprop', $campos) && $sector === 'Venta')
+                                    @if ($propiedad->zona_prop)
+                                        <td>SI</td>
+                                    @else
+                                        <td>NO</td>
+                                    @endif
+                                @endif
+                                @if (in_array('web', $campos) && $sector === 'Venta')
+                                    <td>{{ $propiedad->web ?? '' }}</td>
+                                @endif
+                                @if (in_array('vendedor', $campos) && $sector === 'Venta')
+                                    <td>{{ $propiedad->asesor ?? '' }}</td>
+                                @endif
+
+
 
                                 @if (in_array('usuario', $campos))
                                     <td>{{ $propiedad->username ?? '-' }}</td>
@@ -202,7 +331,6 @@
                 </table>
             </div>
         @elseif($pertenece == 'estadoPropietarioA')
-
             <div class="col-md-12">
                 <table class="table table-striped w-100">
                     <thead class="listado_tabla_titulo">
@@ -231,7 +359,7 @@
                                     @foreach ($propiedad->folios as $folio)
                                         {{ $folio->folio }}
                                         @if ($folio->empresa->nombre === 'Atilio')
-                                        CENT /
+                                            CENT /
                                         @elseif($folio->empresa->nombre === 'Dolly')
                                             CAN /
                                         @elseif($folio->empresa->nombre === 'Flor')
