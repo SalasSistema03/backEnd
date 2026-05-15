@@ -377,13 +377,15 @@ class ListadoPdfAtcl
      */
     public function listadoPropiedad(Request $request)
     {
-        //Log::info('request', $request->toArray());
+        Log::info('request', $request->toArray());
         $informacionMostrar = $request->informacionMostrar;
         $pertenece = $request->pertenece;
         $username = '-';
         $sector = $request->sector; // 'Venta' o 'Alquiler'
+         $contadorPropiedades = 0;
 
         if ($pertenece === 'listadoPropiedades') {
+
             //$orden = $request->orden;
 
             // Usar el filtro unificado (el ordenamiento se aplica dentro, excepto precio)
@@ -404,6 +406,7 @@ class ListadoPdfAtcl
                 : [];
 
             foreach ($propiedades as $propiedad) {
+                $contadorPropiedades++;
                 $modId = $propiedad->last_modified_by;
                 $propiedad->username = ($modId && isset($usernamesById[$modId]))
                     ? $usernamesById[$modId]
@@ -426,14 +429,17 @@ class ListadoPdfAtcl
             $authUser = $usuario_id ? Usuario::find($usuario_id) : null;
             $username = $authUser->username ?? '-';
 
-            Log::info('propiedades', [$propiedades]);
+            //Log::info('propiedades', [$propiedades]);
 
             // Generar HTML
-            $html = view('pdfs.atcl.listadoPropiedad', compact('propiedades', 'username', 'informacionMostrar', 'pertenece', 'sector'))->render();
+            $html = view('pdfs.atcl.listadoPropiedad', compact('propiedades', 'username', 'informacionMostrar', 'pertenece', 'sector', 'contadorPropiedades'))->render();
         }
 
         if ($pertenece === 'estadoPropietario') {
+           /*  $contadorPropietarios = 0; */
+            //Log::info('entro a propietarios');
             $propietario = $request->propietario;
+            //sLog::info('propietario', [$propietario]);
             $campoCodigo = ($sector === 'Alquiler') ? 'cod_alquiler' : 'cod_venta';
 
             if ($propietario !== null) {
@@ -458,6 +464,10 @@ class ListadoPdfAtcl
                     ->sortBy(function ($propiedad) {
                         return $propiedad->calle->name ?? '';
                     });
+
+                foreach($propiedades as $propiedad){
+                    $contadorPropiedades++;
+                }
             } else {
                 $propiedades = Propiedad::whereNotNull($campoCodigo)
                     ->with([
@@ -468,18 +478,95 @@ class ListadoPdfAtcl
                         'zona',
                         'tipoInmueble',
                         'precio',
-                        'folios.empresa'
+                        'folios.empresa',
+                        'propietarios',
                     ])
                     ->get()
                     ->sortBy(function ($propiedad) {
                         return $propiedad->calle->name ?? '';
                     });
+
+                foreach($propiedades as $propiedad){
+                    $contadorPropiedades++;
+                }
+
             }
 
-            $html = view('pdfs.atcl.listadoPropiedad', compact('propiedades', 'username', 'pertenece', 'sector'))->render();
+            Log::info('eeee', [$propiedades]);
+            $html = view('pdfs.atcl.listadoPropiedad', compact('propiedades', 'username', 'pertenece', 'sector', 'contadorPropiedades'))->render();
+        }
+        if($pertenece === 'ofrecimientoVenta'){
+            $fechaDesde = $request->input('fecha_desde');
+            $fechaHasta = $request->input('fecha_hasta');
+
+            if ($fechaDesde && $fechaHasta) {
+                $fechaDesde .= ' 00:00:00';
+                $fechaHasta .= ' 23:59:59';
+                $filtroFechaConsulta = "AND fecha_hora BETWEEN ? AND ?";
+                $parametros = [
+                    $fechaDesde,
+                    $fechaHasta,
+                    $fechaDesde,
+                    $fechaHasta,
+                    $fechaDesde,
+                    $fechaHasta,
+                ];
+            } else {
+                $filtroFechaConsulta = ''; // sin filtro
+                $parametros = [];
+            }
+
+            $sql = "SELECT
+                        p.cod_venta,
+                        p.id_calle,
+                        p.numero_calle,
+                        p.piso,
+                        p.departamento,
+                        (SELECT COUNT(*) FROM sistema_clientes.historial_cod_consulta
+                          WHERE codigo_consulta = p.cod_venta $filtroFechaConsulta) as total_consultas,
+                        (SELECT COUNT(*) FROM sistema_clientes.historial_cod_muestra
+                          WHERE codigo_muestra = p.cod_venta $filtroFechaConsulta) as total_muestras,
+                        (SELECT COUNT(*) FROM sistema_clientes.historial_cod_ofrecimiento
+                          WHERE codigo_ofrecimiento = p.cod_venta $filtroFechaConsulta) as total_ofrecimientos,
+                        c.name as calle
+                    FROM propiedades p
+                    INNER JOIN calle c ON p.id_calle = c.id
+                    WHERE p.cod_venta IS NOT NULL
+                    ORDER BY p.cod_venta ASC";
+
+            $query = DB::connection('mysql')->select($sql, $parametros);
+            $consultaTotal = 0;
+            $muestraTotal = 0;
+            $ofrecimientoTotal = 0;
+            foreach($query as $q){
+                if($q->total_consultas >= 1){
+                    $consultaTotal++;
+                }
+                if($q->total_muestras >= 1){
+                    $muestraTotal++;
+                }
+                if($q->total_ofrecimientos >= 1){
+                    $ofrecimientoTotal++;
+                }
+            }
+            Log::info('consultaTotal', [$consultaTotal]);
+            Log::info('muestraTotal', [$muestraTotal]);
+            Log::info('ofrecimientoTotal', [$ofrecimientoTotal]);
+
+            //Log::info('query', [$query]);
+            //dd($query);
+
+            $html = view('pdfs.atcl.listadoPropiedad', compact('query','username', 'pertenece', 'sector', 'consultaTotal', 'muestraTotal', 'ofrecimientoTotal'))->render();
+
         }
 
-        return response()->streamDownload(function () use ($html, $username) {
+        $orientacion = 'landscape';
+        if($pertenece === 'ofrecimientoVenta'){
+            $orientacion = 'portrait';
+        }
+
+
+        return response()->streamDownload(function () use ($html, $username, $orientacion) {
             echo \Spatie\Browsershot\Browsershot::html($html)
                 ->format('A4')
                 ->margins(10, 1, 10, 1)
@@ -487,7 +574,7 @@ class ListadoPdfAtcl
                 ->emulateMedia('print')
                 ->setOption('displayHeaderFooter', true)
                 ->setOption('headerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Ficha de Propiedad</span><span style="text-align:right;">Página <span class="pageNumber"></span> de <span class="totalPages"></span></span></div>')
-                ->landscape()
+                ->$orientacion()
                 ->setOption('footerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Salas Inmobiliaria</span><span style="text-align:center;">' . $username . '</span>  <span style="text-align:right;" class="date"></span></div>')
                 ->pdf();
         }, 'ficha_propiedad.pdf');
