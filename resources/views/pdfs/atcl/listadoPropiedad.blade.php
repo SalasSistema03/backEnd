@@ -24,6 +24,18 @@
             <div class="col-9 text-end">
                 Listado {{ $sector }}
                 <br>
+                @isset($contadorPropiedades)
+                    Total de Propiedades: {{ $contadorPropiedades }}
+                @endisset
+                @isset($consultaTotal)
+                    <span class="listado_texto_titulo">Consultas: {{ $consultaTotal }}</span>
+                @endisset
+                @isset($muestraTotal)
+                    <span class="listado_texto_titulo">Muestras: {{ $muestraTotal }}</span>
+                @endisset
+                @isset($ofrecimientoTotal)
+                    <span class="listado_texto_titulo">Ofrecimientos: {{ $ofrecimientoTotal }}</span>
+                @endisset
             </div>
 
             <hr>
@@ -210,13 +222,13 @@
                                     <td>{{ $propiedad->tipoInmueble->inmueble ?? '' }}</td>
                                 @endif
 
-                                @if ($sector === 'Alquiler')
+                                @if (in_array('estado', $campos) && $sector === 'Alquiler')
                                     <td>{{ $propiedad->estadoAlquiler->name ?? '' }}</td>
-                                @elseif($sector === 'Venta')
+                                @elseif(in_array('estado', $campos) && $sector === 'Venta')
                                     <td>{{ $propiedad->estadoVenta->name ?? '' }}</td>
                                 @endif
 
-                                @if ($sector === 'Alquiler')
+                                @if (in_array('precio', $campos) && $sector === 'Alquiler')
                                     <td style="white-space: nowrap;">
                                         @if ($propiedad->precio && $propiedad->precio->moneda_alquiler_pesos && $propiedad->precio->moneda_alquiler_pesos != 0)
                                             $ {{ $propiedad->precio->moneda_alquiler_pesos }}
@@ -224,7 +236,7 @@
                                             u$s {{ $propiedad->precio->moneda_alquiler_dolar }}
                                         @endif
                                     </td>
-                                @elseif($sector === 'Venta')
+                                @elseif(in_array('precio', $campos) && $sector === 'Venta')
                                     <td style="white-space: nowrap;">
                                         @if ($propiedad->precio && $propiedad->precio->moneda_venta_dolar && $propiedad->precio->moneda_venta_dolar != null)
                                             u$s {{ $propiedad->precio->moneda_venta_dolar }}
@@ -271,7 +283,7 @@
 
                                 @if (in_array('video', $campos))
                                     <td>
-                                        @if (!empty($propiedad->video))
+                                        @if ($propiedad->video && $propiedad->video->isNotEmpty())
                                             SI
                                         @else
                                             NO
@@ -330,7 +342,7 @@
                     </tbody>
                 </table>
             </div>
-        @elseif($pertenece == 'estadoPropietarioA')
+        @elseif($pertenece === 'estadoPropietario')
             <div class="col-md-12">
                 <table class="table table-striped w-100">
                     <thead class="listado_tabla_titulo">
@@ -352,7 +364,9 @@
                         </tr>
                     </thead>
                     <tbody class="listado_tabla">
+                       <!--  {{ $propiedades }} -->
                         @foreach ($propiedades as $propiedad)
+                           <!--  {{ $propiedad->propietarios }} -->
                             <tr>
                                 <td>{{ $propiedad->cod_alquiler }}</td>
                                 <td>
@@ -370,7 +384,9 @@
                                 </td>
                                 <td>
                                     @foreach ($propiedad->propietarios as $propietario)
-                                        {{ $propietario->nombre ?? '' }}, {{ $propietario->apellido ?? '' }}
+                                        @if($propietario->pivot->baja === 'no')
+                                         {{ $propietario->apellido ?? '' }}, {{ $propietario->nombre ?? '' }}
+                                        @endif
                                     @endforeach
                                 </td>
                                 <td>
@@ -396,14 +412,28 @@
                                 <td>
                                     {{ $propiedad->tipoInmueble->inmueble ?? '-' }}
                                 </td>
+                                @if ($sector === 'Alquiler')
                                 <td>
-                                    @if ($propiedad->precio->moneda_alquiler_pesos !== null)
-                                        $ {{ $propiedad->precio->moneda_alquiler_pesos ?? '' }}
-                                    @elseif($propiedad->precio->moneda_alquiler_dolar !== null)
-                                        u$d {{ $propiedad->precio->moneda_alquiler_dolar ?? '' }}
-                                    @else
+                                    @if ($propiedad->precio)
+                                        @if ($propiedad->precio->moneda_alquiler_pesos !== null)
+                                            $ {{ $propiedad->precio->moneda_alquiler_pesos }}
+                                        @elseif($propiedad->precio->moneda_alquiler_dolar !== null)
+                                            u$d {{ $propiedad->precio->moneda_alquiler_dolar }}
+                                        @endif
                                     @endif
                                 </td>
+                                @elseif($sector === 'Venta')
+
+                                <td>
+                                    @if ($propiedad->precio)
+                                        @if ($propiedad->precio->moneda_venta_dolar !== null)
+                                            u$d {{ $propiedad->precio->moneda_venta_dolar }}
+                                        @elseif($propiedad->precio->moneda_venta_pesos !== null)
+                                            $ {{ $propiedad->precio->moneda_venta_pesos }}
+                                        @endif
+                                    @endif
+                                </td>
+                                @endif
                                 <td>
                                     {{ $propiedad->cartel }}
                                 </td>
@@ -437,6 +467,68 @@
                     </tbody>
                 </table>
             </div>
+        @elseif($pertenece === 'ofrecimientoVenta')
+
+
+        <div class="col-md-12">
+            <table class="table table-striped w-100">
+                <thead class="listado_tabla_titulo">
+                    <tr>
+                        <th>
+                            Codigo
+                        </th>
+                        <th>
+                            Direccion
+                        </th>
+                        <th>
+                            Piso / Depto
+                        </th>
+                        <th>
+                            Cant Consultas
+                        </th>
+                        <th>
+                            Cant Ofrecimientos
+                        </th>
+                        <th>
+                            Cant Muestras
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="listado_tabla">
+                    @foreach($query as $q)
+                    <tr>
+                        <td>
+                            {{ $q->cod_venta }}
+                        </td>
+                        <td>
+                            {{ $q->calle }}  {{ $q->numero_calle }}
+                        </td>
+                        <td>
+                            @if($q->piso != null && $q->departamento != null)
+                                Piso: {{ $q->piso ?? '' }} / Depto: {{ $q->departamento ?? '' }}
+                            @elseif($q->piso == null && $q->departamento != null)
+                                Depto: {{ $q->departamento ?? '' }}
+                            @elseif($q->piso != null && $q->departamento == null)
+                                Piso: {{ $q->piso ?? '' }}
+                            @endif
+                        </td>
+                        <td>
+                            {{ $q->total_consultas }}
+                        </td>
+                        <td>
+                            {{ $q->total_ofrecimientos }}
+                        </td>
+                        <td>
+                            {{ $q->total_muestras }}
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+
+        </div>
+
+
         @endif
     </div>
 

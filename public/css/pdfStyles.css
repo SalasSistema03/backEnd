@@ -108,6 +108,10 @@ body {
   margin: 0;
   font-size: 23px;
 }
+.header .listado_texto_titulo {
+  font-size: 10px !important;
+  text-align: center !important;
+}
 
 .logo {
   height: 50px;
