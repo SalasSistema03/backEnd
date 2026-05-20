@@ -39,14 +39,14 @@ class RegistroSelladoService
         ];
     }
 
-protected function getRegistroSelladoOrenados(): array
-{
-    // IMPORTANTE: El 'id' debe estar presente para que Laravel pueda unir las tablas
-    return Registro_sellado::with('usuario') 
-        ->orderBy('id_registro_sellado', 'desc')
-        ->get()
-        ->toArray();
-}
+    protected function getRegistroSelladoOrenados(): array
+    {
+        // IMPORTANTE: El 'id' debe estar presente para que Laravel pueda unir las tablas
+        return Registro_sellado::with('usuario')
+            ->orderBy('id_registro_sellado', 'desc')
+            ->get()
+            ->toArray();
+    }
 
 
     public function calcularSellado(array $data)
@@ -128,7 +128,7 @@ protected function getRegistroSelladoOrenados(): array
             $resultados = $this->calcularSellado($data);
             //Llama el id del usuario actual
             $usuario_id = auth('api')->id();
-            
+
             // Insertamos en la tabla (Ajusta los nombres de las columnas a tu BD)
             return Registro_sellado::create([
                 'cantidad_informes'       => $resultados['cantidad_informes'],
@@ -160,7 +160,8 @@ protected function getRegistroSelladoOrenados(): array
 
 
     //Este metodo es para eliminar registros de la tabla "registro_sellado" y consumir en vuejs
-    public function eliminarRegistro(){
+    public function eliminarRegistro()
+    {
         try {
             Registro_sellado::truncate(); // Elimina todos los registros de la tabla
 
@@ -179,31 +180,31 @@ protected function getRegistroSelladoOrenados(): array
 
 
 
-public function exportarRegistrosSelladoService()
-{
-    $registros = Registro_sellado::all();
+    public function exportarRegistrosSelladoService()
+    {
+        $registros = Registro_sellado::all();
 
-    return $registros->map(function ($registro) {
-        $monto_vivienda = $registro->monto_alquiler_vivienda * $registro->cantidad_meses;
-        
-        $monto_comercial = ($registro->inq_prop == 'SI') 
-            ? $registro->monto_alquiler_comercial * $registro->cantidad_meses 
-            : $registro->monto_alquiler_comercial * $registro->cantidad_meses * 1.21;
+        return $registros->map(function ($registro) {
+            $monto_vivienda = $registro->monto_alquiler_vivienda * $registro->cantidad_meses;
 
-        return [
-            'folio'         => $registro->folio,
-            'nombre'        => $registro->nombre,
-            'informe'       => $registro->informe,
-            'fecha_Inicio'  => $registro->fecha_inicio,
-            'tipo_Contrato' => $registro->tipo_contrato,
-            'monto_Vivienda'=> $monto_vivienda,
-            'monto_Comercial'=> $monto_comercial,
-            'hojas'         => $registro->hojas,
-            'fecha_Carga'   => $registro->fecha_carga,
-            'inq_Prop'      => $registro->inq_prop,
-        ];
-    });
-}
+            $monto_comercial = ($registro->inq_prop == 'SI')
+                ? $registro->monto_alquiler_comercial * $registro->cantidad_meses
+                : $registro->monto_alquiler_comercial * $registro->cantidad_meses * 1.21;
+
+            return [
+                'folio'         => $registro->folio,
+                'nombre'        => $registro->nombre,
+                'informe'       => $registro->informe,
+                'fecha_Inicio'  => $registro->fecha_inicio,
+                'tipo_Contrato' => $registro->tipo_contrato,
+                'monto_Vivienda' => $monto_vivienda,
+                'monto_Comercial' => $monto_comercial,
+                'hojas'         => $registro->hojas,
+                'fecha_Carga'   => $registro->fecha_carga,
+                'inq_Prop'      => $registro->inq_prop,
+            ];
+        });
+    }
 
     /* ------------------- */
 
@@ -291,54 +292,62 @@ public function exportarRegistrosSelladoService()
 
     protected function iva($inq_prop, $tipo_c, $monto_a)
     {
-        if ($monto_a <= 1500 || $inq_prop == "SI" || $tipo_c == 1 ) {
+        if ($monto_a <= 1500 || $inq_prop == "SI" || $tipo_c == 1) {
             return 1;
         }
         return 1.21;
     }
 
 
+
     protected function valor_informe($informe, $cantidad_informe, $monto_a, $monto_d)
     {
+        // Trae los límites y precios configurados
         $valor_registral = $this->valorDatosRegistrales->getAllValorDatosRegistrales();
 
         $monto_informe = 0;
         $a_sumar = 0;
-        $monto = 0;
 
-        $valor_registro_extra = Valor_registro_extra::all()->first()->valor_extra;
+        // Costo del informe adicional excedente
+        //$valor_registro_extra = Valor_registro_extra::all()->first()->valor_extra;
 
         if ($informe > 0) {
+            // Calculamos el monto total del contrato base
             $monto = floatval($monto_a) + floatval($monto_d);
 
-            if ($monto < $valor_registral[0]->valor_limite) {
-                $monto_informe = $valor_registral[0]->precio;
-            } else if ($monto < $valor_registral[1]->valor_limite) {
-                $monto_informe = $valor_registral[1]->precio;
+            // EVALUACIÓN DE ESCALONES (Cambiado a <= para incluir los topes exactos)
+            if ($monto <= floatval($valor_registral[0]->valor_limite)) {
+                // Tramo 1: Hasta $150.000 -> Cobra $8.000
+                $monto_informe = $valor_registral[0]->precio * $cantidad_informe; // Multiplicamos por la cantidad de informes
+            } else if ($monto <= floatval($valor_registral[1]->valor_limite)) {
+                // Tramo 2: De $150.001 hasta $500.000 -> Cobra $8.500
+                $monto_informe = $valor_registral[1]->precio * $cantidad_informe; // Multiplicamos por la cantidad de informes
             } else {
-                $monto_informe = $valor_registral[2]->precio;
+                // Tramo 3: Más de $500.000 -> Cobra $10.000
+                $monto_informe = $valor_registral[2]->precio * $cantidad_informe; // Multiplicamos por la cantidad de informes
             }
-            if ($cantidad_informe < 3) {
-                $a_sumar = 0;
-            } else {
-                /* aca deberia entrar el valor por base de datos */
-                $x_sumar = $valor_registro_extra * ($cantidad_informe - 2);
-                $a_sumar = $x_sumar;
-            };
+
+            // CÁLCULO DE EXCEDENTES (A partir del 3er informe se cobra extra)
+            /*  if ($cantidad_informe >= 3) {
+            $a_sumar = $valor_registro_extra * ($cantidad_informe - 2);
+        } */
+
+            // Total final
             $informe_total = floatval($monto_informe) + $a_sumar;
-            //dd(json_encode($informe_total));
+
             return number_format($informe_total, 2, '.', '');
         } else {
+            // Si no se solicitó informe, devuelve 0.00
             return number_format($monto_informe, 2, '.', '');
-            //dd(json_encode($monto_informe));
         }
     }
+
 
     protected function montoAlquilerComercialVivienda($tipo_c, $monto_alquiler)
     {
         $monto_alquiler_comercial = 0;
         $monto_alquiler_vivienda = 0;
-        if ($tipo_c == 1 ) {
+        if ($tipo_c == 1) {
             $monto_alquiler_vivienda = $monto_alquiler;
         } else {
             $monto_alquiler_comercial = $monto_alquiler;
