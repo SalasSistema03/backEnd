@@ -28,7 +28,8 @@ class PadronService
 
         $personas = Padron::with('telefonos')
             ->when($apellido, function ($q) use ($apellido) {
-                $q->where('apellido', 'like', "%{$apellido}%");
+                $q->where('apellido', 'like', "%{$apellido}%")
+                ->orWhere('nombre', 'like', "%{$apellido}%");
             })
             ->when($dni, function ($q) use ($dni) {
                 $q->where('documento', 'like', "%{$dni}%");
@@ -39,7 +40,6 @@ class PadronService
         foreach ($personas as $persona) {
             $persona->fecha_nacimiento = Carbon::parse($persona->fecha_nacimiento)->format('d/m/Y');
         }
-
         return response()->json($personas);
     }
 
