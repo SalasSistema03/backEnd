@@ -268,6 +268,7 @@
                                             <div class="row" id="infoList">
                                                 @php
                                                     $campos = [
+                                                        
                                                         'c_venta' => 'C. Venta',
                                                         'direccion' => 'Dirección',
                                                         'zona' => 'Zona',

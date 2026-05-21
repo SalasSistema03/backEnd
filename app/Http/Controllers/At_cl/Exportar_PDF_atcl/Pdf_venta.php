@@ -296,15 +296,15 @@ class Pdf_venta
                 $parametros = [];
             }
 
-            $sql = "SELECT 
-                        p.cod_venta, 
-                        p.id_calle, 
+            $sql = "SELECT
+                        p.cod_venta,
+                        p.id_calle,
                         p.numero_calle,
-                        (SELECT COUNT(*) FROM sistema_clientes.historial_cod_consulta 
+                        (SELECT COUNT(*) FROM sistema_clientes.historial_cod_consulta
                           WHERE codigo_consulta = p.cod_venta $filtroFechaConsulta) as total_consultas,
-                        (SELECT COUNT(*) FROM sistema_clientes.historial_cod_muestra 
+                        (SELECT COUNT(*) FROM sistema_clientes.historial_cod_muestra
                           WHERE codigo_muestra = p.cod_venta $filtroFechaConsulta) as total_muestras,
-                        (SELECT COUNT(*) FROM sistema_clientes.historial_cod_ofrecimiento 
+                        (SELECT COUNT(*) FROM sistema_clientes.historial_cod_ofrecimiento
                           WHERE codigo_ofrecimiento = p.cod_venta $filtroFechaConsulta) as total_ofrecimientos,
                         c.name as calle
                     FROM propiedades p
@@ -334,7 +334,7 @@ class Pdf_venta
 
             return $pdf->stream("listadoEstados.pdf");
         } elseif ($pertenece == 'devoluciones') {
-            $codigo = $request->input('codigo');
+            $codigo = $request->codigo;
             $datosOfrecimiento = HistorialCodOfrecimiento::where('codigo_ofrecimiento', $codigo)->get()
                 ->map(function ($item) {
                     $item->referencia = 'Ofrecimiento';
@@ -412,7 +412,7 @@ class Pdf_venta
             return $pdf->stream("listadoEstados.pdf");
         } elseif ($pertenece == 'listado-propiedades') {
 
-           if ($request->orden == 'precio_asc') {
+            if ($request->orden == 'precio_asc') {
                 $propiedades = $this->filtroService->aplicarFiltrosV($request->all())
                     ->whereNotNull('cod_venta')
                     ->get()
@@ -420,18 +420,18 @@ class Pdf_venta
                         return $propiedad->precio->moneda_venta_dolar ?? $propiedad->precio->moneda_venta_pesos ?? 0;
                     })
                     ->values();
-            }elseif($request->input('orden') == 'precio_desc'){
-                 $propiedades = $this->filtroService->aplicarFiltrosV($request->all())
+            } elseif ($request->input('orden') == 'precio_desc') {
+                $propiedades = $this->filtroService->aplicarFiltrosV($request->all())
                     ->whereNotNull('cod_venta')
                     ->get()
                     ->sortByDesc(function ($propiedad) {
                         return $propiedad->precio->moneda_venta_dolar ?? $propiedad->precio->moneda_venta_pesos ?? 0;
                     })
                     ->values();
-            }else{
-            $propiedades = $this->filtroService->aplicarFiltrosV($request->all())
-                ->whereNotNull('cod_venta')
-                ->get();
+            } else {
+                $propiedades = $this->filtroService->aplicarFiltrosV($request->all())
+                    ->whereNotNull('cod_venta')
+                    ->get();
             }
             $propiedades = $this->filtroService->traerEstadoVenta($propiedades);
             $propiedades = $this->filtroService->traerPropietarios($propiedades);

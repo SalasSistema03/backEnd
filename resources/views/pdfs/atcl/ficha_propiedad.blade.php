@@ -14,35 +14,41 @@
 
 
 <body>
-    <div class ="row ">
+    <div class="row ">
         <div class="header col-12 row">
             {{-- mi imagen esta dentro de public/image --}}
-            <div class= "col-3">
+            <div class="col-3">
                 <img src="{{ public_path('image/logo.png') }}" class="logo">
             </div>
             <div class="col-9 text-end">
-                Ficha de Propiedad en
+                Ficha de Propiedad en {{-- -{{  $ubicacion}}- --}}
+
+                {{-- 1. Condicional corregido para el título --}}
                 @if ($ubicacion == "'A'")
                     Alquiler - {{ $propiedad['cod_alquiler'] ?? '' }}
-                @elseif($ubicacion == "'V'")
+                @elseif($ubicacion == 'V')
                     Venta - {{ $propiedad['cod_venta'] ?? '' }}
                 @elseif($ubicacion == "'AR'")
                     Reserva
-                    <div class="col-12 row ficha-propiedad_contenido">
-                        <div class="col-12">
+
+
+                    {{-- 2. El bloque de la ficha ahora está afuera para que se renderice siempre --}}
+                    <div class="col-12 row ficha-propiedad_contenido text-start">
+                        <div class="col-12 text-end">
                             Codigo: {{ $propiedad['cod_alquiler'] ?? '' }}
                         </div>
-                        {{-- aca me trae  un array --}}
-                        <div class="col-12">
+
+                        <div class="col-12 text-end">
                             @foreach ($propiedad['folios'] as $folio)
-                                Folio:
+                                <span>Folio: </span>
                                 @if ($folio['empresa_id'] == '1')
                                     {{ $folio['folio'] ?? '' }}
                                 @elseif($folio['empresa_id'] == '2')
                                     Can {{ $folio['folio'] ?? '' }}
-                                @elseif ($folio['empresa_id'] == '3')
+                                @elseif($folio['empresa_id'] == '3')
                                     Trib {{ $folio['folio'] ?? '' }}
                                 @endif
+                                <br> {{-- Un salto de línea por cada folio --}}
                             @endforeach
                         </div>
                     </div>
@@ -179,7 +185,7 @@
             </div>
             @if ($ubicacion != "'AR'")
                 <div class="col-12 pt-3 pb-2 m-0 text-center">
-                    <div class = "ficha-propiedad_comentario">
+                    <div class="ficha-propiedad_comentario">
                         <label for="comentario">
                             ¿Qué te pareció tu
                             visita? ¡Contanos!
@@ -198,7 +204,7 @@
                     <div class="card-body col-12 ">
                         <div class="row ">
                             <div class="col-12 ficha-propiedad_titulos">
-                                 CONDICION
+                                CONDICION
                             </div>
                             <div class="col-12 ficha-propiedad_contenido" style="font-size: 7px;">
                                 {{ $propiedad['condicion'] ?? '' }}
@@ -211,11 +217,13 @@
                             </div>
                             <div class="col-12 row ficha-propiedad_contenido" style="font-size: 7px;">
                                 @foreach ($propiedad['propietarios'] as $propietario)
-                                <br>
-                                    <div class="col-12" >{{ $propietario['nombre'] }} {{ $propietario['apellido'] }}</div>
-                                    <div class="col-12" >Dir: {{ $propietario['calle'] }} {{ $propietario['numero_calle'] }}</div>
+                                    <br>
+                                    <div class="col-12">{{ $propietario['nombre'] }} {{ $propietario['apellido'] }}
+                                    </div>
+                                    <div class="col-12">Dir: {{ $propietario['calle'] }}
+                                        {{ $propietario['numero_calle'] }}</div>
                                     @foreach ($propietario['telefonos'] as $telefono)
-                                        <div class="col-12" >Tel: {{ $telefono['phone_number'] }}</div>
+                                        <div class="col-12">Tel: {{ $telefono['phone_number'] }}</div>
                                     @endforeach
                                     <hr>
                                 @endforeach
@@ -229,7 +237,7 @@
         <div class="col-8">
             {{-- fotos --}}
             @foreach ($fotosOrdenadas as $foto)
-                <div class = "ficha-propiedad_foto p-2">
+                <div class="ficha-propiedad_foto p-2">
                     <img src="{{ 'http://10.10.10.191' . $foto }}" class="img-fluid">
                 </div>
             @endforeach

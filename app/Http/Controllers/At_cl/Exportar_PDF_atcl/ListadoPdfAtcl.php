@@ -25,6 +25,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\contable\sellado\PermitirAccesoSelladoService;
+use App\Models\cliente\HistorialCodOfrecimiento;
+use App\Models\cliente\HistorialCodMuestra;
+use App\Models\cliente\HistorialCodigoConsulta;
+use App\Models\cliente\CriterioBusquedaVenta;
+use App\Models\cliente\Clientes;
 
 use function PHPUnit\Framework\isEmpty;
 
@@ -378,11 +383,12 @@ class ListadoPdfAtcl
     public function listadoPropiedad(Request $request)
     {
         Log::info('request', $request->toArray());
+        //dd($request->all());
         $informacionMostrar = $request->informacionMostrar;
         $pertenece = $request->pertenece;
         $username = '-';
         $sector = $request->sector; // 'Venta' o 'Alquiler'
-         $contadorPropiedades = 0;
+        $contadorPropiedades = 0;
 
         if ($pertenece === 'listadoPropiedades') {
 
@@ -395,7 +401,7 @@ class ListadoPdfAtcl
             $propiedades = $query->get();
 
             // Solo ordenar por precio si es necesario (post-query)
-             if ($request->orden === 'precio_asc' || $request->orden === 'precio_desc') {
+            if ($request->orden === 'precio_asc' || $request->orden === 'precio_desc') {
                 $propiedades = (new FiltrosPdfService)->ordenarPorPrecio($propiedades, $request->orden, $sector);
             }
 
@@ -414,13 +420,13 @@ class ListadoPdfAtcl
             }
 
             //Modificar captador_int
-            foreach ($propiedades as $propiedad){
+            foreach ($propiedades as $propiedad) {
                 $usernameCaptador = $propiedad->captador_int ? Usuario::find($propiedad->captador_int)->username : '-';
                 $propiedad->captador_int = $usernameCaptador;
             }
 
             //Modificar asesor
-            foreach($propiedades as $propiedad){
+            foreach ($propiedades as $propiedad) {
                 $usernameAsesor = $propiedad->asesor ? Usuario::find($propiedad->asesor)->username : '-';
                 $propiedad->asesor = $usernameAsesor;
             }
@@ -436,7 +442,7 @@ class ListadoPdfAtcl
         }
 
         if ($pertenece === 'estadoPropietario') {
-           /*  $contadorPropietarios = 0; */
+            /*  $contadorPropietarios = 0; */
             //Log::info('entro a propietarios');
             $propietario = $request->propietario;
             //sLog::info('propietario', [$propietario]);
@@ -465,7 +471,7 @@ class ListadoPdfAtcl
                         return $propiedad->calle->name ?? '';
                     });
 
-                foreach($propiedades as $propiedad){
+                foreach ($propiedades as $propiedad) {
                     $contadorPropiedades++;
                 }
             } else {
@@ -486,16 +492,15 @@ class ListadoPdfAtcl
                         return $propiedad->calle->name ?? '';
                     });
 
-                foreach($propiedades as $propiedad){
+                foreach ($propiedades as $propiedad) {
                     $contadorPropiedades++;
                 }
-
             }
 
-            Log::info('eeee', [$propiedades]);
+            //Log::info('eeee', [$propiedades]);
             $html = view('pdfs.atcl.listadoPropiedad', compact('propiedades', 'username', 'pertenece', 'sector', 'contadorPropiedades'))->render();
         }
-        if($pertenece === 'ofrecimientoVenta'){
+        if ($pertenece === 'ofrecimientoVenta') {
             $fechaDesde = $request->input('fecha_desde');
             $fechaHasta = $request->input('fecha_hasta');
 
@@ -538,30 +543,105 @@ class ListadoPdfAtcl
             $consultaTotal = 0;
             $muestraTotal = 0;
             $ofrecimientoTotal = 0;
-            foreach($query as $q){
-                if($q->total_consultas >= 1){
+            foreach ($query as $q) {
+                if ($q->total_consultas >= 1) {
                     $consultaTotal++;
                 }
-                if($q->total_muestras >= 1){
+                if ($q->total_muestras >= 1) {
                     $muestraTotal++;
                 }
-                if($q->total_ofrecimientos >= 1){
+                if ($q->total_ofrecimientos >= 1) {
                     $ofrecimientoTotal++;
                 }
             }
-            Log::info('consultaTotal', [$consultaTotal]);
-            Log::info('muestraTotal', [$muestraTotal]);
-            Log::info('ofrecimientoTotal', [$ofrecimientoTotal]);
+            //Log::info('consultaTotal', [$consultaTotal]);
+            ////Log::info('muestraTotal', [$muestraTotal]);
+            // Log::info('ofrecimientoTotal', [$ofrecimientoTotal]);
 
             //Log::info('query', [$query]);
             //dd($query);
 
-            $html = view('pdfs.atcl.listadoPropiedad', compact('query','username', 'pertenece', 'sector', 'consultaTotal', 'muestraTotal', 'ofrecimientoTotal'))->render();
+            $html = view('pdfs.atcl.listadoPropiedad', compact('query', 'username', 'pertenece', 'sector', 'consultaTotal', 'muestraTotal', 'ofrecimientoTotal'))->render();
+        }
+        if ($pertenece === 'devoluciones') {
+            $codigo = $request->codigo;
+            $datosOfrecimiento = HistorialCodOfrecimiento::where('codigo_ofrecimiento', $codigo)->get()
+                ->map(function ($item) {
+                    $item->referencia = 'Ofrecimiento';
+                    return $item;
+                });
+            $datosMuestra = HistorialCodMuestra::where('codigo_muestra', $codigo)->get()
+                ->map(function ($item) {
+                    $item->referencia = 'Muestra';
+                    return $item;
+                });
+            $datosConsulta = HistorialCodigoConsulta::where('codigo_consulta', $codigo)->get()
+                ->map(function ($item) {
+                    $item->referencia = 'Consulta';
+                    return $item;
+                });
 
+            $datosTotales = $datosOfrecimiento->merge($datosMuestra)->merge($datosConsulta)->sortBy('fecha_hora');
+            foreach ($datosTotales as $item) {
+                $item->criterio_busqueda = CriterioBusquedaVenta::where('id_criterio_venta', $item->id_criterio_venta)->first();
+                $item->cliente = Clientes::where('id_cliente', $item->criterio_busqueda->id_cliente)->first();
+                $item->nombre_usuario = Usuario::where('id', $item->cliente->id_asesor_venta)->first()->username;
+            }
+            if ($request->filled('fecha_desde') && $request->filled('fecha_hasta')) {
+                $fechaDesde = $request->input('fecha_desde') . ' 00:00:00';
+                $fechaHasta = $request->input('fecha_hasta') . ' 23:59:59';
+
+                $datosTotales = $datosTotales->filter(function ($item) use ($fechaDesde, $fechaHasta) {
+                    return $item->fecha_hora >= $fechaDesde && $item->fecha_hora <= $fechaHasta;
+                });
+            }
+            //Log::info('datosTotales', [$datosTotales]);
+            //dd($datosTotales);
+            $html = view('pdfs.atcl.listadoPropiedad', compact('datosTotales', 'username', 'pertenece', 'sector'))->render();
+        }
+        if ($pertenece === 'criteriosActivos') {
+            $query = CriterioBusquedaVenta::where('usuario_id', $request->asesor_id)
+                ->where('estado_criterio_venta', 'Activo')
+                ->with(['tipoInmueble', 'zona', 'cliente']);
+
+
+
+
+
+            if ($request->has('zona_id') && $request->input('zona_id') != null) {
+                $query->where('id_zona', $request->input('zona_id'));
+            }
+
+            if ($request->has('tipo') && $request->input('tipo') != null) {
+                $query->where('id_tipo_inmueble', $request->input('tipo'));
+            }
+
+            if ($request->has('cantidad_dormitorios') && $request->input('cantidad_dormitorios') != null) {
+                $query->where('cant_dormitorios', $request->input('cantidad_dormitorios'));
+            }
+
+            if ($request->has('estado') && $request->input('estado') != null) {
+                $query->where('id_categoria', $request->input('estado'));
+            }
+
+            $precioMin = $request->input('precio_minimo');
+            $precioMax = $request->input('precio_maximo');
+
+
+            if ($precioMin && $precioMax) {
+                $query->whereBetween('precio_hasta', [$precioMin, $precioMax]);
+            } elseif ($precioMin) {
+                $query->where('precio_hasta', '>=', $precioMin);
+            } elseif ($precioMax) {
+                $query->where('precio_hasta', '<=', $precioMax);
+            }
+
+            $criterios_vendedor = $query->with(['tipoInmueble', 'zona'])->orderBy('id_categoria', 'desc')->get();
+            $html = view('pdfs.atcl.listadoPropiedad', compact('criterios_vendedor', 'username', 'pertenece', 'sector'))->render();
         }
 
         $orientacion = 'landscape';
-        if($pertenece === 'ofrecimientoVenta'){
+        if ($pertenece === 'ofrecimientoVenta') {
             $orientacion = 'portrait';
         }
 

@@ -174,9 +174,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/guardar_num_broche_salas', [ImpuestosController::class, 'guardarBrocheSALAS']);
         Route::get('/exportar_broches', [PdfImpuestoController::class, 'PDF_broche']);
         Route::get('/exportar_broches_salas', [PdfImpuestoController::class, 'PDF_BorcheSalas']);
-        Route::get('/modificar_bajado', [ ImpuestosController::class, 'modificarBajadoController']);
-        Route::put('/modificar_estado', [ ImpuestosController::class, 'modificarEstadoTGIController']);
-        Route::delete('/eliminar_impuesto',[ImpuestosController::class, 'eliminarRegistro']);
+        Route::get('/modificar_bajado', [ImpuestosController::class, 'modificarBajadoController']);
+        Route::put('/modificar_estado', [ImpuestosController::class, 'modificarEstadoTGIController']);
+        Route::delete('/eliminar_impuesto', [ImpuestosController::class, 'eliminarRegistro']);
         Route::post('/broches/pdf', [PdfImpuestoController::class, 'descargaPdf']);
         Route::get('/broches/sin_controlar', [ImpuestosController::class, 'sinControlar']);
         Route::put('/gas_bajado', [ImpuestosController::class, 'gasBajado']);

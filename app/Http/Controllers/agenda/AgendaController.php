@@ -73,7 +73,7 @@ class AgendaController extends Controller
     // Método para guardar una nueva nota en la agenda
     public function store(Request $request)
     {
-        //Log::info('llego la informacion', $request->all());
+        Log::info('llego la informacion', $request->all());
         //dd($request->all());
         $cliente = null;
 
@@ -164,7 +164,7 @@ class AgendaController extends Controller
             //Log::info('Nota creada correctamente');
             // Si se proporciona un criterio, crear el evento en el historial
             if ($request->criterioSeleccionado != null) {
-                if($propiedadV === null){
+                if ($propiedadV === null) {
                     //Log::error('Propiedad no encontrada');
                     return response()->json([
                         'status' => 'error',
@@ -227,7 +227,7 @@ class AgendaController extends Controller
     // Desactivar (eliminar lógicamente) una nota
     public function destroy($id, $motivo)
     {
-       // Log::info('entro', ['id' => $id, 'motivo' => $motivo]);
+        // Log::info('entro', ['id' => $id, 'motivo' => $motivo]);
         // Inicia la transacción
         DB::beginTransaction();
         try {
@@ -290,9 +290,8 @@ class AgendaController extends Controller
                 $q->where('fecha', $fecha)
                     ->where('activo', 1)
                     ->with([
-                        // 🔥 CLIENTE CON TODAS SUS NOTAS (SIN FILTRO)
+                        //  CLIENTE CON TODAS SUS NOTAS (SIN FILTRO)
                         'cliente.notas',
-
                         'propiedad.calle',
                         'propiedad.estadoVenta',
                         'propiedad.estadoAlquiler'
