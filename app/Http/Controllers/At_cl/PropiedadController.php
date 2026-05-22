@@ -433,7 +433,7 @@ class PropiedadController
      */
     public function actualizarPropiedad(Request $request)
     {
-       // Log::info('actualizarPropiedad', $request->all());
+
         try {
             $propiedad = Propiedad::find($request->id);
             if (!$propiedad) {
@@ -517,11 +517,11 @@ class PropiedadController
             (new PrecioService())->crearDesdeRequest($venta, $alquiler, $propiedad->id);
 
             // Manejar actualización de fotos
-            //Log::info('fotos_modificadas', ['fotos_modificadas' => $request->fotos_modificadas]);
+
             if ($request->has('fotos_modificadas')) {
 
                 $fotos_modificadas = $this->cleanArray(json_decode($request->fotos_modificadas, true));
-                //Log::info('fotos_modificadas_clean', ['fotos_modificadas' => $fotos_modificadas]);
+
                 (new PropiedadMediaService())->modificarFoto($fotos_modificadas);
             }
             if ($request->has('fotos_eliminadas')) {
@@ -564,7 +564,7 @@ class PropiedadController
                 (new Propiedades_padronService())->eliminarPropietario($propiedad->id, $propietarios_eliminados);
             }
             if ($request->has('propietarios_nuevos')) {
-               // Log::info('propietarios_nuevos', $request->propietarios_nuevos);
+
                 $propietarios_nuevos = json_decode($request->propietarios_nuevos, true);
                 (new Propiedades_padronService())->vincularActualizacion($propiedad->id, $propietarios_nuevos);
             }

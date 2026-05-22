@@ -5,6 +5,7 @@ namespace App\Services\At_cl;
 use App\Models\At_cl\Propiedad;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Servicio encargado de aplicar filtros y ordenamientos avanzados
@@ -28,10 +29,14 @@ class FiltroPropiedadService
     public function filtrarPropiedades(array $filtros): Collection
     {
         try {
+            //Log::info(['filtros' => $filtros]);
             // Si no se recibió ningún filtro significativo, no tiene sentido consultar la BD
-            if (empty(array_filter($filtros))) {
+            /* if (empty(array_filter($filtros))) {
                 return collect();
-            }
+            } */
+           /* if ($filtros['busqueda'] === null) {
+                //return collect();
+            } */
 
             // Si el usuario solicitó un ordenamiento específico,
             // delegamos la responsabilidad al método especializado

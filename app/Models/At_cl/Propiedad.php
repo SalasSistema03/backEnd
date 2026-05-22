@@ -302,14 +302,27 @@ class Propiedad extends Model
             } elseif ($filtros['busqueda'] == 2) {
                 $query->whereNotNull('cod_alquiler');
             }
+        } else {
+            // Si busqueda es nulo/vacío, trae las que tienen al menos un código
+            $query->where(function ($q) {
+                $q->whereNotNull('cod_venta')
+                  ->orWhereNotNull('cod_alquiler');
+            });
         }
 
         // Código
         if (!empty($filtros['codigo'])) {
-            if ($filtros['busqueda'] == 1) {
-                $query->where('cod_venta', $filtros['codigo']);
-            } elseif ($filtros['busqueda'] == 2) {
-                $query->where('cod_alquiler', $filtros['codigo']);
+            if (!empty($filtros['busqueda'])) {
+                if ($filtros['busqueda'] == 1) {
+                    $query->where('cod_venta', $filtros['codigo']);
+                } elseif ($filtros['busqueda'] == 2) {
+                    $query->where('cod_alquiler', $filtros['codigo']);
+                }
+            } else {
+                $query->where(function ($q) use ($filtros) {
+                    $q->where('cod_venta', $filtros['codigo'])
+                      ->orWhere('cod_alquiler', $filtros['codigo']);
+                });
             }
         }
 
@@ -344,48 +357,54 @@ class Propiedad extends Model
         // Rango de precios
         if (!empty($filtros['desde']) || !empty($filtros['hasta'])) {
             $query->whereHas('precioActual', function ($q) use ($filtros) {
-                // Venta
-                if (!empty($filtros['busqueda']) && $filtros['busqueda'] == 1) {
-                    $q->whereNotNull('moneda_venta_dolar');
+                $q->where(function ($subQ) use ($filtros) {
+                    // Venta
+                    if (empty($filtros['busqueda']) || $filtros['busqueda'] == 1) {
+                        $subQ->orWhere(function ($sq1) use ($filtros) {
+                            $sq1->whereNotNull('moneda_venta_dolar');
+                            if (!empty($filtros['desde'])) {
+                                $sq1->where('moneda_venta_dolar', '>=', $filtros['desde']);
+                            }
+                            if (!empty($filtros['hasta'])) {
+                                $sq1->where('moneda_venta_dolar', '<=', $filtros['hasta']);
+                            }
+                        });
+                    }
 
-                    if (!empty($filtros['desde'])) {
-                        $q->where('moneda_venta_dolar', '>=', $filtros['desde']);
+                    // Alquiler
+                    if (empty($filtros['busqueda']) || $filtros['busqueda'] == 2) {
+                        $subQ->orWhere(function ($sq2) use ($filtros) {
+                            $sq2->whereNotNull('moneda_alquiler_pesos');
+                            if (!empty($filtros['desde'])) {
+                                $sq2->where('moneda_alquiler_pesos', '>=', $filtros['desde']);
+                            }
+                            if (!empty($filtros['hasta'])) {
+                                $sq2->where('moneda_alquiler_pesos', '<=', $filtros['hasta']);
+                            }
+                        });
                     }
-                    if (!empty($filtros['hasta'])) {
-                        $q->where('moneda_venta_dolar', '<=', $filtros['hasta']);
-                    }
-                }
-
-                // Alquiler
-                if (!empty($filtros['busqueda']) && $filtros['busqueda'] == 2) {
-                    $q->whereNotNull('moneda_alquiler_pesos');
-
-                    if (!empty($filtros['desde'])) {
-                        $q->where('moneda_alquiler_pesos', '>=', $filtros['desde']);
-                    }
-                    if (!empty($filtros['hasta'])) {
-                        $q->where('moneda_alquiler_pesos', '<=', $filtros['hasta']);
-                    }
-                }
+                });
             });
         }
 
         // Si el checkbox de ampliar no está marcado, filtrar por estados
         if (!isset($filtros['ampliar']) || $filtros['ampliar'] == 0 || $filtros['ampliar'] === false) {
+            $estadosVentaExcluidos = Estado_venta::whereIn('id', ['3', '4', '5', '6', '7'])->pluck('id')->toArray();
+            $estadosAlquilerExcluidos = Estado_alquiler::whereIn('id', ['3', '4', '5', '6', '7'])->pluck('id')->toArray();
+
             if (!empty($filtros['busqueda'])) {
                 if ($filtros['busqueda'] == 1) {
-                    // Para venta, excluir vendidas y baja temporal (IDs 3, 4, 5, 6, 7)
-                    $estadosVentaExcluidos = Estado_venta::whereIn('id', ['3', '4', '5', '6', '7'])
-                        ->pluck('id')
-                        ->toArray();
+                    // Para venta, excluir vendidas y baja temporal
                     $query->whereNotIn('id_estado_venta', $estadosVentaExcluidos);
                 } elseif ($filtros['busqueda'] == 2) {
-                    // Para alquiler, excluir alquiladas y baja temporal (IDs 3, 4, 5, 6, 7)
-                    $estadosAlquilerExcluidos = Estado_alquiler::whereIn('id', ['3', '4', '5', '6', '7'])
-                        ->pluck('id')
-                        ->toArray();
+                    // Para alquiler, excluir alquiladas y baja temporal
                     $query->whereNotIn('id_estado_alquiler', $estadosAlquilerExcluidos);
                 }
+            } else {
+                $query->where(function ($q) use ($estadosVentaExcluidos, $estadosAlquilerExcluidos) {
+                    $q->whereNotIn('id_estado_venta', $estadosVentaExcluidos)
+                      ->orWhereNotIn('id_estado_alquiler', $estadosAlquilerExcluidos);
+                });
             }
         }
 
