@@ -600,32 +600,16 @@ class ListadoPdfAtcl
             $html = view('pdfs.atcl.listadoPropiedad', compact('datosTotales', 'username', 'pertenece', 'sector'))->render();
         }
         if ($pertenece === 'criteriosActivos') {
-            /* $query = CriterioBusquedaVenta::where('usuario_id', $request->asesor_id)
-                ->where('estado_criterio_venta', 'Activo')
-                ->with(['tipoInmueble', 'zona', 'cliente']); */
-                $query = CriterioBusquedaVenta::where('estado_criterio_venta', 'Activo')
-                ->whereHas('cliente', function ($q) use ($request){
+            $query = CriterioBusquedaVenta::where('estado_criterio_venta', 'Activo')
+                ->whereHas('cliente', function ($q) use ($request) {
                     $q->where('id_asesor_venta', $request->asesor_id);
                 })
                 ->with(['tipoInmueble', 'zona', 'cliente']);
 
-
-
-
-
-            /* if ($request->has('zona_id') && $request->input('zona_id') != null) {
-                $query->where('id_zona', $request->input('zona_id'));
-            }
-
-            if ($request->has('tipo') && $request->input('tipo') != null) {
-                $query->where('id_tipo_inmueble', $request->input('tipo'));
-            }
- */
-
-            if(!empty($request->zona_id)){
+            if (!empty($request->zona_id)) {
                 $query->whereIn('id_zona', $request->input('zona_id'));
             }
-            if(!empty($request->tipo)){
+            if (!empty($request->tipo)) {
                 $query->whereIn('id_tipo_inmueble', $request->input('tipo'));
             }
             if ($request->has('cantidad_dormitorios') && $request->input('cantidad_dormitorios') != null) {
@@ -651,6 +635,29 @@ class ListadoPdfAtcl
             $criterios_vendedor = $query->with(['tipoInmueble', 'zona'])->orderBy('id_categoria', 'desc')->get();
             $html = view('pdfs.atcl.listadoPropiedad', compact('criterios_vendedor', 'username', 'pertenece', 'sector'))->render();
         }
+        if ($pertenece === 'criteriosActivosFechas') {
+            $data = CriterioBusquedaVenta::query()
+            ->where('estado_criterio_venta', 'Activo')
+            ->with(['tipoInmueble', 'zona', 'cliente']);
+            $fechaDesde = $request->desde;
+            $fechaHasta = $request->hasta;
+
+            if (!empty($fechaDesde) && !empty($fechaHasta)) {
+
+                $data->whereBetween('fecha_criterio_venta', [$fechaDesde, $fechaHasta]);
+            } elseif (!empty($fechaDesde)) {
+
+                $data->where('fecha_criterio_venta', '>=', $fechaDesde);
+            } elseif (!empty($fechaHasta)) {
+
+                $data->where('fecha_criterio_venta', '<=', $fechaHasta);
+            }
+
+            $data = $data->orderBy('id_categoria', 'desc')->get();
+
+            $html = view('pdfs.atcl.listadoPropiedad', compact('data', 'username', 'pertenece', 'sector'))->render();
+        }
+
 
         $orientacion = 'landscape';
         if ($pertenece === 'ofrecimientoVenta') {
