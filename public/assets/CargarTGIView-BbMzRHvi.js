@@ -1,0 +1,1 @@
+import{c as e,b as t,_ as a,F as r,j as o}from"./index-B7K3001K.js";import{_ as s}from"./CargaImpuesto-BdgGmUjW.js";import"./tgiApi-CYSPH4bw.js";import"./useDateFormatter-Ca4_OelW.js";import"./BaseModal-BuJQt0eW.js";const m="tgi",g={__name:"CargarTGIView",setup(_){return(c,i)=>(o(),e(r,null,[t(a),t(s,{impuesto:m})],64))}};export{g as default};
