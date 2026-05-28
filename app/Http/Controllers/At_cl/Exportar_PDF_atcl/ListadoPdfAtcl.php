@@ -600,9 +600,17 @@ class ListadoPdfAtcl
             $html = view('pdfs.atcl.listadoPropiedad', compact('datosTotales', 'username', 'pertenece', 'sector'))->render();
         }
         if ($pertenece === 'criteriosActivos') {
-            $query = CriterioBusquedaVenta::where('usuario_id', $request->asesor_id)
+            /* $query = CriterioBusquedaVenta::where('usuario_id', $request->asesor_id)
                 ->where('estado_criterio_venta', 'Activo')
+                ->with(['tipoInmueble', 'zona', 'cliente']); */
+                $query = CriterioBusquedaVenta::where('estado_criterio_venta', 'Activo')
+                ->whereHas('cliente', function ($q) use ($request){
+                    $q->where('id_asesor_venta', $request->asesor_id);
+                })
                 ->with(['tipoInmueble', 'zona', 'cliente']);
+
+
+
 
 
             /* if ($request->has('zona_id') && $request->input('zona_id') != null) {
@@ -614,14 +622,12 @@ class ListadoPdfAtcl
             }
  */
 
-            if (!empty($request->zona_id)) {
-                $query->whereIn('id_zona', $request->zona_id);
+            if(!empty($request->zona_id)){
+                $query->whereIn('id_zona', $request->input('zona_id'));
             }
-
-            if (!empty($request->tipo)) {
-                $query->whereIn('id_tipo_inmueble', $request->tipo);
+            if(!empty($request->tipo)){
+                $query->whereIn('id_tipo_inmueble', $request->input('tipo'));
             }
-
             if ($request->has('cantidad_dormitorios') && $request->input('cantidad_dormitorios') != null) {
                 $query->where('cant_dormitorios', $request->input('cantidad_dormitorios'));
             }
