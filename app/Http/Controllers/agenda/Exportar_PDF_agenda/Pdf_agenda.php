@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\agenda\Exportar_PDF_agenda;
 
+use App\Models\agenda\Notas;
 use App\Models\At_cl\Usuario;
 use App\Services\At_cl\documentacionService;
 use App\Services\At_cl\FotosService;
@@ -15,34 +16,83 @@ use App\Services\At_cl\Propiedades_padronService;
 use App\Services\At_cl\FiltrosPdfService;
 use Illuminate\Http\Request;
 use App\Services\agenda\ListadoAgendaService;
+use Illuminate\Support\Facades\Log;
+
 
 class Pdf_agenda
 {
+    public function listarAgenda(Request $request)
+    {
+        Log::info('Llego la informacion', [$request->all()]);
+
+        $query = Notas::query();
+
+        // FILTRO ESTADO
+        if ($request->filled('estado')) {
+
+            if ($request->estado == '1') {
+                $query->where('activo', 1);
+            } else {
+                $query->where('activo', 0);
+            }
+        }
+
+        // FILTRO USUARIO
+        if (
+            $request->filled('usuario') &&
+            $request->usuario !== 'null'
+        ) {
+            $query->where('usuario_id', $request->usuario);
+        }
+
+        // FILTRO FECHA INICIO
+        if (
+            $request->filled('fecha_inicio') &&
+            $request->fecha_inicio !== 'null'
+        ) {
+            $query->whereDate('fecha', '>=', $request->fecha_inicio);
+        }
+
+        // FILTRO FECHA FIN
+        if (
+            $request->filled('fecha_fin') &&
+            $request->fecha_fin !== 'null'
+        ) {
+            $query->whereDate('fecha', '<=', $request->fecha_fin);
+        }
+
+        // FILTRO SECTOR
+        if ($request->filled('sector') && $request->sector !== 'null') {
+
+            $query->whereHas('agenda', function ($q) use ($request) {
+
+                $q->where('sector_id', $request->sector);
+            });
+        }
+
+        // EJECUTAR QUERY
+        $datos = $query->get();
+
+        Log::info('Datos', [$datos]);
+
+        //return response()->json($datos);
+    }
+
+
+
+
+
+
+
+
+    /*
     protected $tipo_inmueble, $zona, $calle, $estado_alquileres, $estado_general,
         $estado_venta, $localidad, $barrio, $Propiedades, $contrato_cabecera, $observaciones_propiedades, $provincia,
         $padron, $precio,  $usuario_id, $accessService, $propiedadService, $precioService, $observacionesPropiedadesService,
         $usuario, $fotoService, $documentacionService, $historialFechasService, $tasacionService, $propiedad_padronService, $filtroService,
         $listadoAgendaService;
 
-    /**
-     * Constructor del controlador Pdf_agenda
-     *
-     * Inyecta los servicios necesarios y establece el contexto del usuario autenticado.
-     *
-     * @param PropiedadService               $propiedadService       servicio de gestión de propiedades
-     * @param PrecioService                  $precioService          servicio de gestión de precios
-     * @param ObservacionesPropiedadesService $observacionesService  servicio de observaciones de propiedades
-     * @param FotosService                   $fotoService            servicio de gestión de fotos
-     * @param documentacionService           $documentacionService   servicio de documentación
-     * @param HistorialFechasService         $historialFechasService servicio de historial de fechas
-     * @param TasacionService                $tasacionService        servicio de tasaciones
-     * @param Propiedades_padronService      $propiedad_padronService servicio de padrón de propiedades
-     * @param FiltrosPdfService              $filtroService          servicio de filtros PDF
-     * @param ListadoAgendaService           $listadoAgendaService   servicio de listado de agenda
-     *
-     * @return void
-     * @access public
-     */
+
     public function __construct(
         PropiedadService $propiedadService,
         PrecioService $precioService,
@@ -73,14 +123,7 @@ class Pdf_agenda
         $this->filtroService = $filtroService;
     }
 
-    /**
-     * Muestra la vista inicial del listado de agenda en PDF
-     *
-     * Obtiene los asesores de venta y alquiler para ser utilizados como filtros.
-     *
-     * @return \Illuminate\View\View vista del listado de agenda en PDF
-     * @access public
-     */
+
     public function index()
     {
         // Nombre de la vista correspondiente en la base de datos
@@ -119,17 +162,7 @@ class Pdf_agenda
         return view('agenda.pdf.pdfListaAgenda', compact('asesores', 'alquilerAsesor', 'tieneAccesoAlquiler', 'tieneAccesoVenta'));
     }
 
-    /**
-     * Genera un PDF de propiedades filtradas por asesor
-     *
-     * Procesa filtros por tipo, fechas, asesor y estado, y genera un PDF
-     * con el listado correspondiente.
-     *
-     * @param Request $request solicitud HTTP con los filtros seleccionados
-     *
-     * @return mixed respuesta PDF en streaming
-     * @access public
-     */
+
     public function propiedaesPorAsesorPDF(Request $request)
     {
 
@@ -163,5 +196,5 @@ class Pdf_agenda
 
         $pdf = $this->listadoAgendaService->generarPdfListadoEstados($notas, $pertenece);
         return $pdf->stream("listadoEstados.pdf");
-    }
+    } */
 }

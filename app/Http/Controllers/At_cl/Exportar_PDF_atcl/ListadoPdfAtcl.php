@@ -605,15 +605,21 @@ class ListadoPdfAtcl
                 ->with(['tipoInmueble', 'zona', 'cliente']);
 
 
-
-
-
-            if ($request->has('zona_id') && $request->input('zona_id') != null) {
+            /* if ($request->has('zona_id') && $request->input('zona_id') != null) {
                 $query->where('id_zona', $request->input('zona_id'));
             }
 
             if ($request->has('tipo') && $request->input('tipo') != null) {
                 $query->where('id_tipo_inmueble', $request->input('tipo'));
+            }
+ */
+
+            if (!empty($request->zona_id)) {
+                $query->whereIn('id_zona', $request->zona_id);
+            }
+
+            if (!empty($request->tipo)) {
+                $query->whereIn('id_tipo_inmueble', $request->tipo);
             }
 
             if ($request->has('cantidad_dormitorios') && $request->input('cantidad_dormitorios') != null) {

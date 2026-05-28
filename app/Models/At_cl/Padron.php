@@ -46,8 +46,8 @@ class Padron extends Model
     }
 
     // En el modelo Propiedades_padron
-public function padron()
-{
-    return $this->belongsTo(Padron::class, 'padron_id');
-}
+    public function padron()
+    {
+        return $this->belongsTo(Padron::class, 'padron_id');
+    }
 }

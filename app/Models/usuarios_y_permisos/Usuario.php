@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 use App\Models\turnos\Turno;
+use App\Models\agenda\Agenda;
 
 class Usuario extends Authenticatable implements JWTSubject
 {
@@ -40,6 +41,19 @@ class Usuario extends Authenticatable implements JWTSubject
     public function turnos()
     {
         return $this->hasMany(Turno::class, 'usuario_id', 'id');
+    }
+
+    public function usuariosQueTienenAgenda($sector_id)
+    {
+        $usuariosIds = Agenda::where('sector_id', $sector_id)
+            ->distinct()
+            ->pluck('usuario_id');
+
+        $usuarios = Usuario::whereIn('id', $usuariosIds)
+            ->select('id', 'username')
+            ->get();
+
+        return $usuarios;
     }
     //Relacion con la tabla propiedad
     /* public function propiedadesModificadas()
