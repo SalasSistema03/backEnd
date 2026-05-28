@@ -638,7 +638,7 @@ class ListadoPdfAtcl
         if ($pertenece === 'criteriosActivosFechas') {
             $data = CriterioBusquedaVenta::query()
             ->where('estado_criterio_venta', 'Activo')
-            ->with(['tipoInmueble', 'zona', 'cliente']);
+            ->with(['tipoInmueble', 'zona', 'cliente', 'historialConsultas']);
             $fechaDesde = $request->desde;
             $fechaHasta = $request->hasta;
 
@@ -654,6 +654,8 @@ class ListadoPdfAtcl
             }
 
             $data = $data->orderBy('id_categoria', 'desc')->get();
+            Log::info('dataaaa', [$data]);
+
 
             $html = view('pdfs.atcl.listadoPropiedad', compact('data', 'username', 'pertenece', 'sector'))->render();
         }

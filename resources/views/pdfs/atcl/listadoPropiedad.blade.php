@@ -615,38 +615,57 @@
                 </table>
 
             </div>
-        @elseif($pertenece === 'criteriosActivosFechas')
-            <div>
-                <table class="table table-striped w-100">
-                    <thead class="listado_tabla_titulo">
-                        <tr>
-                            <th>Cliente</th>
-                            <th>telefono</th>
-                            <th>Tipo Inmueble</th>
-                            <th>Categoria</th>
-                            <th>Zona</th>
-                            <th>Cant. Dormitorios</th>
-                            <th>Cochera</th>
-                            <th>Precio</th>
-                        </tr>
-                    </thead>
-                    <tbody class="listado_tabla">
-                        @foreach ($data as $criterio)
+      @elseif($pertenece === 'criteriosActivosFechas')
+    <div>
+        <table class="table table-striped w-100">
+            <thead class="listado_tabla_titulo">
+                <tr>
+                    <th>Cliente</th>
+                    <th>Telefono</th>
+                    <th>Codigo</th>
+                    <th>Direccion</th>
+                    <th>Tipo Inmueble</th>
+                    <th>Zona</th>
+                    <th>Cant. Dormitorios</th>
+                    <th>Cochera</th>
+                </tr>
+            </thead>
+            <tbody class="listado_tabla">
+                @foreach ($data as $criterio)
+                    @if($criterio->historialConsultas && count($criterio->historialConsultas) > 0)
+                        @foreach ($criterio->historialConsultas as $consulta)
                             <tr>
-                                <td>{{ $criterio->cliente->nombre ?? '-' }}</td>
-                                <td>{{ $criterio->cliente->telefono ?? '-' }}</td>
-                                <td>{{ $criterio->tipoInmueble->inmueble ?? '' }}</td>
-                                <td>{{ $criterio->id_categoria ?? '-' }}</td>
-                                <td>{{ $criterio->zona->name ?? '' }}</td>
-                                <td>{{ $criterio->cant_dormitorios ?? '-' }}</td>
-                                <td>{{ $criterio->cochera ?? '-' }}</td>
-                                <td>{{ $criterio->precio_hasta ?? '-' }}</td>
+                                @if($loop->first)
+                                    <td rowspan="{{ count($criterio->historialConsultas) }}">{{ $criterio->cliente->nombre ?? '-' }}</td>
+                                    <td rowspan="{{ count($criterio->historialConsultas) }}">{{ $criterio->cliente->telefono ?? '-' }}</td>
+                                @endif
+                                <td>{{ $consulta->codigo_consulta ?? '-' }}</td>
+                                <td>{{ $consulta->direccion ?? '-' }}</td>
+                                @if($loop->first)
+                                    <td rowspan="{{ count($criterio->historialConsultas) }}">{{ $criterio->tipoInmueble->inmueble ?? '-' }}</td>
+                                    <td rowspan="{{ count($criterio->historialConsultas) }}">{{ $criterio->zona->name ?? '-' }}</td>
+                                    <td rowspan="{{ count($criterio->historialConsultas) }}">{{ $criterio->cant_dormitorios ?? '-' }}</td>
+                                    <td rowspan="{{ count($criterio->historialConsultas) }}">{{ $criterio->cochera ?? '-' }}</td>
+                                @endif
                             </tr>
                         @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @endif
+                    @else
+                        <tr>
+                            <td>{{ $criterio->cliente->nombre ?? '-' }}</td>
+                            <td>{{ $criterio->cliente->telefono ?? '-' }}</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>{{ $criterio->tipoInmueble->inmueble ?? '-' }}</td>
+                            <td>{{ $criterio->zona->name ?? '-' }}</td>
+                            <td>{{ $criterio->cant_dormitorios ?? '-' }}</td>
+                            <td>{{ $criterio->cochera ?? '-' }}</td>
+                        </tr>
+                    @endif
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+@endif
     </div>
 
 </body>
