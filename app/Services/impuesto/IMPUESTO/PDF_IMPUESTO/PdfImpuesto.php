@@ -129,7 +129,7 @@ class PdfImpuesto
 
         // 6️⃣ Ordenar los grupos por número de broche
         ksort($grupos);
-        Log::info('grupos', ['grupos' => $grupos]);
+        //Log::info('grupos', ['grupos' => $grupos]);
 
         // 7️⃣ Calcular total general
         $totalGeneral = array_sum(array_column($grupos, 'total'));

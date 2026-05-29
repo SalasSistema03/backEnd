@@ -223,7 +223,7 @@ class ImpuestosController extends Controller
             $totalSalas = app(CargaImpuestoService::class)->sumarMontosSalasService($request->anio, $request->mes, $request->impuesto);
 
 
-            //Log::info('esta es la respuesta ', [$total, $totalSalas]);
+
             return response()->json([
                 'total' => $total,
                 'totalSalas' => $totalSalas,
@@ -330,7 +330,7 @@ class ImpuestosController extends Controller
 
     public function gasBajado(Request $request)
     {
-        //Log::info('gas bajado', [$request->all()]);
+        Log::info('gas bajado', [$request->all()]);
         return app(CargaImpuestoService::class)->gasBajado($request->all());
     }
 }
