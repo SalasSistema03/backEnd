@@ -271,20 +271,27 @@ class AsesoresController
 
     public function modificarDatosPersonales(Request $request)
     {
-        /*  Log::info('modificarDatosPersonales', ['request' => $request->all()]);
-        dd('hola'); */
         DB::beginTransaction();
 
         try {
             //obtenemos el cliente
             $cliente = Clientes::findOrFail($request->id_cliente);
+              $idUsuario = auth('api')->id();
+
+            $pertenece_inmobiliaria = 'N';
+            if($request->nombre_de_inmobiliaria !== null){
+                $pertenece_inmobiliaria = 'S';
+            }
 
             //actualizamos el cliente
             $cliente->update([
                 'nombre' => $request->nombre,
                 'telefono' => $request->telefono,
                 'observaciones' => $request->observaciones,
+                'pertenece_a_inmobiliaria' => $pertenece_inmobiliaria,
                 'nombre_de_inmobiliaria' => $request->nombre_de_inmobiliaria,
+                'usuario_id' => $idUsuario,
+
             ]);
 
             DB::commit();
@@ -292,13 +299,6 @@ class AsesoresController
             return response()->json([
                 'success' => true,
                 'message' => 'Cliente actualizado correctamente',
-                /*  'cliente' => [
-                    'id' => $cliente->id_cliente,
-                    'nombre' => $cliente->nombre,
-                    'telefono' => $cliente->telefono,
-                    'observaciones' => $cliente->observaciones,
-                    'nombre_de_inmobiliaria' => $cliente->nombre_de_inmobiliaria
-                ] */
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -314,9 +314,7 @@ class AsesoresController
     public function modificarCriterio(Request $request)
     {
 
-        //Log::info('modificarCriterio', ['request' => $request->all()]);
 
-        /*dd('hola'); */
         //guardamos el criterio real, que no es el mismo que el que llega por funcion
         $criterio = $request->id_criterio_venta;
         //iniciamos la transaccion
@@ -336,29 +334,11 @@ class AsesoresController
             ]);
             //confirmamos la transaccion
             DB::commit();
-            /*  // Get the updated criterio with relationships
-            $criterioActualizado = CriterioBusquedaVenta::with('tipoInmueble')->find($criterio);
-
-            // Get the tipo_inmueble relationship data
-            $tipoInmueble = $criterioActualizado->tipoInmueble;
-
-            // Format the date
-            $fechaFormateada = \Carbon\Carbon::parse($criterioActualizado->fecha_criterio_venta)->format('d/m/Y'); */
 
             // Return the updated data
             return response()->json([
                 'success' => true,
                 'message' => 'Criterio actualizado correctamente',
-                /* 'criterio' => [
-                    'id_criterio_venta' => $criterioActualizado->id_criterio_venta,
-                    'tipo_inmueble' => $tipoInmueble ? $tipoInmueble->inmueble : 'Tipo no especificado',
-                    'cant_dormitorios' => $criterioActualizado->cant_dormitorios,
-                    'estado_criterio_venta' => $criterioActualizado->estado_criterio_venta,
-                    'fecha_formateada' => $fechaFormateada,
-                    'precio_hasta' => $criterioActualizado->precio_hasta,
-                    'id_categoria' => $criterioActualizado->id_categoria,
-                    'tipo_inmueble_id' => $criterioActualizado->id_tipo_inmueble
-                ] */
             ]);
         } catch (\Exception $e) {
             //si hay error, deshacemos la transaccion
