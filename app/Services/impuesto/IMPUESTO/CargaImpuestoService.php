@@ -456,7 +456,7 @@ class CargaImpuestoService
     }
     public function sumarMontosService($anio, $mes, $impuesto)
     {
-        //Log::info('llego al service', [$anio, $mes, $impuesto]);
+
         // Obtener registros del período
         $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
         $registros = $modelo::where('periodo_anio', $anio)
@@ -513,7 +513,7 @@ class CargaImpuestoService
 
     public function sumarMontosSalasService($anio, $mes, $impuesto)
     {
-        //Log::info('llego al service', [$anio, $mes, $impuesto]);
+
         // Obtener registros del período
         $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
         $registros = $modelo::where('periodo_anio', $anio)
@@ -561,7 +561,7 @@ class CargaImpuestoService
         $topePorBroche = $totalMontoBroche->total / $cantidadBroches;
 
 
-        //Log::info('dia', ['dia' => $dia]);
+
         //Filtrar registros del año y mes indicados
         $registrosFiltrados = [];
 
@@ -582,7 +582,7 @@ class CargaImpuestoService
 
         foreach ($registrosFiltrados as $registro) {
             $folios = json_decode($registro->compartidos, true);
-            //Log::info('Foliosssssss: ' . json_encode($registro));
+
 
             $foliosActivos = [];
             foreach ($folios as $f) {
@@ -629,7 +629,26 @@ class CargaImpuestoService
             return $a['folio'] <=> $b['folio'];
         });
 
-        // Paso 4: Asignar secuencialmente a broches
+        // Antes del Paso 4: Determinar el offset de broche basado en broches ya bajados
+        $offsetBroche = 0;
+
+        // Buscar el último num_broche con bajado = 'S' para este período/día
+        $ultimoBrocheAsignado = Gas_carga::whereYear('fecha_vencimiento', $anio)
+            ->whereMonth('fecha_vencimiento', $mes)
+            ->where('bajado', 'S')
+            ->whereNotNull('num_broche')
+            ->orderByRaw("CAST(SUBSTRING_INDEX(num_broche, '°', -1) AS UNSIGNED) DESC")
+            ->value('num_broche');
+
+        if ($ultimoBrocheAsignado) {
+            // Extraer el número del string "Dia X - Broche N°Y"
+            preg_match('/N°(\d+)/', $ultimoBrocheAsignado, $matches);
+            if (!empty($matches[1])) {
+                $offsetBroche = (int)$matches[1]; // Si el último fue N°1, offset = 1
+            }
+        }
+
+        // Paso 4: Asignar secuencialmente a broches (con offset)
         $broches = [];
         for ($i = 0; $i < $cantidadBroches; $i++) {
             $broches[$i] = [
@@ -644,15 +663,15 @@ class CargaImpuestoService
         foreach ($grupos as $grupo) {
             $importeGrupo = $grupo['importe'];
 
-            // Si el broche actual ya llegó al tope, pasamos al siguiente
             if ($brocheActual < $cantidadBroches - 1 && $importeAcumulado >= $topePorBroche) {
                 $brocheActual++;
                 $importeAcumulado = 0;
             }
 
-
             foreach ($grupo['items'] as $registro) {
-                $registro->num_broche = 'Dia ' . $dia . ' - Broche N°' . ($brocheActual + 1);
+                // Aplicar el offset al número de broche
+                $numeroBroche = $brocheActual + 1 + $offsetBroche;
+                $registro->num_broche = 'Dia ' . $dia . ' - Broche N°' . $numeroBroche;
 
                 $importe = (float) str_replace(',', '.', $registro->importe);
                 $broches[$brocheActual]['importe'] += $importe;
@@ -661,6 +680,7 @@ class CargaImpuestoService
 
             $importeAcumulado += $importeGrupo;
         }
+
 
         // Paso 5: Verificar resumen por broche
         $totalFinal = 0;
@@ -711,7 +731,7 @@ class CargaImpuestoService
 
         foreach ($registrosFiltrados as $registro) {
             $folios = json_decode($registro->compartidos, true);
-            //Log::info('Foliosssssss: ' . json_encode($registro));
+
 
             $foliosActivos = [];
             foreach ($folios as $f) {
@@ -837,7 +857,7 @@ class CargaImpuestoService
     //Si el registro está bajado en "S", lo descartamos
     public function guardarDistribucionBrocheSALAS($anio, $mes, $impuesto)
     {
-        //Log::info('inicio servicio');
+
         $modelo = $impuesto === 'tgi' ? Tgi_carga::class : Agua_carga::class;
         $registros = $modelo::where('periodo_anio', $anio)
             ->where('periodo_mes', $mes)
@@ -864,7 +884,7 @@ class CargaImpuestoService
 
             return false;
         });
-        //Log::info('medio servicio');
+
         try {
             $usuarioId = auth('api')->id();
             foreach ($registrosFiltrados as $registro) {
@@ -875,7 +895,7 @@ class CargaImpuestoService
             Log::error('Error al actualizar num_broche: ' . $e->getMessage());
             throw $e;
         }
-        //Log::info('fin servicio');
+
         return true;
     }
 
@@ -966,7 +986,7 @@ class CargaImpuestoService
             ->distinct()
             ->get();
 
-        //Log::info('datos', ['datos' => $datos]);
+
         return $datos;
     }
 
@@ -981,6 +1001,7 @@ class CargaImpuestoService
     {
         $usuarioId = auth('api')->id();
         Gas_carga::where('fecha_vencimiento', $datos['fecha_vencimiento'])
+            ->where('num_broche', '!=', null)
             ->update(['bajado' => 'S', 'controlado' => $usuarioId]);
         return response()->json(['message' => 'Gas bajado correctamente'], 200);
     }

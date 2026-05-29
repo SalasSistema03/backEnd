@@ -23,8 +23,20 @@
             </div>
 
             <div class="col-9 text-end">
-                Listado {{ $sector }}
+                @if ($pertenece === 'consultasIngresadas')
+                    Listado Consultas Ingresadas
+                @else
+                    Listado {{ $sector }}
+                @endif
                 <br>
+                    {{-- Titulo de Consultas Ingresadas --}}
+                @if ($pertenece === 'consultasIngresadas')
+                    <span class="listado_texto_titulo">Total Consultas: {{ $total_criterios ?? '-' }} </span>
+                    @foreach ($conteoAsesores as $nombre => $cantidad)
+                        <span class="listado_texto_titulo">{{ $nombre }}: {{ $cantidad }}</span>
+                    @endforeach
+                @endif
+
                 @isset($contadorPropiedades)
                     Total de Propiedades: {{ $contadorPropiedades }}
                 @endisset
@@ -615,57 +627,76 @@
                 </table>
 
             </div>
-      @elseif($pertenece === 'criteriosActivosFechas')
-    <div>
-        <table class="table table-striped w-100">
-            <thead class="listado_tabla_titulo">
-                <tr>
-                    <th>Cliente</th>
-                    <th>Telefono</th>
-                    <th>Codigo</th>
-                    <th>Direccion</th>
-                    <th>Tipo Inmueble</th>
-                    <th>Zona</th>
-                    <th>Cant. Dormitorios</th>
-                    <th>Cochera</th>
-                </tr>
-            </thead>
-            <tbody class="listado_tabla">
-                @foreach ($data as $criterio)
-                    @if($criterio->historialConsultas && count($criterio->historialConsultas) > 0)
-                        @foreach ($criterio->historialConsultas as $consulta)
-                            <tr>
-                                @if($loop->first)
-                                    <td rowspan="{{ count($criterio->historialConsultas) }}">{{ $criterio->cliente->nombre ?? '-' }}</td>
-                                    <td rowspan="{{ count($criterio->historialConsultas) }}">{{ $criterio->cliente->telefono ?? '-' }}</td>
-                                @endif
-                                <td>{{ $consulta->codigo_consulta ?? '-' }}</td>
-                                <td>{{ $consulta->direccion ?? '-' }}</td>
-                                @if($loop->first)
-                                    <td rowspan="{{ count($criterio->historialConsultas) }}">{{ $criterio->tipoInmueble->inmueble ?? '-' }}</td>
-                                    <td rowspan="{{ count($criterio->historialConsultas) }}">{{ $criterio->zona->name ?? '-' }}</td>
-                                    <td rowspan="{{ count($criterio->historialConsultas) }}">{{ $criterio->cant_dormitorios ?? '-' }}</td>
-                                    <td rowspan="{{ count($criterio->historialConsultas) }}">{{ $criterio->cochera ?? '-' }}</td>
-                                @endif
-                            </tr>
-                        @endforeach
-                    @else
+        @elseif($pertenece === 'consultasIngresadas')
+            <div>
+                <table class="table table-striped w-100">
+                    <thead class="listado_tabla_titulo">
                         <tr>
-                            <td>{{ $criterio->cliente->nombre ?? '-' }}</td>
-                            <td>{{ $criterio->cliente->telefono ?? '-' }}</td>
-                            <td>-</td>
-                            <td>-</td>
-                            <td>{{ $criterio->tipoInmueble->inmueble ?? '-' }}</td>
-                            <td>{{ $criterio->zona->name ?? '-' }}</td>
-                            <td>{{ $criterio->cant_dormitorios ?? '-' }}</td>
-                            <td>{{ $criterio->cochera ?? '-' }}</td>
+                            <th>Cliente</th>
+                            <th>Telefono</th>
+                            <th>Codigo</th>
+                            <th>Direccion</th>
+                            <th>Tipo Inmueble</th>
+                            <th>Cant. Dormitorios</th>
+                            <th>Zona</th>
+                            <th>Cochera</th>
+                            <th>Asesor</th>
                         </tr>
-                    @endif
-                @endforeach
-            </tbody>
-        </table>
-    </div>
-@endif
+                    </thead>
+                    <tbody class="listado_tabla">
+                        @foreach ($data as $criterio)
+                            @php $historial = $criterio->historialConsultas ?? []; @endphp
+
+                            @if ($historial && count($historial) > 0)
+                                @foreach ($historial as $consulta)
+                                    <tr>
+                                        @if ($loop->first)
+                                            <td rowspan="{{ count($historial) }}">
+                                                {{ $criterio->cliente->nombre ?? '-' }}
+                                            </td>
+                                            <td rowspan="{{ count($historial) }}">
+                                                {{ $criterio->cliente->telefono ?? '-' }}
+                                            </td>
+                                        @endif
+                                        <td>{{ $consulta->codigo_consulta ?? '-' }}</td>
+                                        <td>{{ $consulta->direccion ?? '-' }}</td>
+                                        @if ($loop->first)
+                                            <td rowspan="{{ count($historial) }}">
+                                                {{ $criterio->tipoInmueble->inmueble ?? '-' }}
+                                            </td>
+                                            <td rowspan="{{ count($historial) }}">
+                                                {{ $criterio->cant_dormitorios ?? '-' }}
+                                            </td>
+                                            <td rowspan="{{ count($historial) }}">
+                                                {{ $criterio->zona->name ?? '-' }}
+                                            </td>
+                                            <td rowspan="{{ count($historial) }}">
+                                                {{ $criterio->cochera ?? '-' }}
+                                            </td>
+                                            <td rowspan="{{ count($historial) }}">
+                                                {{ $criterio->cliente->asesor->usuario->username ?? '-' }}
+                                            </td>
+                                        @endif
+                                    </tr>
+                                @endforeach
+                            @else
+                                <tr>
+                                    <td>{{ $criterio->cliente->nombre ?? '-' }}</td>
+                                    <td>{{ $criterio->cliente->telefono ?? '-' }}</td>
+                                    <td>-</td>
+                                    <td>-</td>
+                                    <td>{{ $criterio->tipoInmueble->inmueble ?? '-' }}</td>
+                                    <td>{{ $criterio->cant_dormitorios ?? '-' }}</td>
+                                    <td>{{ $criterio->zona->name ?? '-' }}</td>
+                                    <td>{{ $criterio->cochera ?? '-' }}</td>
+                                    <td>{{ $criterio->cliente->asesor->usuario->username ?? '-' }}</td>
+                                </tr>
+                            @endif
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
     </div>
 
 </body>

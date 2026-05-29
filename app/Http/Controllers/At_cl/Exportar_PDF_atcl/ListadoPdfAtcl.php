@@ -382,8 +382,7 @@ class ListadoPdfAtcl
      */
     public function listadoPropiedad(Request $request)
     {
-        Log::info('request', $request->toArray());
-        //dd($request->all());
+
         $informacionMostrar = $request->informacionMostrar;
         $pertenece = $request->pertenece;
         $username = '-';
@@ -635,10 +634,11 @@ class ListadoPdfAtcl
             $criterios_vendedor = $query->with(['tipoInmueble', 'zona'])->orderBy('id_categoria', 'desc')->get();
             $html = view('pdfs.atcl.listadoPropiedad', compact('criterios_vendedor', 'username', 'pertenece', 'sector'))->render();
         }
-        if ($pertenece === 'criteriosActivosFechas') {
+        if ($pertenece === 'consultasIngresadas') {
             $data = CriterioBusquedaVenta::query()
-            ->where('estado_criterio_venta', 'Activo')
-            ->with(['tipoInmueble', 'zona', 'cliente', 'historialConsultas']);
+                ->where('estado_criterio_venta', 'Activo')
+                ->with(['tipoInmueble', 'zona', 'cliente.asesor.usuario', 'historialConsultas']);
+
             $fechaDesde = $request->desde;
             $fechaHasta = $request->hasta;
 
@@ -654,10 +654,24 @@ class ListadoPdfAtcl
             }
 
             $data = $data->orderBy('id_categoria', 'desc')->get();
-            Log::info('dataaaa', [$data]);
 
 
-            $html = view('pdfs.atcl.listadoPropiedad', compact('data', 'username', 'pertenece', 'sector'))->render();
+            // 1. Contamos el total de criterios directamente usando el método count() de la colección
+            $total_criterios = $data->count();
+
+            // 2. Agrupamos y contamos cuántos criterios tiene cada asesor
+            $conteoAsesores = [];
+
+            // Agrupamos la colección por el username del asesor de forma segura
+            $agrupadosPorAsesor = $data->groupBy(function ($criterio) {
+                return $criterio->cliente->asesor->usuario->username ?? 'Sin Asesor';
+            });
+
+            foreach ($agrupadosPorAsesor as $username => $criterios) {
+                $conteoAsesores[$username] = $criterios->count();
+            }
+
+            $html = view('pdfs.atcl.listadoPropiedad', compact('data', 'username', 'pertenece', 'sector', 'total_criterios', 'conteoAsesores'))->render();
         }
 
 
