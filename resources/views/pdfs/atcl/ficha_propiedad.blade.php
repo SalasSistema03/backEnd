@@ -165,7 +165,7 @@
                             💲 VALOR
                         </div>
                         <div class="col-12 ficha-propiedad_contenido_valor text-center">
-                            @if ($ubicacion == "'A'")
+                            @if ($ubicacion == "'A'" || $ubicacion == "'AR'")
                                 $ {{ $propiedad['precio_actual']['moneda_alquiler_pesos'] ?? '' }}
                             @else
                                 U$S {{ $propiedad['precio_actual']['moneda_venta_dolar'] ?? '' }}

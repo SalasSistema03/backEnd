@@ -152,11 +152,11 @@ class PadronImpuestoService
 
         // Claves únicas
         $existente = collect($padronExistente)->mapWithKeys(function ($item) {
-            return [$item->folio . '-' . $item->partida => $item];
+            return [$item->folio . '-' . ltrim($item->partida, '0') => $item];
         });
 
         $nuevo = collect($nuevoPadron)->mapWithKeys(function ($item) {
-            return [$item->folio . '-' . $item->partida => $item];
+            return [$item->folio . '-' . ltrim($item->partida, '0') => $item];
         });
 
         // 1. Nuevos registros
