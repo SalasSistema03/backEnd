@@ -384,7 +384,7 @@ class PropiedadMediaService
             $paths = [
                 'imagenes' => "\\\\10.10.10.151\\compartida\\PROPIEDADES\\{$idFolder}\\",
                 'videos' => "\\\\10.10.10.153\\compartida\\VIDEOS\\{$idFolder}\\",
-                'pdfs' => "\\\\10.10.10.152\\compartida\\DOCUMENTACION\\{$idFolder}\\"
+                'documentos' => "\\\\10.10.10.152\\compartida\\DOCUMENTACION\\{$idFolder}\\"
             ];
         //paths de local
        /*  $paths = [
@@ -423,7 +423,7 @@ class PropiedadMediaService
                 }
             }
             // Procesar nuevos documentos
-            else if ($request->has('documentos_nuevos_data') && $request->hasFile('documentos_nuevos')) {
+            if ($request->has('documentos_nuevos_data') && $request->hasFile('documentos_nuevos')) {
                 //Log::info('entro a documentos nuevos', ['documentos_nuevos_data' => $request->documentos_nuevos_data, 'documentos_nuevos' => $request->file('documentos_nuevos')]);
                 $documentosNuevos = $request->file('documentos_nuevos');
                 //Log::info('documentosNuevoInfo', ['documentosNuevos' => $documentosNuevos]);
@@ -460,7 +460,7 @@ class PropiedadMediaService
                 }
             }
             // Procesar nuevos videos
-            else if ($request->has('videos_nuevos_data') && $request->hasFile('videos_nuevos')) {
+            if ($request->has('videos_nuevos_data') && $request->hasFile('videos_nuevos')) {
                 $videosNuevos = $request->file('videos_nuevos');
                 $VideosData = json_decode($request->videos_nuevos_data, true);
 
@@ -516,6 +516,7 @@ class PropiedadMediaService
             'image/tiff' => 'tiff',
             'image/x-icon' => 'ico',
             'application/pdf' => 'pdf',
+            'video/mp4' => 'mp4',
         ];
 
         return $mimeToExt[$mimeType] ?? null;
