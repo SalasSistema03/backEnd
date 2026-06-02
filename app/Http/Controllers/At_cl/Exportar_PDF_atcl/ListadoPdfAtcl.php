@@ -382,7 +382,7 @@ class ListadoPdfAtcl
      */
     public function listadoPropiedad(Request $request)
     {
-
+//Log::info('Entrando a listadoPropiedad');
         $informacionMostrar = $request->informacionMostrar;
         $pertenece = $request->pertenece;
         $username = '-';
@@ -391,6 +391,7 @@ class ListadoPdfAtcl
 
         if ($pertenece === 'listadoPropiedades') {
 
+        //Log::info('Filtros recibidos: ' . json_encode($request->all()));
             //$orden = $request->orden;
 
             // Usar el filtro unificado (el ordenamiento se aplica dentro, excepto precio)

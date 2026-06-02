@@ -87,10 +87,17 @@ class FiltrosPdfService
         if (!empty($filtro['zona']) && is_array($filtro['zona'])) {
             $zonas = array_values(array_filter($filtro['zona'], fn($v) => $v !== null && $v !== ''));
         } elseif (!empty($filtro['zona_id'])) {
-            $zonas = [$filtro['zona_id']];
+            $zonas = is_array($filtro['zona_id'])
+                ? $filtro['zona_id']
+                : [$filtro['zona_id']];
         }
 
         if (!empty($zonas)) {
+            Log::info('Filtro zona', [
+                'zona' => $filtro['zona'] ?? null,
+                'zona_id' => $filtro['zona_id'] ?? null,
+                'zonas' => $zonas,
+            ]);
             $query->whereIn('id_zona', $zonas);
         }
     }
@@ -204,7 +211,7 @@ class FiltrosPdfService
 
 
 
-/**
+    /**
      * Orden por precio (debe aplicarse después de obtener la colección)
      *
      * @param \Illuminate\Support\Collection $propiedades
