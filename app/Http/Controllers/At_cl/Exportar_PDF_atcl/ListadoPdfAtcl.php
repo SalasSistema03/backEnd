@@ -333,6 +333,8 @@ class ListadoPdfAtcl
         }
 
 
+
+
         return response()->streamDownload(function () use ($html, $username, $orientacion) {
             echo \Spatie\Browsershot\Browsershot::html($html)
                 ->format('A4')

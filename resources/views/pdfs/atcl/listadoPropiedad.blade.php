@@ -25,6 +25,8 @@
             <div class="col-9 text-end">
                 @if ($pertenece === 'consultasIngresadas')
                     Listado Consultas Ingresadas
+                @elseif($pertenece === 'conversaciones')
+                    Listado de Conversaciones
                 @else
                     Listado {{ $sector }}
                 @endif
@@ -738,14 +740,14 @@
                                     <!-- Historial de conversaciones: usando una lista estilizada -->
                                     <hr>
                                     @if ($item['historial_total']->count() > 0)
-                                        <div class="historial-conversaciones-titulo">
-                                            Historialde Conversaciones:
+                                        <div class="historial-conversaciones-titulo_historial">
+                                            Historial de Conversaciones:
                                         </div>
                                         <div class="contenedor-conversaciones pt-1">
                                             @foreach ($item['historial_total'] as $historial)
                                                 <div class="listado-contenedor row">
                                                     <div class="col-9 parrafo-listado-conversaciones">
-                                                        {{ $historial->mensaje }}
+                                                       - {{ $historial->mensaje }}
                                                     </div>
                                                     <div class="col-3 fecha-listado-conversaciones">
                                                         {{ $historial->fecha_hora }}</div>
@@ -754,13 +756,17 @@
 
 
                                                     @if ($historial->devolucion)
-                                                        <p class="devolucion-listado-conversaciones">
-                                                            {{ $historial->devolucion }} -
-                                                            <small>{{ $historial->fecha_devolucion }}</small>
-                                                            DEVOLUCION
-                                                        </p>
+                                                        <div class="row ">
+
+                                                            <div class="devolucion-listado-conversaciones col-9 px-5">
+                                                                Devolucion:{{ $historial->devolucion }}
+                                                            </div>
+                                                            <div class=" devolucion-listado-conversaciones fecha-devolucion-conversacion col-3 px-3">{{ $historial->fecha_devolucion }}</div>
+
+                                                        </div>
+
                                                     @endif
-                                                    <hr class="py-0 my-0">
+
                                                 </div>
                                             @endforeach
                                         </div>

@@ -94,11 +94,7 @@ class FiltrosPdfService
         }
 
         if (!empty($zonas)) {
-            Log::info('Filtro zona', [
-                'zona' => $filtro['zona'] ?? null,
-                'zona_id' => $filtro['zona_id'] ?? null,
-                'zonas' => $zonas,
-            ]);
+
             $query->whereIn('id_zona', $zonas);
         }
     }

@@ -175,19 +175,38 @@ table tbody tr {
 .contenedor-listado-conversaciones .listado_conversaciones_titulo {
   color: rgba(0, 175, 154, 0.96);
   font-size: 1.3vh;
+  font-weight: 700;
 }
 .contenedor-listado-conversaciones .listado_conversaciones_titulo_datos {
   color: black;
   font-size: 1vh;
 }
-.contenedor-listado-conversaciones .historial-conversaciones-titulo {
+.contenedor-listado-conversaciones .historial-conversaciones-titulo_historial {
   font-weight: 700;
   font-size: 1.3vh;
+  color: black;
+}
+.contenedor-listado-conversaciones .parrafo-listado-conversaciones {
+  font-size: 1.1vh;
 }
 
 .titulo-contenedor-listado-conversaciones {
   background-color: rgb(0, 85, 185);
-  border-radius: 5px;
+  border-radius: 1px;
   color: white;
   font-size: 1.3vh;
+  font-weight: 700;
+}
+
+.fecha-listado-conversaciones {
+  color: black;
+  font-size: 1vh;
+}
+
+.devolucion-listado-conversaciones {
+  color: grey;
+  font-size: 1vh;
+}
+.devolucion-listado-conversaciones .fecha-devolucion-conversacion {
+  color: grey;
 }/*# sourceMappingURL=pdfStyles.css.map */
