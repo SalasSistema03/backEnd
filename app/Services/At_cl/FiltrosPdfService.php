@@ -35,6 +35,7 @@ class FiltrosPdfService
         $this->aplicarFiltroZona($query, $filtros);
         $this->aplicarFiltroTipo($query, $filtros);
         $this->aplicarFiltroEstadoPorSector($query, $filtros, $sector);
+        $this->aplicarFiltroCartel($query,$filtros);
 
         $this->aplicarFiltroImportePorSector($query, $filtros, $sector);
         $this->aplicarOrdenPorSector($query, $filtros, $sector);
@@ -106,6 +107,13 @@ class FiltrosPdfService
     {
         if (!empty($filtros['tipo'])) {
             $query->where('id_inmueble', $filtros['tipo']);
+        }
+    }
+
+    private function aplicarFiltroCartel(Builder $query, array $filtros): void
+    {
+        if (!empty($filtros['cartel'])) {
+            $query->where('cartel', $filtros['cartel']);
         }
     }
 

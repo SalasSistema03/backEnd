@@ -697,67 +697,85 @@
                 </table>
             </div>
         @elseif($pertenece === 'conversaciones')
-            <div class="row mx-3">
-                <div class="col-md-12">
-                    <div class="container">
+            <div class="">
 
-                        @foreach ($datosTotales as $idCliente => $items)
-                            {{-- Obtener el nombre del cliente del primer elemento --}}
-                            @php
-                                $cliente = $items[0]['cliente'];
-                            @endphp
+                @foreach ($datosTotales as $idCliente => $items)
+                    {{-- Obtener el nombre del cliente del primer elemento --}}
+                    @php
+                        $cliente = $items[0]['cliente'];
+                    @endphp
 
-                            <div class="contenedor-listado-conversaciones">
-                                <div class="titulo-contenedor-listado-conversaciones">
-                                    <p class="titulo-nombre-cliente">{{ strtoupper($cliente->nombre) }}</p>
-                                </div>
-                                <div style="padding: 15px;">
-                                    <!-- Lista de items (criterios de búsqueda) para este cliente -->
-                                    @foreach ($items as $item)
-                                        <div class="item-listado-conversaciones">
-                                            <p class="criterio-conversacion">
-                                                <strong style="color: #555;">Fecha:</strong>&nbsp;
-                                                {{ $item['cliente']->fecha_criterio_venta ?? '-' }} &nbsp;&nbsp;&nbsp;
-                                                <strong style="color: #555;">Tipo Inmueble:</strong>&nbsp;
-                                                {{ $item['cliente']->inmueble ?? '-' }} &nbsp;&nbsp;&nbsp;
-                                                <strong style="color: #555;">Cant. Dormitorios:</strong>&nbsp;
-                                                {{ $item['cliente']->cant_dormitorios ?? '-' }} &nbsp;&nbsp;&nbsp;
-                                                <strong style="color: #555;">Precio Hasta:</strong>&nbsp;&nbsp;&nbsp;
-                                                {{ $item['cliente']->precio_hasta ?? '-' }}
-                                            </p>
+                    <div class="contenedor-listado-conversaciones">
+                        <div class="titulo-contenedor-listado-conversaciones px-2 py-0 m-0">
+                            <p class="">{{ strtoupper($cliente->nombre) }}</p>
+                        </div>
+                        <div class = "px-2 my-0">
+                            <!-- Lista de items (criterios de búsqueda) para este cliente -->
+                            @foreach ($items as $item)
+                                <div class = "">
+                                    <div class = "">
 
-                                            <!-- Historial de conversaciones: usando una lista estilizada -->
-                                            @if ($item['historial_total']->count() > 0)
-                                                <h5 class="historial-conversaciones">Historial
-                                                    de Conversaciones:</h5>
-                                                <ul class="contenedor-conversaciones">
-                                                    @foreach ($item['historial_total'] as $historial)
-                                                        <li class="listado-contenedor">
-                                                            <p class="parrafo-listado-conversaciones">
-                                                                {{ $historial->mensaje }}</p>
-                                                            <small class="fecha-listado-conversaciones">
-                                                                {{ $historial->fecha_hora }}</small>
-                                                            @if ($historial->devolucion)
-                                                                <p class="devolucion-listado-conversaciones">
-                                                                    {{ $historial->devolucion }} -
-                                                                    <small>{{ $historial->fecha_devolucion }}</small>
-                                                                </p>
-                                                            @endif
-                                                        </li>
-                                                    @endforeach
-                                                </ul>
-                                            @else
-                                                <p class="sin-conversaciones">No hay
-                                                    conversaciones registradas.</p>
-                                            @endif
+                                        <strong class = "listado_conversaciones_titulo">Fecha:</strong>&nbsp;
+                                        <span
+                                            class = "listado_conversaciones_titulo_datos">{{ $item['cliente']->fecha_criterio_venta ?? '-' }}</span>
+                                        &nbsp;&nbsp;&nbsp;
+                                        <strong class = "listado_conversaciones_titulo">Tipo
+                                            Inmueble:</strong>&nbsp;
+                                        <span
+                                            class = "listado_conversaciones_titulo_datos">{{ $item['cliente']->inmueble ?? '-' }}</span>
+                                        &nbsp;&nbsp;&nbsp;
+                                        <strong class = "listado_conversaciones_titulo">Cant.
+                                            Dormitorios:</strong>&nbsp;
+                                        <span
+                                            class = "listado_conversaciones_titulo_datos">{{ $item['cliente']->cant_dormitorios ?? '-' }}</span>
+                                        &nbsp;&nbsp;&nbsp;
+                                        <strong class = "listado_conversaciones_titulo">Precio
+                                            Hasta:</strong>&nbsp;&nbsp;&nbsp;
+                                        <span
+                                            class = "listado_conversaciones_titulo_datos">{{ $item['cliente']->precio_hasta ?? '-' }}</span>
+                                    </div>
+
+                                    <!-- Historial de conversaciones: usando una lista estilizada -->
+                                    <hr>
+                                    @if ($item['historial_total']->count() > 0)
+                                        <div class="historial-conversaciones-titulo">
+                                            Historialde Conversaciones:
                                         </div>
-                                    @endforeach
+                                        <div class="contenedor-conversaciones pt-1">
+                                            @foreach ($item['historial_total'] as $historial)
+                                                <div class="listado-contenedor row">
+                                                    <div class="col-9 parrafo-listado-conversaciones">
+                                                        {{ $historial->mensaje }}
+                                                    </div>
+                                                    <div class="col-3 fecha-listado-conversaciones">
+                                                        {{ $historial->fecha_hora }}</div>
+
+
+
+
+                                                    @if ($historial->devolucion)
+                                                        <p class="devolucion-listado-conversaciones">
+                                                            {{ $historial->devolucion }} -
+                                                            <small>{{ $historial->fecha_devolucion }}</small>
+                                                            DEVOLUCION
+                                                        </p>
+                                                    @endif
+                                                    <hr class="py-0 my-0">
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <p class="sin-conversaciones">No hay
+                                            conversaciones registradas.</p>
+                                    @endif
                                 </div>
-                            </div>
-                        @endforeach
+                            @endforeach
+                        </div>
                     </div>
-                </div>
+                    <br>
+                @endforeach
             </div>
+
         @endif
     </div>
 
