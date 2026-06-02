@@ -165,4 +165,16 @@ table tbody tr {
   text-decoration: none;
   color: rgb(0, 85, 185) !important;
   font-size: 6px;
+}
+
+.contenedor-listado-conversaciones {
+  border: 1px solid grey;
+  border-radius: 5px;
+  margin: 5px;
+}
+
+.titulo-contenedor-listado-conversaciones {
+  background-color: rgb(0, 85, 185);
+  border-radius: 5px;
+  color: white;
 }/*# sourceMappingURL=pdfStyles.css.map */
