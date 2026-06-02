@@ -27,7 +27,6 @@ class CargaImpuestoService
 
     public function PadronCarga(Request $request)
     {
-
         // Recuperamos los filtros desde sesión si no vienen en el request
         $anio = $request->input('anio');
         $mes = $request->input('mes');
@@ -37,20 +36,27 @@ class CargaImpuestoService
         $busqueda = $request->input('busqueda');
         $dia = $request->input('dia');
 
+        // Obtenemos la consulta base según el tipo de impuesto
         $query = $this->obtenerRegistros($request->impuesto);
 
+        // Verificamos si se envió un día válido
         $diaPresente = !is_null($dia) && $dia !== '';
 
+        // Filtro especial para el impuesto gas que permite filtrar por día exacto
         if ($request->impuesto === 'gas' && $diaPresente) {
+            // Validamos que año y mes sean obligatorios cuando se filtra por día
             if (!$anio || !$mes) {
                 return response()->json([
                     'error' => 'Para filtrar por día en gas, los campos anio y mes son obligatorios.'
                 ], 422);
             }
 
+            // Construimos la fecha completa usando Carbon
             $fechaFiltro = Carbon::createFromDate((int) $anio, (int) $mes, (int) $dia)->format('Y-m-d');
+            // Filtramos por fecha exacta de vencimiento
             $query->whereDate('fecha_vencimiento', $fechaFiltro);
         } else {
+            // Filtro estándar por año y mes (sin día específico)
             if ($anio) {
                 $query->where('periodo_anio', $anio);
             }
@@ -60,8 +66,7 @@ class CargaImpuestoService
             }
         }
 
-
-
+        // Filtro por folio (busca tanto en relación padron como en JSON embebido)
         if ($folio) {
             $query->where(function ($q) use ($folio) {
                 // Buscar en padron
@@ -74,27 +79,33 @@ class CargaImpuestoService
             });
         }
 
+        // Filtro por estado del padrón
         if ($estado) {
             $query->whereHas('padron', function ($sub) use ($estado) {
                 $sub->where('estado', $estado);
             });
         }
 
+        // Filtro por registros dados de baja o no
         if ($bajado) {
+            // Si es 'N' traemos los que no están dados de baja (incluye NULL)
             if ($bajado === 'N') {
                 $query->where(function ($q) {
                     $q->whereNull('bajado')
                         ->orWhere('bajado', '=', 'N');
                 });
             } else {
+                // Si es 'S' traemos solo los dados de baja
                 $query->where(function ($q) {
                     $q->where('bajado', '=', 'S');
                 });
             }
         }
 
+        // Búsqueda general por partida o clave
         if ($busqueda) {
             $query->where(function ($q) use ($busqueda) {
+                // Buscar en la relación padron por partida o clave
                 $q->whereHas('padron', function ($sub) use ($busqueda) {
                     $sub->where('partida', 'like', "%{$busqueda}%")
                         ->orWhere('clave', 'like', "%{$busqueda}%");
@@ -105,24 +116,27 @@ class CargaImpuestoService
             });
         }
 
-        $registros = $query->get();
+        // Ejecutamos la consulta y obtenemos todos los registros
+        $registros = $query->get()
+            // Ordenamos por número de broche (manejando valores nulos)
+            ->sortBy(function ($item) {
+                return $item->num_broche ?? 0;
+            })
+            // Reindexamos la colección después del ordenamiento
+            ->values();
 
+        // Retornamos los resultados en formato JSON
         return json_encode($registros);
     }
+
 
     //Este metodo obtiene el registro de la tabla tgi_padron filtrado por folio y empresa
     public function obtenerRegistroPadronManual($folio, $empresa, $impuesto)
     {
-        Log::info('obtenerRegistroPadronManual', [
-            'folio' => $folio,
-            'empresa' => $empresa,
-            'impuesto' => $impuesto
-        ]);
         $modelo = $this->obtenerModeloPadronPorImpuesto($impuesto);
         $resultado = $modelo::where('folio', $folio)
             ->where('empresa', $empresa)
             ->get();
-        Log::info('resultado', [$resultado]);
 
         return $resultado;
     }
@@ -133,7 +147,6 @@ class CargaImpuestoService
         try {
             // Buscar en la tabla tgi_padron por el campo 'partida'
             $partida = trim($partida); // elimina espacios
-            /* $modelo = $impuesto === 'tgi' ? Tgi_padron::class : Agua_padron::class; */
 
             $modelo = $this->obtenerModeloPadronPorImpuesto($impuesto);
             $tgiPadron = $modelo::where('partida', $partida)->first();
@@ -141,7 +154,6 @@ class CargaImpuestoService
             return $tgiPadron; // Retorna el registro encontrado o null si no existe
         } catch (\Exception $e) {
             throw $e;
-            Log::error('Error al buscar el impuesto por partida: ' . $e->getMessage());
         }
     }
 
@@ -212,7 +224,6 @@ class CargaImpuestoService
 
         try {
             $listaCargaCompleta = $this->obtenerRegistros($request->impuesto)->get();
-            Log::info('partida', [$request->partida]);
             $padron = $this->buscarImpuestoPorPartida($request->partida, $request->impuesto);
             $fecha = Carbon::parse($request->fecha_vencimiento);
             $fecha2 = Carbon::parse($request->fecha_vencimiento2);
@@ -275,6 +286,9 @@ class CargaImpuestoService
                 }
             }
             if ($request->impuesto === 'agua') {
+                if ($request->fecha_vencimiento == null || $request->importe == null || $request->importe2 == null || $request->fecha_vencimiento2 == null) {
+                    throw new \Exception('Todos los campos son obligatorios');
+                }
                 $registro = [
                     'codigo_barra' => null,
                     'importe' => $request->importe,
@@ -311,7 +325,10 @@ class CargaImpuestoService
             }
             return $nuevoRegistro;
         } catch (\Exception $e) {
-            throw $e;
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
         }
     }
 
