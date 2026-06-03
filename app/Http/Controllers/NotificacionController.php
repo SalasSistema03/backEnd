@@ -32,6 +32,8 @@ class NotificacionController extends Controller
     {
         $usuarioId = auth('api')->id();
         $usuario = Usuario::find($usuarioId);
+        // 1. Inicializamos la variable por defecto (una colección vacía de Laravel)
+    $notificaciones = collect();
 
         if (!$usuario) {
             return response()->json(['success' => false, 'message' => 'Usuario no encontrado'], 404);
