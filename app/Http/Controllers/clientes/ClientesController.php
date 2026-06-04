@@ -66,30 +66,6 @@ class ClientesController extends Controller
         $this->recordatorioController = $recordatorioController;
     }
 
-   /*  public function index()
-    {
-        $usuario = $this->usuario;
-
-        //Verifica los permisos del usuario para acceder a la vista de cargar cliente
-        $vistaCargarCliente = 'cargarcliente';
-        $permisoService = new PermitirAccesoPropiedadService($this->usuario->id);
-
-        // Verificar permisos de botones (Seleccionar el asesor)
-        $permisoBoton = "seleccionarAsesor";
-        $resultadoPermisoBoton = $this->permisoService->verificarAccesoBotones_Elementos($permisoBoton);
-
-        // Verificar si el usuario tiene acceso a la vista
-        if (!$permisoService->tieneAccesoAVista($vistaCargarCliente)) {
-            // Redirigir o mostrar un mensaje de error si no tiene acceso
-            return redirect()->route('home')->with('error', 'No tienes acceso a esta vista.');
-        }
-
-        $tipoInmuebles = $this->tipoInmuebleService->getTipoInmueble();
-        $zonas = $this->zonaService->getAllZonas();
-        $usuarioSectors = $this->usuarioSectorService->getAllUsuarioSector();
-        return view('clientes.cargcarCliente.index', compact('tipoInmuebles', 'zonas', 'usuarioSectors', 'resultadoPermisoBoton', 'usuario'));
-    } */
-
     /**
      * Guarda un nuevo cliente y sus criterios asociados
      *
@@ -107,7 +83,7 @@ class ClientesController extends Controller
      */
     public function guardar(Request $request)
     {
-        //Log::info('Logs provenientes de clientescontroller ', $request->all());
+
 
         try {
 

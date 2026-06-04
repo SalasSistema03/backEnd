@@ -209,4 +209,9 @@ table tbody tr {
 }
 .devolucion-listado-conversaciones .fecha-devolucion-conversacion {
   color: grey;
+}
+
+.listado_agenda_fecha {
+  color: white;
+  background: rgb(0, 85, 185);
 }/*# sourceMappingURL=pdfStyles.css.map */
