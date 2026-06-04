@@ -45,6 +45,7 @@
                     <th>Eliminado por</th>
                     <th>Motivo</th>
                     @endif
+                    <th>-</th>
 
 
                 </tr>
@@ -70,8 +71,7 @@
                     <td class="listado_agenda_texto_una_linea p-1 text-center">{{ $item['quien_borro'] ?? '-' }}</td>
                     <td class=" p-1">{{ $item['motivo'] ?? '-' }}</td>
                     @endif
-
-
+                    <td class="listado_agenda_texto_una_linea p-1 text-center">{{ $item['creado_por'] ?? '-' }}</td>
                 </tr>
                  @endforeach
 

@@ -106,7 +106,7 @@ class Pdf_agenda
             $usuarioNombre = $datos->first()->usuario_id ?: '-';
         }
 
-        //Log::info('Datos', [$datos]);
+        Log::info('Datos', [$datos]);
 
         $html = view('pdfs.agenda.listadoAgenda', compact('datos', 'rangoFechas','sectorNombre','estado','usuarioNombre'))->render();
 
