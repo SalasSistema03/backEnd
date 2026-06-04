@@ -211,7 +211,28 @@ table tbody tr {
   color: grey;
 }
 
-.listado_agenda_fecha {
+.listado_agenda_titulo_general {
+  color: rgba(0, 175, 154, 0.96);
+  font-size: 2.5vh;
+}
+
+.listado_agenda_titulo {
   color: white;
   background: rgb(0, 85, 185);
+}
+
+.listado_agenda_texto_una_linea {
+  white-space: nowrap;
+}
+
+.listado_agenda_body tr {
+  /* quiero que coloree un renglo si y un renglon no susesibamente la primera no */
+}
+.listado_agenda_body tr:nth-child(odd) {
+  background: rgba(110, 190, 255, 0.6352941176);
+}
+.listado_agenda_body tr td {
+  /* border-left: 1px solid $azulSalas */
+  /* border-right: 1px solid $azulSalas */
+  font-size: 1.9vh;
 }/*# sourceMappingURL=pdfStyles.css.map */
