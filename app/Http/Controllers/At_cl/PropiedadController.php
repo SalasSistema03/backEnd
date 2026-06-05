@@ -509,7 +509,8 @@ class PropiedadController
                 'alquiler_fecha_alta'         => $alquiler['alquiler_fecha_alta'] ?? null,
                 'mascota'                     => $alquiler['mascota'] ?? null,
                 // Condición de alquiler
-                'condicion'                   => $condicion_alquiler['condicion'] ?? null
+                'condicion'                   => $condicion_alquiler['condicion'] ?? null,
+                'updated_at'               => now(),
             ]);
 
             // Actualizar datos relacionados con servicios

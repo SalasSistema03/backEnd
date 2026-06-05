@@ -6,7 +6,9 @@
 
     <style>
         /*asi tiene que quedar siempre {!! file_get_contents(public_path('css/pdfStyles.css')) !!} */
-        {!! file_get_contents(public_path('css/pdfStyles.css')) !!}
+            {
+            ! ! file_get_contents(public_path('css/pdfStyles.css')) ! !
+        }
     </style>
 </head>
 
@@ -27,11 +29,13 @@
                     Listado Consultas Ingresadas
                 @elseif($pertenece === 'conversaciones')
                     Listado de Conversaciones
+                @elseif($pertenece === 'informeNovedades')
+                    Informe Novedades
                 @else
                     Listado {{ $sector }}
                 @endif
                 <br>
-                {{-- Titulo de Consultas Ingresadas --}}
+
                 @if ($pertenece === 'consultasIngresadas')
                     <span class="listado_texto_titulo">Total Consultas: {{ $total_criterios ?? '-' }} </span>
                     @foreach ($conteoAsesores as $nombre => $cantidad)
@@ -711,30 +715,30 @@
                         <div class="titulo-contenedor-listado-conversaciones px-2 py-0 m-0">
                             <p class="">{{ strtoupper($cliente->nombre) }}</p>
                         </div>
-                        <div class = "px-2 my-0">
+                        <div class="px-2 my-0">
                             <!-- Lista de items (criterios de búsqueda) para este cliente -->
                             @foreach ($items as $item)
-                                <div class = "">
-                                    <div class = "">
+                                <div class="">
+                                    <div class="">
 
-                                        <strong class = "listado_conversaciones_titulo">Fecha:</strong>&nbsp;
+                                        <strong class="listado_conversaciones_titulo">Fecha:</strong>&nbsp;
                                         <span
-                                            class = "listado_conversaciones_titulo_datos">{{ $item['cliente']->fecha_criterio_venta ?? '-' }}</span>
+                                            class="listado_conversaciones_titulo_datos">{{ $item['cliente']->fecha_criterio_venta ?? '-' }}</span>
                                         &nbsp;&nbsp;&nbsp;
-                                        <strong class = "listado_conversaciones_titulo">Tipo
+                                        <strong class="listado_conversaciones_titulo">Tipo
                                             Inmueble:</strong>&nbsp;
                                         <span
-                                            class = "listado_conversaciones_titulo_datos">{{ $item['cliente']->inmueble ?? '-' }}</span>
+                                            class="listado_conversaciones_titulo_datos">{{ $item['cliente']->inmueble ?? '-' }}</span>
                                         &nbsp;&nbsp;&nbsp;
-                                        <strong class = "listado_conversaciones_titulo">Cant.
+                                        <strong class="listado_conversaciones_titulo">Cant.
                                             Dormitorios:</strong>&nbsp;
                                         <span
-                                            class = "listado_conversaciones_titulo_datos">{{ $item['cliente']->cant_dormitorios ?? '-' }}</span>
+                                            class="listado_conversaciones_titulo_datos">{{ $item['cliente']->cant_dormitorios ?? '-' }}</span>
                                         &nbsp;&nbsp;&nbsp;
-                                        <strong class = "listado_conversaciones_titulo">Precio
+                                        <strong class="listado_conversaciones_titulo">Precio
                                             Hasta:</strong>&nbsp;&nbsp;&nbsp;
                                         <span
-                                            class = "listado_conversaciones_titulo_datos">{{ $item['cliente']->precio_hasta ?? '-' }}</span>
+                                            class="listado_conversaciones_titulo_datos">{{ $item['cliente']->precio_hasta ?? '-' }}</span>
                                     </div>
 
                                     <!-- Historial de conversaciones: usando una lista estilizada -->
@@ -747,10 +751,11 @@
                                             @foreach ($item['historial_total'] as $historial)
                                                 <div class="listado-contenedor row">
                                                     <div class="col-9 parrafo-listado-conversaciones">
-                                                       - {{ $historial->mensaje }}
+                                                        - {{ $historial->mensaje }}
                                                     </div>
                                                     <div class="col-3 fecha-listado-conversaciones">
-                                                        {{ $historial->fecha_hora }}</div>
+                                                        {{ $historial->fecha_hora }}
+                                                    </div>
 
 
 
@@ -761,10 +766,11 @@
                                                             <div class="devolucion-listado-conversaciones col-9 px-5">
                                                                 Devolucion:{{ $historial->devolucion }}
                                                             </div>
-                                                            <div class=" devolucion-listado-conversaciones fecha-devolucion-conversacion col-3 px-3">{{ $historial->fecha_devolucion }}</div>
+                                                            <div
+                                                                class=" devolucion-listado-conversaciones fecha-devolucion-conversacion col-3 px-3">
+                                                                {{ $historial->fecha_devolucion }}</div>
 
                                                         </div>
-
                                                     @endif
 
                                                 </div>
@@ -781,6 +787,105 @@
                     <br>
                 @endforeach
             </div>
+        @elseif($pertenece === 'informeNovedades')
+            <div class="informe_novedades_titulo">Novedades atencion a cliende desde {{ $fechas[0] }} hasta
+                {{ $fechas[1] }}</div>
+
+
+            @foreach ($data as $propiedad_id => $observaciones)
+                @php $propiedad = $observaciones->first()->propiedad @endphp
+
+                <div class="novedad-registro">
+                    <div class="informacion_informe_novedades row pt-4">
+                        <hr>
+                        <div class="col-12 row">
+                            <div class="col-2 d-flex">
+                                <div class="me-2 titulo_informacion_informe_novedades">Código:</div>
+                                <div>{{ $propiedad->cod_alquiler ?? '-' }}</div>
+                            </div>
+
+                            <div class="col-4 d-flex">
+                                <div class="me-2 titulo_informacion_informe_novedades">Folios:</div>
+                                <div>
+                                    @if ($propiedad->folios->isEmpty())
+                                        -
+                                    @else
+                                        @foreach ($propiedad->folios as $folio)
+                                            @if ($folio->empresa_id === 1)
+                                                {{ $folio->folio }}
+                                            @elseif($folio->empresa_id === 2)
+                                                CAN {{ $folio->folio }}
+                                            @elseif($folio->empresa_id === 3)
+                                                TRIB {{ $folio->folio }}
+                                            @endif
+                                            @if (!$loop->last)
+                                                ,
+                                            @endif
+                                        @endforeach
+                                    @endif
+                                </div>
+                            </div>
+
+                            <div class="col-3 d-flex">
+                                <div class="me-2 titulo_informacion_informe_novedades">Tipo Inmueble:</div>
+                                <div>{{ $propiedad->tipoInmueble->inmueble ?? '-' }}</div>
+                            </div>
+
+                            <div class="col-3 d-flex">
+                                <div class="me-2 titulo_informacion_informe_novedades">Estado:</div>
+                                <div>{{ $propiedad->estadoAlquiler->name ?? '-' }}</div>
+                            </div>
+                            <div class="col-6 d-flex">
+                                <div class="me-2 titulo_informacion_informe_novedades">Fecha Alta:</div>
+                                <div>{{ $propiedad->alquiler_fecha_alta ?? '-' }}</div>
+                            </div>
+                            <div class="col-6 d-flex">
+                                <div class="me-2 titulo_informacion_informe_novedades">Fecha Modificación:</div>
+                                <div>{{ \Carbon\Carbon::parse($propiedad->updated_at)->format('d/m/Y') }}</div>
+                            </div>
+                            <div class="col-6 d-flex">
+                                <div class="me-2 titulo_informacion_informe_novedades">Dirección:</div>
+                                <div>{{ $propiedad->calle->name ?? '-' }} {{ $propiedad->numero_calle ?? '' }}</div>
+                            </div>
+                            <div class="col-6 d-flex">
+                                <div class="me-2 titulo_informacion_informe_novedades">Precio:</div>
+                                <div>
+                                    @if ($propiedad->precio && $propiedad->precio->moneda_alquiler_pesos != null)
+                                        $ {{ $propiedad->precio->moneda_alquiler_pesos }}
+                                    @elseif($propiedad->precio && $propiedad->precio->moneda_alquiler_dolar != null)
+                                        u$s {{ $propiedad->precio->moneda_alquiler_dolar }}
+                                    @else
+                                        -
+                                    @endif
+                                </div>
+                            </div>
+
+
+
+                            <div class="col-12 d-flex">
+                                <div class="me-2 titulo_informacion_informe_novedades">Descripción:</div>
+                                <div>{{ $propiedad->descipcion_propiedad ?? '-' }}</div>
+                            </div>
+                        </div>
+                        <div class="col-12 pt-1 px-5">
+                            <hr class="linea-azul ">
+                        </div>
+
+                    </div>
+
+                    @foreach ($observaciones as $observacion)
+                        <div class="row informacion_informe_novedades">
+                            <div class="col-12 d-flex">
+                                <div class="me-2">
+                                    {{ \Carbon\Carbon::parse($observacion->updated_at)->format('d/m/Y') }}
+                                </div>
+                                <div>{{ $observacion->notes }}</div>
+                            </div>
+                        </div>
+                    @endforeach
+
+                </div>
+            @endforeach
 
         @endif
     </div>

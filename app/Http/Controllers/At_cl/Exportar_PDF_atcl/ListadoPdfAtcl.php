@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\At_cl\Exportar_PDF_atcl;
 
-
+use App\Models\At_cl\Empresas_propiedades;
+use App\Models\At_cl\Estado_alquiler;
+use App\Models\At_cl\Observaciones_propiedades;
 use App\Models\At_cl\Propiedad;
 use App\Models\At_cl\Propiedades_padron;
 use App\Models\usuarios_y_permisos\Usuario;
@@ -15,6 +17,7 @@ use App\Models\cliente\HistorialCodMuestra;
 use App\Models\cliente\HistorialCodigoConsulta;
 use App\Models\cliente\CriterioBusquedaVenta;
 use App\Models\cliente\Clientes;
+use App\Models\At_cl\Tipo_inmueble;
 use App\Services\At_cl\Exportar_PDF_atcl\PdfVentaService;
 
 class ListadoPdfAtcl
@@ -311,24 +314,53 @@ class ListadoPdfAtcl
 
             $html = view('pdfs.atcl.listadoPropiedad', compact('data', 'username', 'pertenece', 'sector', 'total_criterios', 'conteoAsesores'))->render();
         }
-        if ($pertenece === 'conversaciones'){
-          //  Log::info($request->all());
+        if ($pertenece === 'conversaciones') {
+            //  Log::info($request->all());
             /* $clientes = $this->pdfVentaService->ObtenerClientesAsesor($request->asesor); */
             $clientes = (new PdfVentaService())->ObtenerClientesAsesor($request->asesor_id);
-           // Log::info($clientes);
-           /*  $historialConversacion = $this->pdfVentaService->ObtenerHistorialConversacion($clientes); */
-           $historialConversacion = (new PdfVentaService())->ObtenerHistorialConversacion($clientes);
-           //Log::info($historialConversacion);
+            // Log::info($clientes);
+            /*  $historialConversacion = $this->pdfVentaService->ObtenerHistorialConversacion($clientes); */
+            $historialConversacion = (new PdfVentaService())->ObtenerHistorialConversacion($clientes);
+            //Log::info($historialConversacion);
             /* $datosTotales = $this->pdfVentaService->CombinarDatos($clientes, $historialConversacion); */
             $datosTotales = (new PdfVentaService())->CombinarDatos($clientes, $historialConversacion);
 
-            $html = view('pdfs.atcl.listadoPropiedad', compact('datosTotales', 'pertenece','sector'))->render();
+            $html = view('pdfs.atcl.listadoPropiedad', compact('datosTotales', 'pertenece', 'sector'))->render();
+        }
+        if ($pertenece === 'informeNovedades') {
+            $query = Observaciones_propiedades::with([
+                'propiedad.folios.empresa',
+                'propiedad.tipoInmueble',
+                'propiedad.estadoAlquiler',
+                'propiedad.calle',
+                'propiedad.zona',
+                'propiedad.precio',
+            ])->where('tipo_ofera', 'A');
+
+            if ($request->filled('desde') && $request->filled('hasta')) {
+                $fechaDesde = $request->input('desde') . ' 00:00:00';
+                $fechaHasta = $request->input('hasta') . ' 23:59:59';
+
+                $query->where('updated_at', '>=', $fechaDesde)
+                    ->where('updated_at', '<=', $fechaHasta);
+            } elseif ($request->filled('desde')) {
+                $fechaDesde = $request->input('desde') . ' 00:00:00';
+                $query->where('updated_at', '>=', $fechaDesde);
+            } elseif ($request->filled('hasta')) {
+                $fechaHasta = $request->input('hasta') . ' 23:59:59';
+                $query->where('updated_at', '<=', $fechaHasta);
+            }
+
+            $data = $query->get()->groupBy('propiedad_id');
+
+            $fechas = [$request->input('desde'), $request->input('hasta')];
+            Log::info('data', [$data]);
+
+            $html = view('pdfs.atcl.listadoPropiedad', compact('data', 'username', 'pertenece', 'sector', 'fechas'))->render();
         }
 
-
-
         $orientacion = 'landscape';
-        if ($pertenece === 'ofrecimientoVenta' || $pertenece === 'conversaciones') {
+        if ($pertenece === 'ofrecimientoVenta' || $pertenece === 'conversaciones' || $pertenece === 'informeNovedades') {
             $orientacion = 'portrait';
         }
 

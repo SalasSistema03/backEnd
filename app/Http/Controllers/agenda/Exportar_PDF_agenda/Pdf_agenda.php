@@ -14,7 +14,7 @@ class Pdf_agenda
 {
     public function listarAgenda(Request $request)
     {
-        
+
 
 
         $query = Notas::query();
@@ -61,32 +61,32 @@ class Pdf_agenda
 
         //obtenemos los username
         //obtenemos los username
-foreach ($datos as $dato) {
-    $usuario = Usuario::find($dato->usuario_id);
-    $borro = Usuario::find($dato->quien_borro);
-    $dato->usuario_id = $usuario ? $usuario->username : '';
-    $dato->quien_borro = $borro ? $borro->username : '';
+        foreach ($datos as $dato) {
+            $usuario = Usuario::find($dato->usuario_id);
+            $borro = Usuario::find($dato->quien_borro);
+            $dato->usuario_id = $usuario ? $usuario->username : '';
+            $dato->quien_borro = $borro ? $borro->username : '';
 
-    //Asignamos el username al creado por si no es null
-    if($dato->creado_por != null){
-        $creadoPor = Usuario::find($dato->creado_por);
-        $dato->creado_por = $creadoPor ? $creadoPor->username : '';
-    } else {
-        $dato->creado_por = '';
-    }
+            //Asignamos el username al creado por si no es null
+            if ($dato->creado_por != null) {
+                $creadoPor = Usuario::find($dato->creado_por);
+                $dato->creado_por = $creadoPor ? $creadoPor->username : '';
+            } else {
+                $dato->creado_por = '';
+            }
 
-    // CORREGIDO: find() ya te da el registro correcto, no uses ->first()
-    if ($dato->cliente_id != null) {
-        $clientedata = clientes::find($dato->cliente_id); 
-        $dato->datos_cliente = $clientedata;
-    }
+            // CORREGIDO: find() ya te da el registro correcto, no uses ->first()
+            if ($dato->cliente_id != null) {
+                $clientedata = clientes::find($dato->cliente_id);
+                $dato->datos_cliente = $clientedata;
+            }
 
-    // CORREGIDO: Para usar find con relaciones (with), se hace de esta manera:
-    if ($dato->propiedad_id != null) {
-        $propiedadata = Propiedad::with('calle', 'zona')->find($dato->propiedad_id);
-        $dato->datos_propiedad = $propiedadata;
-    }
-}
+            // CORREGIDO: Para usar find con relaciones (with), se hace de esta manera:
+            if ($dato->propiedad_id != null) {
+                $propiedadata = Propiedad::with('calle', 'zona')->find($dato->propiedad_id);
+                $dato->datos_propiedad = $propiedadata;
+            }
+        }
 
         //Obtenemos el rango de fechas y lo ponemos en un array
         $rangoFechas = [$request->fecha_inicio, $request->fecha_fin];
@@ -105,9 +105,9 @@ foreach ($datos as $dato) {
             $usuarioNombre = $datos->first()->usuario_id ?: '-';
         }
 
-        Log::info('Datos', [$datos]);
+        //Log::info('Datos', [$datos]);
 
-        $html = view('pdfs.agenda.listadoAgenda', compact('datos', 'rangoFechas','sectorNombre','estado','usuarioNombre'))->render();
+        $html = view('pdfs.agenda.listadoAgenda', compact('datos', 'rangoFechas', 'sectorNombre', 'estado', 'usuarioNombre'))->render();
 
         return response()->streamDownload(function () use ($html) {
             echo \Spatie\Browsershot\Browsershot::html($html)

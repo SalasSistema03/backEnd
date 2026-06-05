@@ -235,4 +235,27 @@ table tbody tr {
   /* border-left: 1px solid $azulSalas */
   /* border-right: 1px solid $azulSalas */
   font-size: 1.9vh;
+}
+
+.informe_novedades_titulo {
+  color: rgba(0, 175, 154, 0.96);
+  font-size: 1.5vh;
+  font-weight: 600;
+}
+
+.informacion_informe_novedades {
+  font-size: 0.8vh;
+}
+
+.linea-azul {
+  border-top: 2px solid rgb(0, 85, 185);
+}
+
+.titulo_informacion_informe_novedades {
+  color: rgb(0, 85, 185);
+}
+
+.novedad-registro {
+  page-break-inside: avoid;
+  break-inside: avoid;
 }/*# sourceMappingURL=pdfStyles.css.map */
