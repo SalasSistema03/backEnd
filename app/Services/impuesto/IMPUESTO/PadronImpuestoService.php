@@ -70,7 +70,7 @@ class PadronImpuestoService
             return 'INACTIVO';
         }
     }
-    public function obtenerPadronServicio($impuesto)
+    /*  public function obtenerPadronServicio($impuesto)
     {
         if ($impuesto !== 'gas') return [];
 
@@ -135,8 +135,683 @@ class PadronImpuestoService
             'nuevos'              => $nuevosRegistros->values(),
             'actualizados_estado' => $actualizadosEstado->values(),
         ];
+    } */
+
+    public function obtenerPadronServicio($impuesto)
+    {
+        if ($impuesto !== 'gas') return [];
+
+        $padronExistente = Gas_padron::all();
+        $nuevoPadron     = (new PadronGasService)->consultaObtenerPadronGAS();
+
+        // ── Índices ─────────────────────────────────────────────
+        $existentePorFolioPartida = collect($padronExistente)->mapWithKeys(
+            fn($item) => [$item->folio . '-' . $item->partida => $item]
+        );
+
+        $nuevoPorFolioPartida = collect($nuevoPadron)->mapWithKeys(
+            fn($item) => [$item->folio . '-' . $item->partida => $item]
+        );
+
+        // Agrupados por folio+calle para detectar modificados
+        $existentePorFolioCalle = collect($padronExistente)->groupBy(
+            fn($item) => $item->folio . '-' . trim($item->calle)
+        );
+
+        $nuevoPorFolioCalle = collect($nuevoPadron)->groupBy(
+            fn($item) => $item->folio . '-' . trim($item->calle)
+        );
+
+        $hoy = now();
+
+        $nuevosRegistros    = collect();
+        $actualizadosEstado = collect();
+        $modificados        = collect();
+
+        // ── 0. Detectar MODIFICADOS ─────────────────────────────
+        foreach ($existentePorFolioCalle as $folioCalleKey => $registrosViejos) {
+
+            // Si no hay registros nuevos con esta calle, no hay modificados aquí
+            if (!$nuevoPorFolioCalle->has($folioCalleKey)) {
+                continue;
+            }
+
+            $registrosNuevos = $nuevoPorFolioCalle[$folioCalleKey];
+
+            foreach ($registrosViejos as $viejo) {
+
+                // Los MODIFICADOS ya son históricos, no se vuelven a tocar
+                if ($viejo->estado === 'MODIFICADO') {
+                    continue;
+                }
+
+                $partidaViejaExisteEnNuevos = $registrosNuevos->contains(
+                    fn($nuevo) => $nuevo->partida === $viejo->partida
+                );
+
+                // CASO A: partida cambió (mismo folio+calle, distinta partida)
+                if (!$partidaViejaExisteEnNuevos) {
+                    Gas_padron::where('folio', $viejo->folio)
+                        ->where('partida', $viejo->partida)
+                        ->update(['estado' => 'MODIFICADO']);
+
+                    $modificados->push([
+                        'folio'   => $viejo->folio,
+                        'partida' => $viejo->partida,
+                        'calle'   => $viejo->calle,
+                        'motivo'  => 'cambio de partida',
+                    ]);
+                    continue;
+                }
+
+                // CASO B: partida coincide pero clave cambió
+                $nuevoCorrespondiente = $registrosNuevos->first(
+                    fn($nuevo) => $nuevo->partida === $viejo->partida
+                );
+
+                if ($nuevoCorrespondiente) {
+                    $claveVieja = is_numeric($viejo->clave) ? (string) $viejo->clave : '';
+                    $claveNueva = is_numeric($nuevoCorrespondiente->clave) ? (string) $nuevoCorrespondiente->clave : '';
+
+                    if ($claveVieja !== $claveNueva) {
+                        Gas_padron::where('folio', $viejo->folio)
+                            ->where('partida', $viejo->partida)
+                            ->update(['estado' => 'MODIFICADO']);
+
+                        $modificados->push([
+                            'folio'   => $viejo->folio,
+                            'partida' => $viejo->partida,
+                            'calle'   => $viejo->calle,
+                            'motivo'  => 'cambio de clave',
+                        ]);
+                    }
+                }
+            }
+        }
+
+        // ── 1. Sync total (nuevos + actualizaciones) ────────────
+        foreach ($nuevoPorFolioPartida as $key => $registro) {
+
+            $estadoCalculado   = $this->calcularEstadoGas($registro->rescicion, $hoy);
+            $registroExistente = $existentePorFolioPartida[$key] ?? null;
+
+            $data = [
+                'calle'      => !empty($registro->calle)
+                    ? mb_convert_encoding($registro->calle, 'UTF-8', 'UTF-8')
+                    : '',
+                'clave'      => is_numeric($registro->clave) ? $registro->clave : null,
+                'abona'      => $registro->abona      ?? '',
+                'administra' => $registro->administra ?? '',
+                'empresa'    => $registro->id_empresa,
+                'comienza'   => $registro->comienza   ?? 0,
+                'rescicion'  => $registro->rescicion  ?? null,
+                'estado'     => $estadoCalculado,
+            ];
+
+            if ($registroExistente) {
+                // No pisar registros MODIFICADOS (son históricos)
+                if ($registroExistente->estado === 'MODIFICADO') {
+                    continue;
+                }
+
+                if ($registroExistente->estado !== $estadoCalculado) {
+                    $actualizadosEstado->push([
+                        'folio'           => $registro->folio,
+                        'partida'         => $registro->partida,
+                        'estado_anterior' => $registroExistente->estado,
+                        'estado_nuevo'    => $estadoCalculado,
+                        'rescicion'       => $registro->rescicion,
+                    ]);
+                }
+
+                Gas_padron::where('folio', $registro->folio)
+                    ->where('partida', $registro->partida)
+                    ->update($data);
+            } else {
+                $data['folio']   = is_numeric($registro->folio) ? $registro->folio : null;
+                $data['partida'] = $registro->partida ?? '';
+
+                Gas_padron::create($data);
+                $nuevosRegistros->push($registro);
+            }
+        }
+
+        // ── 2. Inactivar los que ya no están en el padrón nuevo ─
+        $modificadosKeys = Gas_padron::where('estado', 'MODIFICADO')
+            ->get(['folio', 'partida'])
+            ->map(fn($r) => $r->folio . '-' . $r->partida)
+            ->toArray();
+
+        $posiblesInactivos = $existentePorFolioPartida
+            ->diffKeys($nuevoPorFolioPartida)
+            ->filter(fn($registro, $key) => !in_array($key, $modificadosKeys));
+
+        foreach ($posiblesInactivos as $registro) {
+            $nuevoEstado = $this->calcularEstadoGas($registro->rescicion, $hoy);
+
+            if ($registro->estado !== $nuevoEstado) {
+                Gas_padron::where('folio', $registro->folio)
+                    ->where('partida', $registro->partida)
+                    ->update(['estado' => $nuevoEstado]);
+
+                $actualizadosEstado->push([
+                    'folio'           => $registro->folio,
+                    'partida'         => $registro->partida,
+                    'estado_anterior' => $registro->estado,
+                    'estado_nuevo'    => $nuevoEstado,
+                    'rescicion'       => $registro->rescicion,
+                ]);
+            }
+        }
+
+        return [
+            'nuevos'              => $nuevosRegistros->values(),
+            'actualizados_estado' => $actualizadosEstado->values(),
+            'modificados'         => $modificados->values(),
+        ];
     }
 
+
+    public function obtenerPadron($impuesto)
+    {
+        if ($impuesto === 'tgi') {
+            $padronExistente = Tgi_padron::all();
+            $nuevoPadron = (new PadronTgiService)->consultaObtenerPadronTGI();
+        }
+
+        if ($impuesto === 'agua') {
+            $padronExistente = Agua_padron::all();
+            $nuevoPadron = (new PadronAguaService)->consultaObtenerPadronAgua();
+        }
+
+        if ($impuesto === 'api') {
+            $padronExistente = Api_padron::all();
+            $nuevoPadron = (new PadronApiService)->consultaObtenerPadronAPI();
+        }
+
+        $modelo = $this->obtenerModeloPorImpuesto($impuesto);
+
+        // ── Índices para búsqueda rápida ──────────────────────────────────────
+        $existentePorFolioPartida = collect($padronExistente)->mapWithKeys(function ($item) {
+            return [$item->folio . '-' . ltrim($item->partida, '0') => $item];
+        });
+
+        $nuevoPorFolioPartida = collect($nuevoPadron)->mapWithKeys(function ($item) {
+            return [$item->folio . '-' . ltrim($item->partida, '0') => $item];
+        });
+
+        $existentePorFolioCalle = collect($padronExistente)->groupBy(function ($item) {
+            return $item->folio . '-' . trim($item->calle);
+        });
+
+        $nuevoPorFolioCalle = collect($nuevoPadron)->groupBy(function ($item) {
+            return $item->folio . '-' . trim($item->calle);
+        });
+
+        // ── 0. Reactivar INACTIVOS ──────────────────────────────────────────
+        $reactivar = $nuevoPorFolioPartida->filter(function ($registro, $key) use ($existentePorFolioPartida) {
+            return isset($existentePorFolioPartida[$key]) && $existentePorFolioPartida[$key]->estado === 'INACTIVO';
+        });
+
+        foreach ($reactivar as $registro) {
+            $modelo::where('folio', $registro->folio)
+                ->where('partida', $registro->partida)
+                ->update([
+                    'estado'     => 'ACTIVO',
+                    'calle'      => !empty($registro->calle) ? mb_convert_encoding($registro->calle, 'UTF-8', 'UTF-8') : '',
+                    'clave'      => is_numeric($registro->clave) ? $registro->clave : null,
+                    'abona'      => $registro->abona ?? '',
+                    'administra' => $registro->administra ?? '',
+                    'empresa'    => $registro->empresa ?? 0,
+                    'comienza'   => $registro->comienza ?? 0,
+                    'rescicion'  => $registro->rescicion ?? 0,
+                ]);
+        }
+
+        // ── 0.5 Detectar MODIFICADOS ────────────────────────────────────────
+        foreach ($existentePorFolioCalle as $folioCalleKey => $registrosViejos) {
+
+            if (!$nuevoPorFolioCalle->has($folioCalleKey)) {
+                continue;
+            }
+
+            $registrosNuevos = $nuevoPorFolioCalle[$folioCalleKey];
+
+            foreach ($registrosViejos as $viejo) {
+
+                // Los MODIFICADOS ya son históricos, no se vuelven a tocar
+                if ($viejo->estado === 'MODIFICADO') {
+                    continue;
+                }
+
+                $partidaViejaLimpia = ltrim($viejo->partida, '0');
+                $partidaViejaNumerica = is_numeric($partidaViejaLimpia) && !empty($partidaViejaLimpia);
+
+                if ($impuesto === 'api') {
+                    // ── API: folio+calle fijos, partida variable ──
+                    $partidaViejaExisteEnNuevos = $registrosNuevos->contains(function ($nuevo) use ($viejo) {
+                        return ltrim($nuevo->partida, '0') === ltrim($viejo->partida, '0');
+                    });
+
+                    if (!$partidaViejaExisteEnNuevos) {
+                        $modelo::where('folio', $viejo->folio)
+                            ->where('calle', $viejo->calle)
+                            ->where('partida', $viejo->partida)
+                            ->update(['estado' => 'MODIFICADO']);
+                    }
+                } else {
+                    // ── TGI / Agua / Gas ──
+
+                    // CASO B: partida vieja no numérica → llegan nuevos con partida numérica real
+                    if (!$partidaViejaNumerica) {
+                        $hayNuevosConPartidaReal = $registrosNuevos->contains(function ($nuevo) {
+                            $partidaNuevaLimpia = ltrim($nuevo->partida, '0');
+                            return is_numeric($partidaNuevaLimpia) && !empty($partidaNuevaLimpia);
+                        });
+
+                        if ($hayNuevosConPartidaReal) {
+                            $modelo::where('folio', $viejo->folio)
+                                ->where('partida', $viejo->partida)
+                                ->update(['estado' => 'MODIFICADO']);
+                        }
+                        continue;
+                    }
+
+                    // CASO A: partida numérica vieja no existe entre los nuevos (cambió la partida)
+                    $partidaViejaExisteEnNuevos = $registrosNuevos->contains(function ($nuevo) use ($viejo) {
+                        return ltrim($nuevo->partida, '0') === ltrim($viejo->partida, '0');
+                    });
+
+                    if (!$partidaViejaExisteEnNuevos) {
+                        // La partida cambió → MODIFICADO
+                        $modelo::where('folio', $viejo->folio)
+                            ->where('partida', $viejo->partida)
+                            ->update(['estado' => 'MODIFICADO']);
+                        continue;
+                    }
+
+                    // CASO C: partida coincide pero clave cambió
+                    $nuevoCorrespondiente = $registrosNuevos->first(function ($nuevo) use ($viejo) {
+                        return ltrim($nuevo->partida, '0') === ltrim($viejo->partida, '0');
+                    });
+
+                    if ($nuevoCorrespondiente) {
+                        $claveVieja = is_numeric($viejo->clave) ? (string) $viejo->clave : '';
+                        $claveNueva = is_numeric($nuevoCorrespondiente->clave) ? (string) $nuevoCorrespondiente->clave : '';
+
+                        if ($claveVieja !== $claveNueva) {
+                            $modelo::where('folio', $viejo->folio)
+                                ->where('partida', $viejo->partida)
+                                ->update(['estado' => 'MODIFICADO']);
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── 1. Nuevos registros ─────────────────────────────────────────────
+        $nuevosRegistros = $nuevoPorFolioPartida->diffKeys($existentePorFolioPartida);
+
+        // ── 2. Sync total ───────────────────────────────────────────────────
+        foreach ($nuevoPorFolioPartida as $key => $registro) {
+            $registroExistente = $existentePorFolioPartida[$key] ?? null;
+
+            if ($registroExistente) {
+                // No pisar registros MODIFICADOS (son históricos)
+                if ($registroExistente->estado === 'MODIFICADO') {
+                    continue;
+                }
+
+                $modelo::where('folio', $registro->folio)
+                    ->where('partida', $registro->partida)
+                    ->update([
+                        'estado'     => 'ACTIVO',
+                        'calle'      => !empty($registro->calle) ? mb_convert_encoding($registro->calle, 'UTF-8', 'UTF-8') : '',
+                        'clave'      => is_numeric($registro->clave) ? $registro->clave : null,
+                        'abona'      => $registro->abona ?? '',
+                        'administra' => $registro->administra ?? '',
+                        'empresa'    => $registro->empresa ?? 0,
+                        'comienza'   => $registro->comienza ?? 0,
+                        'rescicion'  => $registro->rescicion ?? 0,
+                    ]);
+            } else {
+                $modelo::create([
+                    'folio'      => is_numeric($registro->folio) ? $registro->folio : null,
+                    'calle'      => !empty($registro->calle) ? mb_convert_encoding($registro->calle, 'UTF-8', 'UTF-8') : '',
+                    'partida'    => $registro->partida ?? '',
+                    'clave'      => is_numeric($registro->clave) ? $registro->clave : null,
+                    'abona'      => $registro->abona ?? '',
+                    'administra' => $registro->administra ?? '',
+                    'empresa'    => $registro->empresa ?? 0,
+                    'estado'     => 'ACTIVO',
+                    'comienza'   => $registro->comienza ?? 0,
+                    'rescicion'  => $registro->rescicion ?? 0,
+                ]);
+            }
+        }
+
+        // ── 3. Inactivar / Pendiente ────────────────────────────────────────
+        // Refrescar desde BD los registros que ya fueron marcados MODIFICADO
+        $modificadosEnBD = $modelo::where('estado', 'MODIFICADO')
+            ->get(['folio', 'partida'])
+            ->map(fn($r) => $r->folio . '-' . ltrim($r->partida, '0'))
+            ->toArray();
+
+        $posiblesInactivos = $existentePorFolioPartida
+            ->diffKeys($nuevoPorFolioPartida)
+            ->filter(function ($registro, $key) use ($modificadosEnBD) {
+                return !in_array(
+                    $registro->folio . '-' . ltrim($registro->partida, '0'),
+                    $modificadosEnBD
+                );
+            });
+
+        $registrosInactivos = $posiblesInactivos->map(function ($registro) use ($impuesto) {
+
+            if (empty($registro->rescicion)) {
+                $registro->nuevo_estado = 'INACTIVO';
+                return $registro;
+            }
+
+            $fechaRescision  = \Carbon\Carbon::parse($registro->rescicion);
+            $fechaActual     = \Carbon\Carbon::now();
+            $mesActual       = ($fechaActual->year * 12) + $fechaActual->month;
+            $mesRescision    = ($fechaRescision->year * 12) + $fechaRescision->month;
+            $diferenciaMeses = $mesActual - $mesRescision;
+
+            if ($impuesto === 'tgi') {
+                if ($diferenciaMeses < 0) {
+                    $registro->nuevo_estado = 'INACTIVO';
+                    return $registro;
+                }
+                // CORRECCIÓN: > 2 INACTIVO, = 1 PENDIENTE, sino ACTIVO
+                if ($diferenciaMeses > 2) {
+                    $registro->nuevo_estado = 'INACTIVO';
+                } elseif ($diferenciaMeses === 1) {
+                    $registro->nuevo_estado = 'PENDIENTE';
+                } else {
+                    $registro->nuevo_estado = 'ACTIVO';
+                }
+                return $registro;
+            }
+
+            if ($impuesto === 'agua') {
+                $registro->nuevo_estado = $diferenciaMeses >= 3 ? 'INACTIVO' : 'PENDIENTE';
+                return $registro;
+            }
+
+            if ($impuesto === 'api') {
+                if ($diferenciaMeses >= 4) {
+                    $registro->nuevo_estado = 'INACTIVO';
+                } elseif ($diferenciaMeses >= 1) {
+                    $registro->nuevo_estado = 'PENDIENTE';
+                } else {
+                    $registro->nuevo_estado = 'ACTIVO';
+                }
+                return $registro;
+            }
+
+            return $registro;
+        });
+
+        // Update final estados
+        foreach ($registrosInactivos as $registro) {
+            if (!isset($registro->nuevo_estado)) {
+                continue;
+            }
+
+            $modelo::where('folio', $registro->folio)
+                ->where('partida', $registro->partida)
+                ->update(['estado' => $registro->nuevo_estado]);
+        }
+
+        return [
+            'nuevos'    => $nuevosRegistros->values(),
+            'inactivos' => $registrosInactivos->values(),
+        ];
+    }
+
+    /* public function obtenerPadron($impuesto)
+    {
+        if ($impuesto === 'tgi') {
+            $padronExistente = Tgi_padron::all();
+            $nuevoPadron = (new PadronTgiService)->consultaObtenerPadronTGI();
+        }
+
+        if ($impuesto === 'agua') {
+            $padronExistente = Agua_padron::all();
+            $nuevoPadron = (new PadronAguaService)->consultaObtenerPadronAgua();
+        }
+
+        if ($impuesto === 'api') {
+            $padronExistente = Api_padron::all();
+            $nuevoPadron = (new PadronApiService)->consultaObtenerPadronAPI();
+        }
+
+        // Claves únicas folio+partida
+        $existente = collect($padronExistente)->mapWithKeys(function ($item) {
+            return [$item->folio . '-' . ltrim($item->partida, '0') => $item];
+        });
+
+        $nuevo = collect($nuevoPadron)->mapWithKeys(function ($item) {
+            return [$item->folio . '-' . ltrim($item->partida, '0') => $item];
+        });
+
+        $modelo = $this->obtenerModeloPorImpuesto($impuesto);
+
+        // ── 0. Reactivar INACTIVOS ──────────────────────────────────────────
+        $reactivar = $nuevo->filter(function ($registro, $key) use ($existente) {
+            return isset($existente[$key]) && $existente[$key]->estado === 'INACTIVO';
+        });
+
+        foreach ($reactivar as $registro) {
+            $modelo::where('folio', $registro->folio)
+                ->where('partida', $registro->partida)
+                ->update([
+                    'estado'     => 'ACTIVO',
+                    'calle'      => !empty($registro->calle) ? mb_convert_encoding($registro->calle, 'UTF-8', 'UTF-8') : '',
+                    'clave'      => is_numeric($registro->clave) ? $registro->clave : null,
+                    'abona'      => $registro->abona ?? '',
+                    'administra' => $registro->administra ?? '',
+                    'empresa'    => $registro->empresa ?? 0,
+                    'comienza'   => $registro->comienza ?? 0,
+                    'rescicion'  => $registro->rescicion ?? 0,
+                ]);
+        }
+
+        // ── 0.5 Detectar MODIFICADOS ────────────────────────────────────────
+        $existentePorFolioCalle = collect($padronExistente)->groupBy(function ($item) {
+            return $item->folio . '-' . trim($item->calle);
+        });
+
+        $nuevoPorFolioCalle = collect($nuevoPadron)->groupBy(function ($item) {
+            return $item->folio . '-' . trim($item->calle);
+        });
+
+        foreach ($existentePorFolioCalle as $folioCalleKey => $registrosViejos) {
+
+            if (!$nuevoPorFolioCalle->has($folioCalleKey)) {
+                continue;
+            }
+
+            $registrosNuevos = $nuevoPorFolioCalle[$folioCalleKey];
+
+            foreach ($registrosViejos as $viejo) {
+
+                // Los MODIFICADOS son históricos, no se vuelven a tocar
+                if ($viejo->estado === 'MODIFICADO') {
+                    continue;
+                }
+
+                if ($impuesto === 'api') {
+                    // ── API: folio+calle fijos, partida variable ──
+                    $partidaViejaExisteEnNuevos = $registrosNuevos->contains(function ($nuevo) use ($viejo) {
+                        return ltrim($nuevo->partida, '0') === ltrim($viejo->partida, '0');
+                    });
+
+                    if (!$partidaViejaExisteEnNuevos) {
+                        $modelo::where('folio', $viejo->folio)
+                            ->where('calle', $viejo->calle)
+                            ->where('partida', $viejo->partida)
+                            ->update(['estado' => 'MODIFICADO']);
+                    }
+                } else {
+                    // ── TGI / Agua / Gas ──
+
+                    // CASO B: partida vieja no numérica → llegan nuevos con partida numérica real
+                    $partidaViejaNoNumerica = !is_numeric(ltrim($viejo->partida, '0')) || empty(trim($viejo->partida));
+
+                    if ($partidaViejaNoNumerica) {
+                        $hayNuevosConPartidaReal = $registrosNuevos->contains(function ($nuevo) {
+                            return is_numeric(ltrim($nuevo->partida, '0')) && !empty(trim($nuevo->partida));
+                        });
+
+                        if ($hayNuevosConPartidaReal) {
+                            $modelo::where('folio', $viejo->folio)
+                                ->where('partida', $viejo->partida)
+                                ->update(['estado' => 'MODIFICADO']);
+                        }
+                        continue;
+                    }
+
+                    // CASO A: partida coincide pero clave cambió
+                    $nuevoCorrespondiente = $registrosNuevos->first(function ($nuevo) use ($viejo) {
+                        return ltrim($nuevo->partida, '0') === ltrim($viejo->partida, '0');
+                    });
+
+                    if ($nuevoCorrespondiente) {
+                        $claveVieja = is_numeric($viejo->clave) ? (string) $viejo->clave : '';
+                        $claveNueva = is_numeric($nuevoCorrespondiente->clave) ? (string) $nuevoCorrespondiente->clave : '';
+
+                        if ($claveVieja !== $claveNueva) {
+                            $modelo::where('folio', $viejo->folio)
+                                ->where('partida', $viejo->partida)
+                                ->update(['estado' => 'MODIFICADO']);
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── 1. Nuevos registros ─────────────────────────────────────────────
+        $nuevosRegistros = $nuevo->diffKeys($existente);
+
+        // ── 2. Sync total ───────────────────────────────────────────────────
+        foreach ($nuevo as $key => $registro) {
+            $registroExistente = $existente[$key] ?? null;
+
+            if ($registroExistente) {
+                // No pisar registros MODIFICADOS (son históricos)
+                if ($registroExistente->estado === 'MODIFICADO') {
+                    continue;
+                }
+
+                $modelo::where('folio', $registro->folio)
+                    ->where('partida', $registro->partida)
+                    ->update([
+                        'estado'     => 'ACTIVO',
+                        'calle'      => !empty($registro->calle) ? mb_convert_encoding($registro->calle, 'UTF-8', 'UTF-8') : '',
+                        'clave'      => is_numeric($registro->clave) ? $registro->clave : null,
+                        'abona'      => $registro->abona ?? '',
+                        'administra' => $registro->administra ?? '',
+                        'empresa'    => $registro->empresa ?? 0,
+                        'comienza'   => $registro->comienza ?? 0,
+                        'rescicion'  => $registro->rescicion ?? 0,
+                    ]);
+            } else {
+                $modelo::create([
+                    'folio'      => is_numeric($registro->folio) ? $registro->folio : null,
+                    'calle'      => !empty($registro->calle) ? mb_convert_encoding($registro->calle, 'UTF-8', 'UTF-8') : '',
+                    'partida'    => $registro->partida ?? '',
+                    'clave'      => is_numeric($registro->clave) ? $registro->clave : null,
+                    'abona'      => $registro->abona ?? '',
+                    'administra' => $registro->administra ?? '',
+                    'empresa'    => $registro->empresa ?? 0,
+                    'estado'     => 'ACTIVO',
+                    'comienza'   => $registro->comienza ?? 0,
+                    'rescicion'  => $registro->rescicion ?? 0,
+                ]);
+            }
+        }
+
+        // ── 3. Inactivar / Pendiente ────────────────────────────────────────
+        // ⚠️ FIX: Refrescar desde BD los registros que ya fueron marcados
+        //         MODIFICADO en el paso 0.5 para no pisarlos
+        $modificadosEnBD = $modelo::where('estado', 'MODIFICADO')
+            ->get(['folio', 'partida'])
+            ->map(fn($r) => $r->folio . '-' . ltrim($r->partida, '0'))
+            ->toArray();
+
+        $posiblesInactivos = $existente
+            ->diffKeys($nuevo)
+            ->filter(function ($registro, $key) use ($modificadosEnBD) {
+                return !in_array(
+                    $registro->folio . '-' . ltrim($registro->partida, '0'),
+                    $modificadosEnBD
+                );
+            });
+
+        $registrosInactivos = $posiblesInactivos->map(function ($registro) use ($impuesto) {
+
+            if (empty($registro->rescicion)) {
+                $registro->nuevo_estado = 'INACTIVO';
+                return $registro;
+            }
+
+            $fechaRescision  = \Carbon\Carbon::parse($registro->rescicion);
+            $fechaActual     = \Carbon\Carbon::now();
+            $mesActual       = ($fechaActual->year * 12) + $fechaActual->month;
+            $mesRescision    = ($fechaRescision->year * 12) + $fechaRescision->month;
+            $diferenciaMeses = $mesActual - $mesRescision;
+
+            if ($impuesto === 'tgi') {
+                if ($diferenciaMeses < 0) {
+                    $registro->nuevo_estado = 'INACTIVO';
+                    return $registro;
+                }
+                $registro->nuevo_estado = $diferenciaMeses > 1 ? 'INACTIVO' : 'PENDIENTE';
+                return $registro;
+            }
+
+            if ($impuesto === 'agua') {
+                $registro->nuevo_estado = $diferenciaMeses >= 3 ? 'INACTIVO' : 'PENDIENTE';
+                return $registro;
+            }
+
+            if ($impuesto === 'api') {
+                if ($diferenciaMeses >= 4) {
+                    $registro->nuevo_estado = 'INACTIVO';
+                } elseif ($diferenciaMeses >= 1) {
+                    $registro->nuevo_estado = 'PENDIENTE';
+                } else {
+                    $registro->nuevo_estado = 'ACTIVO';
+                }
+                return $registro;
+            }
+
+            return $registro;
+        });
+
+        // Update final estados
+        foreach ($registrosInactivos as $registro) {
+            if (!isset($registro->nuevo_estado)) {
+                continue;
+            }
+
+            $modelo::where('folio', $registro->folio)
+                ->where('partida', $registro->partida)
+                ->update(['estado' => $registro->nuevo_estado]);
+        }
+
+        return [
+            'nuevos'    => $nuevosRegistros->values(),
+            'inactivos' => $registrosInactivos->values(),
+        ];
+    } */
+
+
+
+    /* 
     public function obtenerPadron($impuesto)
     {
         if ($impuesto === 'tgi') {
@@ -312,7 +987,7 @@ class PadronImpuestoService
             'nuevos' => $nuevosRegistros->values(),
             'inactivos' => $registrosInactivos->values(),
         ];
-    }
+    } */
 
     public function ObtenerPadronFiltrado($impuesto, $request)
     {
@@ -328,7 +1003,7 @@ class PadronImpuestoService
         }
 
         // Separar filtros por tipo
-        $estados = array_intersect($filtros, ['ACTIVO', 'INACTIVO', 'PENDIENTE']);
+        $estados = array_intersect($filtros, ['ACTIVO', 'INACTIVO', 'PENDIENTE', 'MODIFICADO']);
         $administraciones = array_intersect($filtros, ['L', 'P', 'I']);
 
         // Obtener todos los registros del padrón desde el servicio
