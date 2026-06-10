@@ -12,6 +12,8 @@ use App\Services\impuesto\AGUA\PadronAguaService;
 use App\Services\impuesto\TGI\PadronTgiService;
 use App\Models\impuesto\Agua_padron;
 use App\Models\impuesto\Agua_carga;
+use App\Models\impuesto\Api_carga;
+use App\Models\impuesto\Api_padron;
 use App\Models\impuesto\Gas_carga;
 use App\Models\impuesto\Gas_padron;
 use Carbon\Carbon;
@@ -43,7 +45,7 @@ class CargaImpuestoService
         $diaPresente = !is_null($dia) && $dia !== '';
 
         // Filtro especial para el impuesto gas que permite filtrar por día exacto
-        if ($request->impuesto === 'gas' && $diaPresente) {
+        if (($request->impuesto === 'gas' || $request->impuesto === 'api') && $diaPresente) {
             // Validamos que año y mes sean obligatorios cuando se filtra por día
             if (!$anio || !$mes) {
                 return response()->json([
@@ -200,6 +202,14 @@ class CargaImpuestoService
         if ($impuesto === 'gas') {
             $registroExistente = $lista->first(function ($item) use ($idPadron, $mes, $anio) {
                 return $item->id_gasPadron == $idPadron &&
+                    $item->periodo_mes == $mes &&
+                    $item->periodo_anio == $anio;
+            });
+        }
+
+        if ($impuesto === 'api') {
+            $registroExistente = $lista->first(function ($item) use ($idPadron, $mes, $anio) {
+                return $item->id_apiPadron == $idPadron &&
                     $item->periodo_mes == $mes &&
                     $item->periodo_anio == $anio;
             });
@@ -364,6 +374,16 @@ class CargaImpuestoService
             $padrones = Gas_padron::whereIn('id', $jsonFolios)->get();
         }
 
+        if ($impuesto === 'api') {
+            Log::info('entro al if');
+            $jsonFolios = Api_carga::where('periodo_anio', $anio)
+                ->where('periodo_mes', $mes)
+                ->pluck('id_apiPadron')
+                ->toArray();
+
+            $padrones = Api_padron::whereIn('id', $jsonFolios)->get();
+        }
+
 
 
         return $padrones;
@@ -386,6 +406,7 @@ class CargaImpuestoService
         }
         if ($impuesto === 'agua') {
             $padrones = Agua_padron::where('estado', 'ACTIVO')
+                ->orWhere('estado', 'PENDIENTE')
                 ->where('administra', 'L')
                 ->get();
         }
@@ -395,30 +416,55 @@ class CargaImpuestoService
                 ->where('administra', 'L')
                 ->get();
         }
+        if ($impuesto === 'api') {
+            $padrones = Api_padron::where('estado', 'ACTIVO')
+                ->orWhere('estado', 'PENDIENTE')
+                ->where('administra', 'L')
+                ->get();
+        }
 
 
-        // 3️⃣ Filtrar los que NO están en foliosCargados por folio + partida + clave.
-        $faltantes = $padrones->filter(function ($padron) use ($foliosCargados) {
-            foreach ($foliosCargados as $cargado) {
-                if (
 
-                    $padron->partida == $cargado->partida &&
-                    $padron->clave == $cargado->clave
-                ) {
-                    return false; // ya está cargado
+
+        if ($impuesto === 'api') {
+            $faltantes = $padrones->filter(function ($padron) use ($foliosCargados) {
+                foreach ($foliosCargados as $cargado) {
+
+                    if ($padron->partida == $cargado->partida) {
+                        //Log::info([$padron->partida], [$cargado->partida]);
+                        return false; // ya está cargado
+                    }
                 }
-            }
-            return true; // no está cargado
-        });
+                return true; // no está cargado
+            });
+        } else {
+            // 3️⃣ Filtrar los que NO están en foliosCargados por folio + partida + clave.
+            $faltantes = $padrones->filter(function ($padron) use ($foliosCargados) {
+                foreach ($foliosCargados as $cargado) {
+                    if (
+
+                        $padron->partida == $cargado->partida &&
+                        $padron->clave == $cargado->clave
+                    ) {
+                        return false; // ya está cargado
+                    }
+                }
+                return true; // no está cargado
+            });
+        }
 
         return $faltantes; // limpia los índices
     }
 
-    public function sumarMontosGasService($anio, $mes, $dia)
+    //Funcion que permite sumar montos por dia
+    public function sumarMontosDiasService($anio, $mes, $dia, $impuesto)
     {
-
+        //normalizamos la fecha
         $fechaFiltro = Carbon::createFromDate((int) $anio, (int) $mes, (int) $dia)->format('Y-m-d');
-        $registros = Gas_Carga::whereDate('fecha_vencimiento', $fechaFiltro)
+        //obtenemos el modelo
+        $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
+        //traemos los datos que coinciden con la fecha
+        $registros = $modelo::whereDate('fecha_vencimiento', $fechaFiltro)
             ->get();
 
         // Filtrar registros que:
@@ -455,9 +501,6 @@ class CargaImpuestoService
         });
 
         // Calcular total sobre registros filtrados
-        /* $total = $registrosFiltrados->sum(function ($r) {
-            return (float) str_replace(',', '.', $r->importe);
-        }); */
         $total = round(
             $registrosFiltrados->sum(function ($r) {
                 return (float) str_replace(',', '.', $r->importe);
@@ -478,6 +521,8 @@ class CargaImpuestoService
         $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
         $registros = $modelo::where('periodo_anio', $anio)
             ->where('periodo_mes', $mes)
+            ->where('num_broche', null)
+            ->where('bajado', 'N')
             ->get();
 
 
@@ -516,9 +561,16 @@ class CargaImpuestoService
         });
 
         // Calcular total sobre registros filtrados
-        $total = $registrosFiltrados->sum(function ($r) {
+        /*  $total = $registrosFiltrados->sum(function ($r) {
             return (float) str_replace(',', '.', $r->importe);
-        });
+        }); */
+
+        $total = round(
+            $registrosFiltrados->sum(function ($r) {
+                return (float) str_replace(',', '.', $r->importe);
+            }),
+            2 // cantidad de decimales
+        );
 
         // Retornar objeto con total y registros filtrados
         return (object)[
@@ -566,17 +618,18 @@ class CargaImpuestoService
         });
 
 
-        return $total;
+        return round($total, 2);
     }
 
-    public function generarDistribucionGasBroches($anio, $mes, $dia, $cantidadBroches)
+    //Funcion que genera la distribucion de broche por dias tanto de gas como de api
+    public function generarDistribucionDiaBroches($anio, $mes, $dia, $cantidadBroches, $impuesto)
     {
-        $totalMontoBroche = $this->sumarMontosGasService($anio, $mes, $dia);
+        //Calculamos el monto del dia
+        $totalMontoBroche = $this->sumarMontosDiasService($anio, $mes, $dia, $impuesto);
 
         $registros = $totalMontoBroche->registros;
 
         $topePorBroche = $totalMontoBroche->total / $cantidadBroches;
-
 
 
         //Filtrar registros del año y mes indicados
@@ -611,7 +664,7 @@ class CargaImpuestoService
 
             // Si no hay folios activos, podés decidir qué hacer:
             if (empty($foliosActivos)) {
-                continue; // lo excluyo, pero podés cambiar la lógica
+                continue; // lo excluyo
             }
 
             // Tomar el folio activo más chico
@@ -650,8 +703,11 @@ class CargaImpuestoService
         $offsetBroche = 0;
 
         // Buscar el último num_broche con bajado = 'S' para este período/día
-        $ultimoBrocheAsignado = Gas_carga::whereYear('fecha_vencimiento', $anio)
+        $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
+
+        $ultimoBrocheAsignado = $modelo::whereYear('fecha_vencimiento', $anio)
             ->whereMonth('fecha_vencimiento', $mes)
+            ->whereDay('fecha_vencimiento', $dia)
             ->where('bajado', 'S')
             ->whereNotNull('num_broche')
             ->orderByRaw("CAST(SUBSTRING_INDEX(num_broche, '°', -1) AS UNSIGNED) DESC")
@@ -680,7 +736,7 @@ class CargaImpuestoService
         foreach ($grupos as $grupo) {
             $importeGrupo = $grupo['importe'];
 
-            if ($brocheActual < $cantidadBroches - 1 && $importeAcumulado >= $topePorBroche) {
+            if ($brocheActual < $cantidadBroches - 1  && $importeAcumulado >= $topePorBroche) {
                 $brocheActual++;
                 $importeAcumulado = 0;
             }
@@ -718,9 +774,9 @@ class CargaImpuestoService
             }
         }
 
-        Log::info('broches', ['broches' => $broches]);
-        Log::info('registrosFiltrados', ['registrosFiltrados' => $registrosFiltrados]);
-        Log::info('total', ['total' => $totalFinal]);
+        // Log::info('broches', ['broches' => $broches]);
+        //Log::info('registrosFiltrados', ['registrosFiltrados' => $registrosFiltrados]);
+        //Log::info('total', ['total' => $totalFinal]);
         return [
             'broches' => $broches,
             'registrosFiltrados' => $registrosFiltrados,
@@ -730,6 +786,7 @@ class CargaImpuestoService
     //Este servicio sirve para enviar en formato JSON la info de los broches, y que sea consumia por el front JS
     public function generarDistribucionBroches($anio, $mes, $cantidadBroches, $impuesto)
     {
+        // Log::info('entro a distribucion');
         // Paso 0: Calcular totales
         $totalMontoBroche = $this->sumarMontosService($anio, $mes, $impuesto);
         $registros = $totalMontoBroche->registros;
@@ -796,6 +853,17 @@ class CargaImpuestoService
         });
 
         // Paso 4: Asignar secuencialmente a broches
+
+        $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
+
+        $brocheOcupados  = $modelo::whereYear('fecha_vencimiento', $anio)
+            ->whereMonth('fecha_vencimiento', $mes)
+            ->whereNotNull('num_broche')
+            ->pluck('num_broche')
+            ->unique()
+            ->toArray();
+
+        // Paso 4: Asignar secuencialmente a broches, saltando ocupados
         $broches = [];
         for ($i = 0; $i < $cantidadBroches; $i++) {
             $broches[$i] = [
@@ -807,19 +875,28 @@ class CargaImpuestoService
         $brocheActual = 0;
         $importeAcumulado = 0;
 
+        // Encontrar el primer num_broche disponible
+        $proximoNumero = 1;
+        while (in_array($proximoNumero, $brocheOcupados)) {
+            $proximoNumero++;
+        }
+
         foreach ($grupos as $grupo) {
             $importeGrupo = $grupo['importe'];
 
-            // Si el broche actual ya llegó al tope, pasamos al siguiente
             if ($brocheActual < $cantidadBroches - 1 && $importeAcumulado >= $topePorBroche) {
                 $brocheActual++;
                 $importeAcumulado = 0;
+
+                // Buscar el próximo número disponible
+                $proximoNumero++;
+                while (in_array($proximoNumero, $brocheOcupados)) {
+                    $proximoNumero++;
+                }
             }
 
-
             foreach ($grupo['items'] as $registro) {
-                $registro->num_broche = $brocheActual + 1;
-
+                $registro->num_broche = $proximoNumero; // 👈 usa el número libre
                 $importe = (float) str_replace(',', '.', $registro->importe);
                 $broches[$brocheActual]['importe'] += $importe;
                 $broches[$brocheActual]['items'][] = $registro;
@@ -874,8 +951,8 @@ class CargaImpuestoService
     //Si el registro está bajado en "S", lo descartamos
     public function guardarDistribucionBrocheSALAS($anio, $mes, $impuesto)
     {
+        $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
 
-        $modelo = $impuesto === 'tgi' ? Tgi_carga::class : Agua_carga::class;
         $registros = $modelo::where('periodo_anio', $anio)
             ->where('periodo_mes', $mes)
             ->get();
@@ -916,7 +993,7 @@ class CargaImpuestoService
         return true;
     }
 
-    //Funcion que modifcia el bajado eN "S" de todos los registros de tgi_carga que tengan num_broche tenga un numero asignado y por anio y mes dados. Devueve men
+    /* //Funcion que modifcia el bajado eN "S" de todos los registros de tgi_carga que tengan num_broche tenga un numero asignado y por anio y mes dados. Devueve men
     public function modificarBajadoService($anio, $mes, $impuesto)
     {
         $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
@@ -930,7 +1007,7 @@ class CargaImpuestoService
             $registro->bajado = "S";
             $registro->save();
         }
-    }
+    } */
 
     //Este servicio modifica el estado (actvio/inactivo) de un registro en tgi_carga
     //Si se pasa a inactivo, se elimina el num_broche asignado
@@ -972,6 +1049,7 @@ class CargaImpuestoService
             'tgi'  => Tgi_carga::class,
             'agua' => Agua_carga::class,
             'gas'  => Gas_carga::class,
+            'api'  => Api_carga::class,
         ];
 
         if (!isset($map[$impuesto])) {
@@ -981,24 +1059,11 @@ class CargaImpuestoService
         return $map[$impuesto];
     }
 
-    public function obtenerModeloPadronPorImpuesto($impuesto)
+    public function SinControlar($impuesto)
     {
-        $map = [
-            'tgi'  => Tgi_padron::class,
-            'agua' => Agua_padron::class,
-            'gas'  => Gas_padron::class,
-        ];
-
-        if (!isset($map[$impuesto])) {
-            throw new \Exception("Impuesto no válido");
-        }
-
-        return $map[$impuesto];
-    }
-
-    public function SinControlar()
-    {
-        $datos = Gas_carga::select('num_broche', 'fecha_vencimiento')
+        // Log::info($impuesto);
+        $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
+        $datos = $modelo::select('num_broche', 'fecha_vencimiento')
             ->where('bajado', 'N')
             ->distinct()
             ->get();
@@ -1007,19 +1072,62 @@ class CargaImpuestoService
         return $datos;
     }
 
+    public function obtenerModeloPadronPorImpuesto($impuesto)
+    {
+        $map = [
+            'tgi'  => Tgi_padron::class,
+            'agua' => Agua_padron::class,
+            'gas'  => Gas_padron::class,
+            'api'  => Api_padron::class,
+        ];
+
+        if (!isset($map[$impuesto])) {
+            throw new \Exception("Impuesto no válido");
+        }
+
+        return $map[$impuesto];
+    }
+
+
+
     public function gasRechazar($datos)
     {
-        Gas_carga::where('fecha_vencimiento', $datos['fecha_vencimiento'])
-            ->update(['num_broche' => null]);
-        return response()->json(['message' => 'Gas rechazado correctamente'], 200);
+        $modelo = $this->obtenerModeloCargaPorImpuesto($datos['impuesto']);
+        if ($datos['impuesto'] === 'api' || $datos['impuesto'] === 'gas') {
+            $modelo::where('fecha_vencimiento', $datos['fecha_vencimiento'])
+                ->update(['num_broche' => null]);
+            return response()->json(['message' => 'Gas rechazado correctamente'], 200);
+        } elseif ($datos['impuesto'] === 'agua' || $datos['impuesto'] === 'tgi') {
+            $modelo::where('fecha_vencimiento', $datos['fecha_vencimiento'])
+                ->where('num_broche', $datos['numero_broche'])
+                ->update(['num_broche' => null]);
+            return response()->json(['message' => 'Gas rechazado correctamente'], 200);
+        }
     }
 
     public function gasBajado($datos)
     {
+        $modelo = $this->obtenerModeloCargaPorImpuesto($datos['impuesto']);
         $usuarioId = auth('api')->id();
-        Gas_carga::where('fecha_vencimiento', $datos['fecha_vencimiento'])
-            ->where('num_broche', '!=', null)
-            ->update(['bajado' => 'S', 'controlado' => $usuarioId]);
-        return response()->json(['message' => 'Gas bajado correctamente'], 200);
+
+        if ($datos['impuesto'] === 'api' || $datos['impuesto'] === 'gas') {
+
+            $modelo::where('fecha_vencimiento', $datos['fecha_vencimiento'])
+                ->where('num_broche', '!=', null)
+                ->update(['bajado' => 'S', 'controlado' => $usuarioId]);
+            return response()->json(['message' => 'Gas bajado correctamente'], 200);
+        } elseif ($datos['impuesto'] === 'agua' || $datos['impuesto'] === 'tgi') {
+
+            $modelo::where('fecha_vencimiento', $datos['fecha_vencimiento'])
+                ->where('num_broche', '!=', null)
+                ->where('num_broche', $datos['numero_broche'])
+                ->update(['bajado' => 'S', 'controlado' => $usuarioId]);
+            return response()->json(['message' => 'Gas bajado correctamente'], 200);
+        }
+
+        //$modelo = $this->obtenerModeloCargaPorImpuesto($datos['impuesto']);
+
+
+
     }
 }

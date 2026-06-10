@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Response;
 use App\Services\impuesto\AGUA\PadronAguaService;
 use App\Services\impuesto\AGUA\CargaAguaService;
+use App\Services\impuesto\API\CargaApiService;
 use App\Services\impuesto\GAS\CargaGasService;
 use App\Services\impuesto\Impuesto\PadronImpuestoService;
 use App\Services\impuesto\Impuesto\CargaImpuestoService;
@@ -26,7 +27,7 @@ class ImpuestosController extends Controller
     public function actualizarPadron($impuesto)
     {
 
-        if ($impuesto === 'tgi' || $impuesto === 'agua' || $impuesto === 'gas') {
+        if ($impuesto === 'tgi' || $impuesto === 'agua' || $impuesto === 'gas' || $impuesto === 'api') {
             return (new PadronImpuestoService())->actualizarPadronImpuesto($impuesto);
         }
     }
@@ -43,18 +44,24 @@ class ImpuestosController extends Controller
                 'actualizaPadron_tgi' => $accessService->tieneAcceso('actualizaPadron_tgi')
             ];
         }
-        if($impuesto === 'agua'){
+        if ($impuesto === 'agua') {
             $botones = [
                 'actualizaPadron_agua' => $accessService->tieneAcceso('actualizaPadron_agua')
             ];
         }
-        if($impuesto === 'gas'){
+        if ($impuesto === 'gas') {
             $botones = [
                 'actualizaPadron_gas' => $accessService->tieneAcceso('actualizaPadron_gas')
             ];
         }
 
-        if ($impuesto === 'tgi' || $impuesto === 'agua' || $impuesto === 'gas') {
+        if ($impuesto === 'api') {
+            $botones = [
+                'actualizaPadron_api' => $accessService->tieneAcceso('actualizaPadron_api')
+            ];
+        }
+
+        if ($impuesto === 'tgi' || $impuesto === 'agua' || $impuesto === 'gas' || $impuesto === 'api') {
             $resultado = (new PadronImpuestoService())->ObtenerPadronFiltrado($impuesto, $request);
             return response()->json([
                 'resultado' => $resultado,
@@ -65,9 +72,7 @@ class ImpuestosController extends Controller
 
     public function actualizarImpuesto(Request $request)
     {
-        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
-            return (new PadronImpuestoService())->actualizarPadronConcreto($request);
-        }
+        return (new PadronImpuestoService())->actualizarPadronConcreto($request);
     }
 
 
@@ -80,35 +85,33 @@ class ImpuestosController extends Controller
         // 2. Instanciar el servicio de permisos localmente
         $accessService = new PermitirAccesoSelladoService($usuario_id);
         $botones = [];
-        if($request->impuesto === 'tgi'){
+        if ($request->impuesto === 'tgi') {
             $botones = [
                 'modificarBajado_tgi' => $accessService->tieneAcceso('modificarBajado_tgi'),
                 'modificarEstado_tgi' => $accessService->tieneAcceso('modificarEstado_tgi'),
                 'eliminarImpuesto_tgi' => $accessService->tieneAcceso('eliminarImpuesto_tgi')
             ];
         }
-        if($request->impuesto === 'agua'){
+        if ($request->impuesto === 'agua') {
             $botones = [
                 'modificarBajado_agua' => $accessService->tieneAcceso('modificarBajado_agua'),
                 'modificarEstado_agua' => $accessService->tieneAcceso('modificarEstado_agua'),
                 'eliminarImpuesto_agua' => $accessService->tieneAcceso('eliminarImpuesto_agua')
             ];
         }
-        if($request->impuesto === 'gas'){
+        if ($request->impuesto === 'gas') {
             $botones = [
                 'modificarBajado_gas' => $accessService->tieneAcceso('modificarBajado_gas'),
                 'modificarEstado_gas' => $accessService->tieneAcceso('modificarEstado_gas'),
                 'eliminarImpuesto_gas' => $accessService->tieneAcceso('eliminarImpuesto_gas')
             ];
         }
-        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
-            //return app(CargaImpuestoService::class)->padronCarga($request);
-            $resultado = app(CargaImpuestoService::class)->padronCarga($request);
-            return response()->json([
-                'botones' => $botones,
-                'resultado' => $resultado
-            ]);
-        }
+        //return app(CargaImpuestoService::class)->padronCarga($request);
+        $resultado = app(CargaImpuestoService::class)->padronCarga($request);
+        return response()->json([
+            'botones' => $botones,
+            'resultado' => $resultado
+        ]);
     }
 
 
@@ -161,60 +164,89 @@ class ImpuestosController extends Controller
         }
 
         if ($request->impuesto === 'gas') {
-            Log::info('controlador impyuesyo');
+            // Log::info('controlador impyuesyo');
             $codigoBarras = $request->codigo_barras;
             if (!$codigoBarras) {
                 return response()->json(['error' => 'El campo código de barras es obligatorio'], 400);
             }
             if (empty($codigoBarras) || strlen($codigoBarras) !== 52) {
-                Log::info($codigoBarras);
-                Log::info('El código de barras no tiene 51 caracteres');
+                //Log::info($codigoBarras);
+                // Log::info('El código de barras no tiene 51 caracteres');
                 return response()->json(['error' => 'Debés ingresar un código de barras válido de 51 caracteres'], 400);
             }
+
+
+
+
             return app(CargaGasService::class)->cargarNuevoGasService($codigoBarras);
+        }
+
+        if ($request->impuesto === 'api') {
+
+
+            $codigoBarras = $request->codigo_barras;
+
+            if (!$codigoBarras) {
+                Log::error('El campo código de barras es obligatorio');
+                return redirect()->back()->with('error', 'El campo código de barras es obligatorio.');
+            }
+            if (empty($codigoBarras) || strlen($codigoBarras) !== 50) {
+                Log::error('Debés ingresar un código de barras válido de 50 caracteres');
+                return redirect()->back()->with('error', 'Debés ingresar un código de barras válido de 35 caracteres.');
+            }
+
+            return app(CargaApiService::class)->cargarNuevoApiService($codigoBarras);
         }
     }
 
     public function exportarFaltantes(Request $request)
     {
-        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
-            $registros = app(CargaImpuestoService::class)->exportarFaltantesService($request->anio, $request->mes, $request->impuesto);
 
-            $contenido = '';
+        $registros = app(CargaImpuestoService::class)->exportarFaltantesService($request->anio, $request->mes, $request->impuesto);
 
-            foreach ($registros as $r) {
-                $fila = [
-                    $r->folio,
-                    $r->partida,
-                    $r->clave,
-                    $r->abona,
-                    $r->administra,
-                    $r->empresa,
-                    $r->estado,
-                    Carbon::parse($r->comienza)->format('Y-m-d'),
-                    Carbon::parse($r->rescicion)->format('Y-m-d'),
-                ];
 
-                $contenido .= implode("\t", $fila) . "\n";
-            }
+        $contenido = '';
 
-            $nombreArchivo = "agua_faltantes_{$request->anio}_{$request->mes}.txt";
+        foreach ($registros as $r) {
+            $fila = [
+                $r->folio,
+                $r->partida,
+                $r->clave,
+                $r->abona,
+                $r->administra,
+                $r->empresa,
+                $r->estado,
+                Carbon::parse($r->comienza)->format('Y-m-d'),
+                Carbon::parse($r->rescicion)->format('Y-m-d'),
+            ];
 
-            return Response::make($contenido, 200, [
-                'Content-Type' => 'text/plain',
-                'Content-Disposition' => "attachment; filename={$nombreArchivo}",
-            ]);
+            $contenido .= implode("\t", $fila) . "\n";
         }
+
+        $nombreArchivo = "agua_faltantes_{$request->anio}_{$request->mes}.txt";
+
+        return Response::make($contenido, 200, [
+            'Content-Type' => 'text/plain',
+            'Content-Disposition' => "attachment; filename={$nombreArchivo}",
+        ]);
     }
 
 
     public function sumarMontos(Request $request)
     {
-        //Log::info('llego al controller', [$request->all()]);
+        
         if ($request->impuesto === 'gas') {
-            $total = app(CargaImpuestoService::class)->sumarMontosGasService($request->anio, $request->mes,  $request->dia);
+            $total = app(CargaImpuestoService::class)->sumarMontosDiasService($request->anio, $request->mes,  $request->dia, $request->impuesto);
             return response()->json([
                 'total' => $total,
+            ]);
+        }
+        if ($request->impuesto === 'api') {
+            $total = app(CargaImpuestoService::class)->sumarMontosDiasService($request->anio, $request->mes,  $request->dia, $request->impuesto);
+            $totalSalas = app(CargaImpuestoService::class)->sumarMontosSalasService($request->anio, $request->mes, $request->impuesto);
+            return response()->json([
+                'total' => $total,
+                'totalSalas' => $totalSalas,
             ]);
         }
 
@@ -233,18 +265,20 @@ class ImpuestosController extends Controller
 
     public function MostrarBroche(Request $request)
     {
-        if ($request->impuesto === 'gas') {
-            return app(CargaImpuestoService::class)->generarDistribucionGasBroches($request->anio, $request->mes, $request->dia, $request->cant_broches);
+        if ($request->impuesto === 'gas' || $request->impuesto === 'api') {
+            return app(CargaImpuestoService::class)->generarDistribucionDiaBroches($request->anio, $request->mes, $request->dia, $request->cant_broches, $request->impuesto);
         }
-        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
+        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua') {
+
+            //Log::info(app(CargaImpuestoService::class)->generarDistribucionBroches($request->anio, $request->mes, $request->cant_broches, $request->impuesto));
             return app(CargaImpuestoService::class)->generarDistribucionBroches($request->anio, $request->mes, $request->cant_broches, $request->impuesto);
         }
     }
 
     public function guardarBroches(Request $request)
     {
-        if ($request->impuesto === 'gas') {
-            $resultado = app(CargaImpuestoService::class)->generarDistribucionGasBroches($request->anio, $request->mes, $request->dia, $request->cant_broches);
+        if ($request->impuesto === 'gas' || $request->impuesto === 'api') {
+            $resultado = app(CargaImpuestoService::class)->generarDistribucionDiaBroches($request->anio, $request->mes, $request->dia, $request->cant_broches, $request->impuesto);
             app(CargaImpuestoService::class)->guardarDistribucionBroches($resultado['registrosFiltrados'], $request->impuesto);
             return response()->json([
                 'status' => 'success',
@@ -252,7 +286,6 @@ class ImpuestosController extends Controller
             ]);
         }
         if ($request->impuesto === 'tgi' || $request->impuesto === 'agua') {
-
 
             $resultado = app(CargaImpuestoService::class)->generarDistribucionBroches($request->anio, $request->mes, $request->cant_broches, $request->impuesto);
 
@@ -268,7 +301,7 @@ class ImpuestosController extends Controller
     public function guardarBrocheSALAS(Request $request)
     {
         //Log::info('guardo el broche salas?', [$request->all()]);
-        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua') {
+        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'api') {
 
             try {
                 app(CargaImpuestoService::class)->guardarDistribucionBrocheSALAS($request->anio, $request->mes, $request->impuesto);
@@ -284,14 +317,14 @@ class ImpuestosController extends Controller
         }
     }
 
-    public function modificarBajadoController(Request $request)
+    /* public function modificarBajadoController(Request $request)
     {
         if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
             app(CargaImpuestoService::class)->modificarBajadoService($request->anio, $request->mes, $request->impuesto);
 
             return response()->json(['status' => 'success', 'message' => 'El bajado se modificó correctamente.']);
         }
-    }
+    } */
 
     public function modificarEstadoTGIController(Request $request)
     {
@@ -317,9 +350,10 @@ class ImpuestosController extends Controller
         return response()->json(['status' => 'success', 'message' => 'El registro se ha eliminado correctamente.']);
     }
 
-    public function sinControlar()
+    public function sinControlar(Request $request)
     {
-        return app(CargaImpuestoService::class)->sinControlar();
+       // Log::info([$request]);
+        return app(CargaImpuestoService::class)->sinControlar($request->impuesto);
     }
 
     public function gasRechazar(Request $request)
@@ -330,7 +364,7 @@ class ImpuestosController extends Controller
 
     public function gasBajado(Request $request)
     {
-        Log::info('gas bajado', [$request->all()]);
+       // Log::info('gas bajado', [$request->all()]);
         return app(CargaImpuestoService::class)->gasBajado($request->all());
     }
 }
