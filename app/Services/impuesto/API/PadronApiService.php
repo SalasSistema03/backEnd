@@ -1,33 +1,33 @@
 <?php
 
-namespace App\Services\impuesto\TGI;
+namespace App\Services\impuesto\API;
 
-
+use App\Models\impuesto\Api_padron;
 use App\Models\impuesto\Tgi_padron;
 use Illuminate\Support\Facades\DB;
 
 
-class PadronTgiService
+class PadronApiService
 {
 
     public function __construct() {}
 
     //Este metodo busca una tgi por partida
-    public function buscarTgiPorPartida($partida)
+    public function buscarApiPorPartida($partida)
     {
         // Buscar en la tabla tgi_padron por el campo 'partida'
-        $partida = trim($partida); // elimina espacios
-        $tgiPadron = Tgi_padron::where('partida', $partida)->first();
+         
+        $apiPadron = Api_padron::where('partida', $partida)->first();
 
-        return $tgiPadron; // Retorna el registro encontrado o null si no existe
+        return $apiPadron; // Retorna el registro encontrado o null si no existe
     }
 
 
-    //Esta función obtiene el padrón TGI desde la base de datos propia
+    //Esta función obtiene el padrón API desde la base de datos propia
     //Funcion utilizada por el servicio PadronImpuestoService
     public function obtenerPadronExistente()
     {
-        return Tgi_padron::orderByRaw("
+        return Api_padron::orderByRaw("
         CASE
             WHEN folio LIKE '50%' AND LENGTH(folio) = 5 THEN 0
             ELSE 1
@@ -42,10 +42,10 @@ class PadronTgiService
 
     //Esta consulta obtiene el padrón TGI desde la base de datos externa
     //Funcion utilizada por el servicio PadronImpuestoService
-    public function consultaObtenerPadronTGI()
+    public function consultaObtenerPadronAPI()
     {
         $sql = "
-       SELECT
+        SELECT
             p.carpeta AS folio,
             CONCAT(n.Calle, ' ', p.altura) AS calle,
             pi.partida,
@@ -63,7 +63,7 @@ class PadronTgiService
         LEFT JOIN desarrollo.impuestos i ON pi.id_casa = i.id_casa
         INNER JOIN desarrollo.contratos_cabecera cc ON cc.id_casa = p.id_casa
         INNER JOIN desarrollo.empresa e ON cc.id_empresa = e.id_empresa
-        WHERE ti.id_tipo_impuesto = 1
+        WHERE ti.id_tipo_impuesto = 3
           AND cc.comienza <= CURDATE()
           AND cc.rescicion >= CURDATE()
         GROUP BY
@@ -85,9 +85,9 @@ class PadronTgiService
         // Normalizar partida a 8 dígitos
         foreach ($resultado as $row) {
             if (isset($row->partida)) {
-                $row->partida = str_pad($row->partida, 8, '0', STR_PAD_LEFT);
+                $row->partida = str_replace(['-', '/'], '', $row->partida);
             }
-        }
+        } 
         return $resultado;
     }
 }

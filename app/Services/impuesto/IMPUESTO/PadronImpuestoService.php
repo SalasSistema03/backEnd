@@ -10,8 +10,10 @@ use Illuminate\Support\Facades\Log;
 use App\Services\impuesto\AGUA\PadronAguaService;
 use App\Services\impuesto\TGI\PadronTgiService;
 use App\Models\impuesto\Agua_padron;
+use App\Models\impuesto\Api_padron;
 use App\Models\impuesto\Gas_padron;
 use App\Services\impuesto\GAS\PadronGasService;
+use App\Services\impuesto\API\PadronApiService;
 use Carbon\Carbon;
 
 class PadronImpuestoService
@@ -21,15 +23,12 @@ class PadronImpuestoService
 
     public function actualizarPadronImpuesto($impuesto)
     {
-
-        if ($impuesto === 'agua' || $impuesto === 'tgi' || $impuesto === 'gas') {
-            $this->actualizarPadron($impuesto);
-        }
+        $this->actualizarPadron($impuesto);
     }
 
     public function actualizarPadron($impuesto)
     {
-        if ($impuesto === 'tgi' || $impuesto === 'agua') {
+        if ($impuesto === 'tgi' || $impuesto === 'agua' || $impuesto === 'api') {
             $this->obtenerPadron($impuesto);
             return response()->json(['message' => 'Padrón ' . strtoupper($impuesto) . ' actualizado correctamente.']);
         }
@@ -150,6 +149,11 @@ class PadronImpuestoService
             $nuevoPadron = (new PadronAguaService)->consultaObtenerPadronAgua();
         }
 
+        if ($impuesto === 'api') {
+            $padronExistente = Api_padron::all();
+            $nuevoPadron = (new PadronApiService)->consultaObtenerPadronAPI();
+        }
+
         // Claves únicas
         $existente = collect($padronExistente)->mapWithKeys(function ($item) {
             return [$item->folio . '-' . ltrim($item->partida, '0') => $item];
@@ -158,6 +162,7 @@ class PadronImpuestoService
         $nuevo = collect($nuevoPadron)->mapWithKeys(function ($item) {
             return [$item->folio . '-' . ltrim($item->partida, '0') => $item];
         });
+
 
         // 1. Nuevos registros
         $nuevosRegistros = $nuevo->diffKeys($existente);
@@ -168,7 +173,8 @@ class PadronImpuestoService
         });
 
         foreach ($reactivar as $registro) {
-            $modelo = $impuesto === 'agua' ? Agua_padron::class : Tgi_padron::class;
+            $modelo = $this->obtenerModeloPorImpuesto($impuesto);
+            // $modelo = $impuesto === 'agua' ? Agua_padron::class : Tgi_padron::class;
 
             $modelo::where('folio', $registro->folio)
                 ->where('partida', $registro->partida)
@@ -187,7 +193,8 @@ class PadronImpuestoService
         // 2. Sync total
         foreach ($nuevo as $key => $registro) {
             $registroExistente = $existente[$key] ?? null;
-            $modelo = $impuesto === 'agua' ? Agua_padron::class : Tgi_padron::class;
+            //$modelo = $impuesto === 'agua' ? Agua_padron::class : Tgi_padron::class;
+            $modelo = $this->obtenerModeloPorImpuesto($impuesto);
 
             if ($registroExistente) {
                 $modelo::where('folio', $registro->folio)
@@ -238,7 +245,17 @@ class PadronImpuestoService
 
                 $diferenciaMeses = $mesActual - $mesRescision;
 
-                $registro->nuevo_estado = $diferenciaMeses >= 1 ? 'INACTIVO' : 'ACTIVO';
+                // 🔹 Fecha futura (mal cargado) → INACTIVO
+                if ($diferenciaMeses < 0) {
+                    $registro->nuevo_estado = 'INACTIVO';
+                    return $registro;
+                }
+                //$registro->nuevo_estado = $diferenciaMeses > 1 ? 'INACTIVO' : 'ACTIVO';
+                if ($diferenciaMeses > 1) {
+                    $registro->nuevo_estado = 'INACTIVO';
+                } else {
+                    $registro->nuevo_estado = 'PENDIENTE';
+                }
                 return $registro;
             }
 
@@ -259,12 +276,32 @@ class PadronImpuestoService
                 return $registro;
             }
 
+            // API (mes calendario)
+            if ($impuesto === 'api') {
+
+                $mesActual = ($fechaActual->year * 12) + $fechaActual->month;
+                $mesRescision = ($fechaRescision->year * 12) + $fechaRescision->month;
+
+                $diferenciaMeses = $mesActual - $mesRescision;
+
+                if ($diferenciaMeses >= 4) {
+                    $registro->nuevo_estado = 'INACTIVO';
+                } elseif ($diferenciaMeses < 4 & $diferenciaMeses >= 1) {
+                    $registro->nuevo_estado = 'PENDIENTE';
+                } else {
+                    $registro->nuevo_estado = 'ACTIVO';
+                }
+
+                return $registro;
+            }
+
             return $registro;
         });
 
         // Update final
         foreach ($registrosInactivos as $registro) {
-            $modelo = $impuesto === 'agua' ? Agua_padron::class : Tgi_padron::class;
+            $modelo = $this->obtenerModeloPorImpuesto($impuesto);
+            //$modelo = $impuesto === 'agua' ? Agua_padron::class : Tgi_padron::class;
 
             $modelo::where('folio', $registro->folio)
                 ->where('partida', $registro->partida)
@@ -304,6 +341,10 @@ class PadronImpuestoService
 
         if ($impuesto === 'gas') {
             $padron = (new PadronGasService())->obtenerPadronExistente();
+        }
+
+        if ($impuesto === 'api') {
+            $padron = (new PadronApiService())->obtenerPadronExistente();
         }
 
 
@@ -378,6 +419,7 @@ class PadronImpuestoService
             'tgi'  => Tgi_padron::class,
             'agua' => Agua_padron::class,
             'gas'  => Gas_padron::class,
+            'api'  => Api_padron::class,
         ];
 
         if (!isset($map[$impuesto])) {

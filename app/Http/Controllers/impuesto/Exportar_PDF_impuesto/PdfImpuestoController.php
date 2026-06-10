@@ -21,11 +21,9 @@ class PdfImpuestoController
 
     public function PDF_broche(Request $request)
     {
-        if($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas'){
         $data = (new PdfImpuesto)->obtenerRegistrosPorBroche($request->anio, $request->mes, $request->impuesto);
+        //Log::info($data);
         return response()->json($data);
-
-        }
     }
 
 
@@ -39,6 +37,7 @@ class PdfImpuestoController
 
     public function descargaPdf(Request $request)
     {
+       // Log::info('entro');
         // Los datos que antes pasabas por props en Vue
         $broches = $request->input('broches');
         $anio = $request->input('anio');
@@ -46,7 +45,7 @@ class PdfImpuestoController
         $impuesto = $request->input('impuesto');
         $usuario_id = auth('api')->id();
         $username = Usuario::where('id', $usuario_id)->first()->username;
-        //Log::info('informacion del broche', ['broches' => $broches, 'anio' => $anio, 'mes' => $mes, 'impuesto' => $impuesto, 'request' => $request->all()]);
+        Log::info('informacion del broche', ['broches' => $broches, 'anio' => $anio, 'mes' => $mes, 'impuesto' => $impuesto, 'request' => $request->all()]);
 
         // Generamos el HTML usando una vista de Blade limpia
         $html = view('pdfs.broches', compact('broches', 'anio', 'mes', 'impuesto'))->render();

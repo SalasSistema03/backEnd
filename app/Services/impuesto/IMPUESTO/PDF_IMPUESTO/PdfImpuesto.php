@@ -148,7 +148,7 @@ class PdfImpuesto
     public function obtenerRegistrosDesdeFolio50000($anio, $mes, $impuesto)
     {
         // 1️⃣ Traer los registros filtrados por año y mes
-        $modelo = $impuesto === 'tgi' ? Tgi_carga::class : Agua_carga::class;
+        $modelo = (new CargaImpuestoService())->obtenerModeloCargaPorImpuesto($impuesto);
         $registros = $modelo::where('periodo_anio', $anio)
             ->where('periodo_mes', $mes)
             ->get();
