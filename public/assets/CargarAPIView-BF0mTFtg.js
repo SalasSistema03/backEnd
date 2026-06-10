@@ -1,0 +1,1 @@
+import{c as e,b as a,_ as t,F as r,j as o}from"./index-CsJNQPrN.js";import{_ as s}from"./CargaImpuesto-DB4mSvSi.js";import"./tgiApi-KaihdCkk.js";import"./useDateFormatter-Ca4_OelW.js";import"./BaseModal-BaH1Sbpf.js";const m="api",d={__name:"CargarAPIView",setup(_){return(c,p)=>(o(),e(r,null,[a(t),a(s,{impuesto:m})],64))}};export{d as default};

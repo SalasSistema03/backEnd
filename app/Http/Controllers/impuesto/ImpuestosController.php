@@ -106,6 +106,13 @@ class ImpuestosController extends Controller
                 'eliminarImpuesto_gas' => $accessService->tieneAcceso('eliminarImpuesto_gas')
             ];
         }
+         if ($request->impuesto === 'api') {
+            $botones = [
+                'modificarBajado_api' => $accessService->tieneAcceso('modificarBajado_api'),
+                'modificarEstado_api' => $accessService->tieneAcceso('modificarEstado_api'),
+                'eliminarImpuesto_api' => $accessService->tieneAcceso('eliminarImpuesto_api')
+            ];
+        }
         //return app(CargaImpuestoService::class)->padronCarga($request);
         $resultado = app(CargaImpuestoService::class)->padronCarga($request);
         return response()->json([
