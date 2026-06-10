@@ -38,9 +38,28 @@
 
                 @if ($pertenece === 'consultasIngresadas')
                     <span class="listado_texto_titulo">Total Consultas: {{ $total_criterios ?? '-' }} </span>
+                    <br>
                     @foreach ($conteoAsesores as $nombre => $cantidad)
                         <span class="listado_texto_titulo">{{ $nombre }}: {{ $cantidad }}</span>
                     @endforeach
+                    @if (!empty($total_tipo_ingreso))
+                        <hr>
+
+                        <div class="row ">
+                            <div class="listado_texto_titulo_ingresos_texto col-1">
+                                Ingresos:
+                            </div>
+                            <div class="col-11 row ">
+
+                                @foreach ($total_tipo_ingreso as $tipo => $cantidad)
+                                    <div class="col-3 d-flex align-items-center justify-content-start">
+                                        <span class="listado_texto_titulo_ingresos">{{ $tipo }}: {{ $cantidad }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+
+                    @endif
                 @endif
 
                 @isset($contadorPropiedades)
@@ -640,6 +659,7 @@
                         <tr>
                             <th>Cliente</th>
                             <th>Telefono</th>
+                            <th>Ingreso</th>
                             <th>Codigo</th>
                             <th>Direccion</th>
                             <th>Tipo Inmueble</th>
@@ -651,6 +671,7 @@
                     </thead>
                     <tbody class="listado_tabla">
                         @foreach ($data as $criterio)
+
                             @php $historial = $criterio->historialConsultas ?? []; @endphp
 
                             @if ($historial && count($historial) > 0)
@@ -663,7 +684,12 @@
                                             <td rowspan="{{ count($historial) }}">
                                                 {{ $criterio->cliente->telefono ?? '-' }}
                                             </td>
+                                            <td rowspan="{{ count($historial) }}">
+                                                {{$criterio->cliente->ingreso ?? '-'}}
+                                            </td>
+
                                         @endif
+
                                         <td>{{ $consulta->codigo_consulta ?? '-' }}</td>
                                         <td>{{ $consulta->direccion ?? '-' }}</td>
                                         @if ($loop->first)
@@ -689,6 +715,7 @@
                                 <tr>
                                     <td>{{ $criterio->cliente->nombre ?? '-' }}</td>
                                     <td>{{ $criterio->cliente->telefono ?? '-' }}</td>
+                                    <td>{{$criterio->cliente->ingreso ?? '-'}}</td>
                                     <td>-</td>
                                     <td>-</td>
                                     <td>{{ $criterio->tipoInmueble->inmueble ?? '-' }}</td>

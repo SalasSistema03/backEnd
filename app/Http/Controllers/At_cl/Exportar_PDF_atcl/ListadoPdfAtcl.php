@@ -311,8 +311,20 @@ class ListadoPdfAtcl
             foreach ($agrupadosPorAsesor as $username => $criterios) {
                 $conteoAsesores[$username] = $criterios->count();
             }
+            //Log::info($data);
 
-            $html = view('pdfs.atcl.listadoPropiedad', compact('data', 'username', 'pertenece', 'sector', 'total_criterios', 'conteoAsesores'))->render();
+            // 3. Agrupamos y contamos cuántos criterios tiene cada tipo de ingreso (Whatsapp, Sitio web, etc)
+            $total_tipo_ingreso = [];
+            /* no distinguir entre mayuculas y minisculas */
+            $agrupadosPorIngreso = $data->groupBy(function ($criterio) {
+                return strtolower($criterio->cliente?->ingreso ?? 'Sin Especificar');
+            });
+
+            foreach ($agrupadosPorIngreso as $ingreso => $criterios) {
+                $total_tipo_ingreso[$ingreso] = $criterios->count();
+            }
+
+            $html = view('pdfs.atcl.listadoPropiedad', compact('data', 'username', 'pertenece', 'sector', 'total_criterios', 'conteoAsesores', 'total_tipo_ingreso'))->render();
         }
         if ($pertenece === 'conversaciones') {
             //  Log::info($request->all());
@@ -369,7 +381,7 @@ class ListadoPdfAtcl
 
         return response()->streamDownload(function () use ($html, $username, $orientacion) {
             echo \Spatie\Browsershot\Browsershot::html($html)
-                ->format('A4')
+                ->format('legal')
                 ->margins(10, 1, 10, 1)
                 ->showBackground()
                 ->emulateMedia('print')
