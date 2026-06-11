@@ -1,0 +1,1 @@
+import{c as e,b as a,_ as t,F as r,j as o}from"./index-DU17uwHg.js";import{_ as s}from"./CargaImpuesto-DZoHxoXE.js";import"./tgiApi-C-jOWD6w.js";import"./useDateFormatter-Ca4_OelW.js";import"./BaseModal-BqpVTZ4r.js";const m="gas",g={__name:"CargarGASView",setup(_){return(c,n)=>(o(),e(r,null,[a(t),a(s,{impuesto:m})],64))}};export{g as default};
