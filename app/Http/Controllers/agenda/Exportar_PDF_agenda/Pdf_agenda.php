@@ -19,21 +19,20 @@ class Pdf_agenda
 
         $query = Notas::query();
 
+
+
         // FILTRO ESTADO
         if ($request->filled('estado')) {
 
             if ($request->estado == '1') {
+
                 $query->where('activo', 1);
             } else {
+
                 $query->where('activo', 0);
             }
         }
-
-        // FILTRO USUARIO
-        if ($request->filled('usuario') && $request->usuario !== 'null') {
-            $query->where('usuario_id', $request->usuario);
-        }
-
+        //Log::info('estado query', [$query]);
         // FILTRO FECHA INICIO
         if ($request->filled('fecha_inicio') && $request->fecha_inicio !== 'null') {
             $query->whereDate('fecha', '>=', $request->fecha_inicio);
@@ -46,68 +45,108 @@ class Pdf_agenda
 
         // FILTRO SECTOR
         if ($request->filled('sector') && $request->sector !== 'null') {
-
             $query->whereHas('agenda', function ($q) use ($request) {
 
                 $q->where('sector_id', $request->sector);
             });
         }
 
-        // EJECUTAR QUERY
-        $datos = $query->orderBy('fecha', 'desc')->get();
 
-        //si los datos de cliente_id no son null, traemos todos los datos del cliente
-        //Log::info('antes del foreach', [$datos]);
 
-        //obtenemos los username
-        //obtenemos los username
-        foreach ($datos as $dato) {
-            $usuario = Usuario::find($dato->usuario_id);
-            $borro = Usuario::find($dato->quien_borro);
-            $dato->usuario_id = $usuario ? $usuario->username : '';
-            $dato->quien_borro = $borro ? $borro->username : '';
 
-            //Asignamos el username al creado por si no es null
-            if ($dato->creado_por != null) {
-                $creadoPor = Usuario::find($dato->creado_por);
-                $dato->creado_por = $creadoPor ? $creadoPor->username : '';
-            } else {
-                $dato->creado_por = '';
-            }
 
-            // CORREGIDO: find() ya te da el registro correcto, no uses ->first()
-            if ($dato->cliente_id != null) {
-                $clientedata = clientes::find($dato->cliente_id);
-                $dato->datos_cliente = $clientedata;
-            }
 
-            // CORREGIDO: Para usar find con relaciones (with), se hace de esta manera:
-            if ($dato->propiedad_id != null) {
-                $propiedadata = Propiedad::with('calle', 'zona')->find($dato->propiedad_id);
-                $dato->datos_propiedad = $propiedadata;
-            }
-        }
-
-        //Obtenemos el rango de fechas y lo ponemos en un array
-        $rangoFechas = [$request->fecha_inicio, $request->fecha_fin];
         //Obtenemos el nombre del sector
         $sector = Sectores::find($request->sector);
         $sectorNombre = $sector ? $sector->nombre : '';
-
+        //Obtenemos el rango de fechas y lo ponemos en un array
+        $rangoFechas = [$request->fecha_inicio, $request->fecha_fin];
+        //Obtenemos el estado
         $estado = $request->estado == '1' ? 'Activo' : 'Inactivo';
 
-        //Obtenemos el nombre del usuario
-        $usuarioNombre = '';
-        if ($request->filled('usuario') && $request->usuario !== 'null') {
-            $usuario = Usuario::find($request->usuario);
-            $usuarioNombre = $usuario ? $usuario->username : $request->usuario;
-        } elseif ($datos->isNotEmpty()) {
-            $usuarioNombre = $datos->first()->usuario_id ?: '-';
+
+
+
+
+
+
+
+
+        if ($request->listado == 'listadoAgenda') {
+
+            $pertenece = $request->listado;
+
+            // FILTRO USUARIO
+            if ($request->filled('usuario') && $request->usuario !== 'null') {
+                $query->where('usuario_id', $request->usuario);
+            }
+
+            // EJECUTAR QUERY
+            $datos = $query->orderBy('fecha', 'desc')->get();
+
+            //obtenemos los username
+            foreach ($datos as $dato) {
+                $usuario = Usuario::find($dato->usuario_id);
+                $borro = Usuario::find($dato->quien_borro);
+                $dato->usuario_id = $usuario ? $usuario->username : '';
+                $dato->quien_borro = $borro ? $borro->username : '';
+
+                //Asignamos el username al creado por si no es null
+                if ($dato->creado_por != null) {
+                    $creadoPor = Usuario::find($dato->creado_por);
+                    $dato->creado_por = $creadoPor ? $creadoPor->username : '';
+                } else {
+                    $dato->creado_por = '';
+                }
+
+                // CORREGIDO: find() ya te da el registro correcto, no uses ->first()
+                if ($dato->cliente_id != null) {
+                    $clientedata = clientes::find($dato->cliente_id);
+                    $dato->datos_cliente = $clientedata;
+                }
+
+                // CORREGIDO: Para usar find con relaciones (with), se hace de esta manera:
+                if ($dato->propiedad_id != null) {
+                    $propiedadata = Propiedad::with('calle', 'zona')->find($dato->propiedad_id);
+                    $dato->datos_propiedad = $propiedadata;
+                }
+            }
+
+
+
+
+
+
+            //Obtenemos el nombre del usuario
+            $usuarioNombre = '';
+            if ($request->filled('usuario') && $request->usuario !== 'null') {
+                $usuario = Usuario::find($request->usuario);
+                $usuarioNombre = $usuario ? $usuario->username : $request->usuario;
+            } elseif ($datos->isNotEmpty()) {
+                $usuarioNombre = $datos->first()->usuario_id ?: '-';
+            }
+
+            //Log::info('Datos', [$datos]);
+
+            $html = view('pdfs.agenda.listadoAgenda', compact('datos', 'rangoFechas', 'sectorNombre', 'estado', 'usuarioNombre', 'pertenece'))->render();
+        } elseif ($request->listado == 'AgendaMuestra') {
+            //Log::info('entro', [$request]);
+            $pertenece = $request->listado;
+
+            //Traemos solo los que tienen cliente_id
+            $query->whereNotNull('cliente_id');
+
+            //Vinculamos con cliente
+            $query->with('cliente');
+
+            //Vinculamos con propiedad
+            $query->with('propiedad');
+
+            $datos = $query->orderBy('fecha', 'desc')->get();
+
+
+            $html = view('pdfs.agenda.listadoAgenda', compact('datos', 'pertenece', 'rangoFechas', 'sectorNombre', 'estado', 'sector'))->render();
         }
-
-        //Log::info('Datos', [$datos]);
-
-        $html = view('pdfs.agenda.listadoAgenda', compact('datos', 'rangoFechas', 'sectorNombre', 'estado', 'usuarioNombre'))->render();
 
         return response()->streamDownload(function () use ($html) {
             echo \Spatie\Browsershot\Browsershot::html($html)
