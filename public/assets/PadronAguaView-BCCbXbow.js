@@ -1,0 +1,1 @@
+import{c as e,b as a,_ as t,F as o,j as r}from"./index-DU17uwHg.js";import{_ as s}from"./PadronImpuesto-CO2zH2NK.js";import"./useDateFormatter-Ca4_OelW.js";import"./tgiApi-C-jOWD6w.js";import"./BaseModal-BqpVTZ4r.js";const m="agua",d={__name:"PadronAguaView",setup(_){return(c,n)=>(r(),e(o,null,[a(t),a(s,{impuesto:m})],64))}};export{d as default};
