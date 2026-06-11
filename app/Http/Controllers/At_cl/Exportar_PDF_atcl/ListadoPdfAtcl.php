@@ -169,8 +169,10 @@ class ListadoPdfAtcl
                         p.departamento,
                         (SELECT COUNT(*) FROM sistema_clientes.historial_cod_consulta
                           WHERE codigo_consulta = p.cod_venta $filtroFechaConsulta) as total_consultas,
+
                         (SELECT COUNT(*) FROM sistema_clientes.historial_cod_muestra
                           WHERE codigo_muestra = p.cod_venta $filtroFechaConsulta) as total_muestras,
+
                         (SELECT COUNT(*) FROM sistema_clientes.historial_cod_ofrecimiento
                           WHERE codigo_ofrecimiento = p.cod_venta $filtroFechaConsulta) as total_ofrecimientos,
                         c.name as calle
