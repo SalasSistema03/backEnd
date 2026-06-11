@@ -1,0 +1,1 @@
+import{n as t}from"./AtclApi-BApcRDxt.js";import{r as a}from"./index-BAbDI2X2.js";function u(){const s=a([]),e=a(null);async function o(){try{const r=await t();s.value=r.data.original||r.data}catch(r){e.value=r}}return{asesores:s,error:e,cargarAsesores:o}}export{u};
