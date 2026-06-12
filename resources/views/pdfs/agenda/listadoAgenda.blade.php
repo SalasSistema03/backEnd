@@ -95,11 +95,13 @@
             <div class="col-3">
                 <img src="{{ public_path('image/logo.png') }}" class="logo">
             </div>
-            <div class="col-6 d-flex align-items-center justify-content-center">
-                <div class="listado_agenda_titulo_general">Agenda</div>
+            <div class="col-7 d-flex align-items-center justify-content-center">
+                <div class="listado_agenda_titulo_general">Agenda {{ $sectorNombre }} Desde
+                    {{ \Carbon\Carbon::parse($rangoFechas[0])->format('d/m/Y') }} Hasta
+                    {{ \Carbon\Carbon::parse($rangoFechas[1])->format('d/m/Y') }}</div>
             </div>
-            <div class="col-3 d-flex align-items-center justify-content-center">
-                <table>
+            <div class="col-2 d-flex align-items-center justify-content-center">
+                <table class="listado_agenda_asesores">
                     <thead>
                         <tr>
                             <th>
@@ -111,16 +113,12 @@
                         </tr>
                     </thead>
                     <tbody>
-
-                        <tr>
-                            <td> nombre
-
-                            </td>
-                            <td> cantidad
-
-                            </td>
-                        </tr>
-
+                        @foreach ($conteoUsuarios as $conteo)
+                            <tr>
+                                <td>{{ $conteo['username'] }}</td>
+                                <td>{{ $conteo['cantidad'] }}</td>
+                            </tr>
+                        @endforeach
                     </tbody>
 
                 </table>
@@ -133,7 +131,8 @@
             <div class="col-12 text-center">
                 <table>
                     <thead>
-                        <tr class="listado_agenda_titulo text-center">
+                        <tr class="listado_agenda_titulo text-center"> {{-- ya la tenés --}}
+                            <th>Usuario</th>
                             <th>Codigo</th>
                             <th>Direccion</th>
                             <th>Cliente</th>
@@ -142,12 +141,30 @@
                             <th>Quien Agendo</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="listado_agenda_body"> {{-- agregar esta clase --}}
                         @foreach ($datos as $item)
                             <tr>
-                                {{ $sectorNombre }}
-                                <td>{{ $item['propiedad']['cod_alquiler'] ?? '' }}
-
+                                <td class="listado_agenda_texto_una_linea p-1 text-center">
+                                    {{ $item['usuario_id'] ?? '' }}</td>
+                                @if ($sectorNombre == 'Alquiler')
+                                    <td class="listado_agenda_texto_una_linea p-1 text-center">
+                                        {{ $item['propiedad']['cod_alquiler'] ?? '' }}</td>
+                                @elseif($sectorNombre == 'Venta')
+                                    <td class="listado_agenda_texto_una_linea p-1 text-center">
+                                        {{ $item['propiedad']['cod_venta'] ?? '' }}</td>
+                                @endif
+                                <td class="listado_agenda_texto_una_linea p-1 text-center">
+                                    {{ $item['propiedad']['calle']['name'] ?? '' }}
+                                    {{ $item['propiedad']['numero_calle'] ?? '' }}
+                                </td>
+                                <td class="listado_agenda_texto_una_linea p-1 text-center">
+                                    {{ $item['cliente']['nombre'] ?? '' }}</td>
+                                <td class="listado_agenda_texto_una_linea p-1 text-center">
+                                    {{ $item['cliente']['telefono'] ?? '' }}</td>
+                                <td class="listado_agenda_texto_una_linea p-1 text-center">
+                                    {{ Carbon\Carbon::parse($item['fecha'])->format('d/m/Y') }}</td>
+                                <td class="listado_agenda_texto_una_linea p-1 text-center">
+                                    {{ $item['creado_por'] ?? '' }}</td>
                             </tr>
                         @endforeach
                     </tbody>

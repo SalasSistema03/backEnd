@@ -32,7 +32,7 @@ class Pdf_agenda
                 $query->where('activo', 0);
             }
         }
-        //Log::info('estado query', [$query]);
+
         // FILTRO FECHA INICIO
         if ($request->filled('fecha_inicio') && $request->fecha_inicio !== 'null') {
             $query->whereDate('fecha', '>=', $request->fecha_inicio);
@@ -130,22 +130,69 @@ class Pdf_agenda
 
             $html = view('pdfs.agenda.listadoAgenda', compact('datos', 'rangoFechas', 'sectorNombre', 'estado', 'usuarioNombre', 'pertenece'))->render();
         } elseif ($request->listado == 'AgendaMuestra') {
-            //Log::info('entro', [$request]);
+
             $pertenece = $request->listado;
 
-            //Traemos solo los que tienen cliente_id
+            // Traemos solo los que tienen cliente_id
             $query->whereNotNull('cliente_id');
 
-            //Vinculamos con cliente
-            $query->with('cliente');
+            // Vinculamos con cliente y propiedad (cargamos todo de una vez)
+            $query->with(['cliente', 'propiedad.calle']);
 
-            //Vinculamos con propiedad
-            $query->with('propiedad');
+            $datos = $query->orderBy('usuario_id', 'asc')->get();
 
-            $datos = $query->orderBy('fecha', 'desc')->get();
+            // Obtenemos los usuario_id únicos de los datos
+            $usuarioIds = $datos->pluck('usuario_id')->unique()->filter();
 
+            // Traemos todos los usuarios necesarios en UNA sola consulta
+            $usuarios = Usuario::whereIn('id', $usuarioIds)->pluck('username', 'id');
 
-            $html = view('pdfs.agenda.listadoAgenda', compact('datos', 'pertenece', 'rangoFechas', 'sectorNombre', 'estado', 'sector'))->render();
+            // --- CONTEO: username => cantidad ---
+            $conteoUsuarios = $datos->groupBy('usuario_id')
+                ->map(function ($items, $usuarioId) use ($usuarios) {
+                    $username = $usuarios->get($usuarioId, 'Desconocido');
+                    return [
+                        'username' => $username,
+                        'cantidad' => $items->count(),
+                    ];
+                })
+                ->sortByDesc('cantidad')
+                ->values(); // Resetear índices
+
+            // Formato que pediste: ["1174-13", "c102-4", ...]
+            $conteoFormateado = $conteoUsuarios->map(function ($item) {
+                return $item['username'] . '-' . $item['cantidad'];
+            })->toArray();
+
+            // --- FOREACH ORIGINAL: Asignar username a creado_por ---
+            foreach ($datos as $dato) {
+                // Reemplazar usuario_id por username
+                $dato->usuario_id = $usuarios->get($dato->usuario_id, 'Desconocido');
+
+                // Tu código existente de creado_por
+                if ($dato->creado_por != null) {
+                    $creadoPor = $usuarios->get((int) $dato->creado_por)
+                        ?? Usuario::find($dato->creado_por)?->username;
+                    $dato->creado_por = $creadoPor ?? '';
+                } else {
+                    $dato->creado_por = '';
+                }
+            }
+
+            // Log para verificar
+            // Log::info('Conteo de usuarios', $conteoFormateado);
+            Log::info('Datos', [$datos]);
+
+            $html = view('pdfs.agenda.listadoAgenda', compact(
+                'datos',
+                'pertenece',
+                'rangoFechas',
+                'sectorNombre',
+                'estado',
+                'sector',
+                'conteoUsuarios',      // Array con username y cantidad
+                'conteoFormateado'     // ["1174-13", "c102-4", ...]
+            ))->render();
         }
 
         return response()->streamDownload(function () use ($html) {

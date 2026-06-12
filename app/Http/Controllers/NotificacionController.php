@@ -38,8 +38,9 @@ class NotificacionController extends Controller
     {
         $usuarioId = auth('api')->id();
         $usuario = Usuario::find($usuarioId);
-       // Log::alert('Usuario para santiago', ['usuarioId' => $usuarioId]);
+        // Log::alert('Usuario para santiago', ['usuarioId' => $usuarioId]);
 
+        $notificaciones = [];
         if (!$usuario) {
             return response()->json(['success' => false, 'message' => 'Usuario no encontrado'], 404);
         }
@@ -54,10 +55,9 @@ class NotificacionController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->whereNull('read_at')
                 ->get();
-                  //Log::info('Notificaciones', [$notificaciones]);
+            //Log::info('Notificaciones', [$notificaciones]);
         }
 
         return response()->json(['success' => true, 'data' => $notificaciones]);
     }
-
 }

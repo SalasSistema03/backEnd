@@ -248,6 +248,16 @@ table tbody tr {
   font-size: 1.9vh;
 }
 
+.listado_agenda_asesores th {
+  color: rgb(0, 85, 185);
+  font-size: 1.5vh;
+  font-weight: bold;
+}
+.listado_agenda_asesores td {
+  color: black;
+  font-size: 1.3vh !important;
+}
+
 .informe_novedades_titulo {
   color: rgba(0, 175, 154, 0.96);
   font-size: 1.5vh;
