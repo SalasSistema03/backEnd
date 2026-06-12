@@ -53,7 +53,8 @@
 
                                 @foreach ($total_tipo_ingreso as $tipo => $cantidad)
                                     <div class="col-3 d-flex align-items-center justify-content-start">
-                                        <span class="listado_texto_titulo_ingresos">{{ $tipo }}: {{ $cantidad }}</span>
+                                        <span class="listado_texto_titulo_ingresos">{{ $tipo }}:
+                                            {{ $cantidad }}</span>
                                     </div>
                                 @endforeach
                             </div>
@@ -141,7 +142,7 @@
                                 <th>Compartida</th>
                             @endif
                             @if (in_array('foto', $campos))
-                                <th>Foto</th>
+                                <th>Fotos</th>
                             @endif
                             @if (in_array('video', $campos))
                                 <th>Videos</th>
@@ -149,19 +150,19 @@
                             @if (in_array('documentacion', $campos))
                                 <th>Documentación</th>
                             @endif
-                            @if (in_array('reel', $campos) && $sector === 'Venta')
+                            @if (in_array('reel', $campos))
                                 <th>Reel</th>
                             @endif
-                            @if (in_array('flyer', $campos) && $sector === 'Venta')
+                            @if (in_array('flyer', $campos))
                                 <th>Flyer</th>
                             @endif
-                            @if (in_array('captador', $campos) && $sector === 'Venta')
+                            @if (in_array('captador', $campos))
                                 <th>Captador</th>
                             @endif
                             @if (in_array('zonaprop', $campos) && $sector === 'Venta')
                                 <th>ZonaProp</th>
                             @endif
-                            @if (in_array('web', $campos) && $sector === 'Venta')
+                            @if (in_array('web', $campos))
                                 <th>WEB</th>
                             @endif
                             @if (in_array('vendedor', $campos) && $sector === 'Venta')
@@ -178,16 +179,20 @@
                             <tr>
 
                                 @if ($sector === 'Alquiler')
-                                    <td @if ($propiedad->estadoVenta?->name === 'EN VENTA') class="listado_estado_en_ambos" @endif>
-                                        {{ $propiedad->cod_alquiler ?? '' }}
-
+                                    <td @if ($propiedad->estadoVenta?->name === 'EN VENTA' || $propiedad->estadoVenta?->name === 'EN VENTA COMPARTIDA') class="listado_estado_en_ambos" @endif>
+                                        <span class=""> {{ $propiedad->cod_alquiler ?? '' }}</span>
+                                        @if ($propiedad->estadoVenta?->name === 'EN VENTA' || $propiedad->estadoVenta?->name === 'EN VENTA COMPARTIDA')
+                                            <span class="listado_estado_alquilado">VENT</span>
+                                        @endif
                                     </td>
                                 @elseif ($sector === 'Venta')
                                     <td @if ($propiedad->estadoAlquiler?->name === 'EN ALQUILER' || $propiedad->estadoAlquiler?->name === 'ALQUILADA') class="listado_estado_en_ambos" @endif>
                                         <span class="">{{ $propiedad->cod_venta ?? '' }} </span>
                                         @if ($propiedad->estadoAlquiler?->name === 'ALQUILADA')
                                             <span class="listado_estado_alquilado">ALQ</span>
-                                        @elseif($propiedad->estadoAlquiler?->name === 'EN ALQUILER')
+                                        @elseif(
+                                            $propiedad->estadoAlquiler?->name === 'EN ALQUILER' ||
+                                                $propiedad->estadoAlquiler?->name === 'EN ALQUILER COMPARTIDO')
                                             <span class="listado_estado_alquilado">DISP</span>
                                         @endif
                                     </td>
@@ -312,7 +317,8 @@
                                 @if (in_array('foto', $campos))
                                     <td>
                                         @if ($propiedad->fotos && $propiedad->fotos->isNotEmpty())
-                                            SI
+                                            <span style="white-space: nowrap;">
+                                                SI - {{ $propiedad->fotos->count() }}</span>
                                         @else
                                             NO
                                         @endif
@@ -338,23 +344,41 @@
                                         @endif
                                     </td>
                                 @endif
+
                                 @if (in_array('reel', $campos) && $sector === 'Venta')
-                                    @if ($propiedad->reel)
+                                    @if ($propiedad->reel_v)
+                                        <td>SI</td>
+                                    @else
+                                        <td>NO</td>
+                                    @endif
+                                @elseif (in_array('reel', $campos) && $sector === 'Alquiler')
+                                    @if ($propiedad->reel_a)
                                         <td>SI</td>
                                     @else
                                         <td>NO</td>
                                     @endif
                                 @endif
+
                                 @if (in_array('flyer', $campos) && $sector === 'Venta')
-                                    @if ($propiedad->flyer)
+                                    @if ($propiedad->flyer_v)
+                                        <td>SI</td>
+                                    @else
+                                        <td>NO</td>
+                                    @endif
+                                @elseif (in_array('flyer', $campos) && $sector === 'Alquiler')
+                                    @if ($propiedad->flyer_a)
                                         <td>SI</td>
                                     @else
                                         <td>NO</td>
                                     @endif
                                 @endif
+
                                 @if (in_array('captador', $campos) && $sector === 'Venta')
-                                    <td>{{ $propiedad->captador_int ?? '' }}</td>
+                                    <td>{{ $propiedad->captador_int_v ?? '' }}</td>
+                                @elseif(in_array('captador', $campos) && $sector === 'Alquiler')
+                                    <td>{{ $propiedad->captador_int_a ?? '' }}</td>
                                 @endif
+
                                 @if (in_array('zonaprop', $campos) && $sector === 'Venta')
                                     @if ($propiedad->zona_prop)
                                         <td>SI</td>
@@ -362,9 +386,13 @@
                                         <td>NO</td>
                                     @endif
                                 @endif
+
                                 @if (in_array('web', $campos) && $sector === 'Venta')
-                                    <td>{{ $propiedad->web ?? '' }}</td>
+                                    <td>{{ $propiedad->web_v ?? '' }}</td>
+                                @elseif(in_array('web', $campos) && $sector === 'Alquiler')
+                                    <td>{{ $propiedad->web_a ?? '' }}</td>
                                 @endif
+
                                 @if (in_array('vendedor', $campos) && $sector === 'Venta')
                                     <td>{{ $propiedad->asesor ?? '' }}</td>
                                 @endif
@@ -671,7 +699,6 @@
                     </thead>
                     <tbody class="listado_tabla">
                         @foreach ($data as $criterio)
-
                             @php $historial = $criterio->historialConsultas ?? []; @endphp
 
                             @if ($historial && count($historial) > 0)
@@ -685,9 +712,8 @@
                                                 {{ $criterio->cliente->telefono ?? '-' }}
                                             </td>
                                             <td rowspan="{{ count($historial) }}">
-                                                {{$criterio->cliente->ingreso ?? '-'}}
+                                                {{ $criterio->cliente->ingreso ?? '-' }}
                                             </td>
-
                                         @endif
 
                                         <td>{{ $consulta->codigo_consulta ?? '-' }}</td>
@@ -715,7 +741,7 @@
                                 <tr>
                                     <td>{{ $criterio->cliente->nombre ?? '-' }}</td>
                                     <td>{{ $criterio->cliente->telefono ?? '-' }}</td>
-                                    <td>{{$criterio->cliente->ingreso ?? '-'}}</td>
+                                    <td>{{ $criterio->cliente->ingreso ?? '-' }}</td>
                                     <td>-</td>
                                     <td>-</td>
                                     <td>{{ $criterio->tipoInmueble->inmueble ?? '-' }}</td>

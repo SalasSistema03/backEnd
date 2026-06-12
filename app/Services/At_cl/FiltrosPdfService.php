@@ -35,7 +35,7 @@ class FiltrosPdfService
         $this->aplicarFiltroZona($query, $filtros);
         $this->aplicarFiltroTipo($query, $filtros);
         $this->aplicarFiltroEstadoPorSector($query, $filtros, $sector);
-        $this->aplicarFiltroCartel($query,$filtros);
+        $this->aplicarFiltroCartel($query, $filtros);
 
         $this->aplicarFiltroImportePorSector($query, $filtros, $sector);
         $this->aplicarOrdenPorSector($query, $filtros, $sector);
@@ -254,108 +254,6 @@ class FiltrosPdfService
 
         return $propiedades;
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     // ========== MÉTODOS AUXILIARES EXISTENTES (sin cambios) ==========
