@@ -43,7 +43,7 @@ class StorePropiedadRequest extends FormRequest
             'cloaca' => 'nullable|in:SI,NO',
             'gas' => 'nullable|in:SI,NO',
             'agua' => 'nullable|in:SI,NO',
-           /*  'numero_cochera' => 'nullable|string|min:0|max:10|nullable_if:cochera,1', */
+            /*  'numero_cochera' => 'nullable|string|min:0|max:10|nullable_if:cochera,1', */
             /* 'm_Lote' => 'nullable|numeric|min:0',
             'm_Cubiertos' => 'nullable|numeric|min:0|lte:m_Lote', */
 
@@ -64,8 +64,8 @@ class StorePropiedadRequest extends FormRequest
             'exclusividad_alquiler' => 'nullable|in:SI,NO',
             'clausula_de_venta' => 'nullable|in:SI,NO',
             'tiempo_clausula' => 'nullable|integer|min:0|max:100000',
-            'venta_fecha_alta'=>'nullable|date',
-            'alquiler_fecha_alta' =>'nullable|date',
+            'venta_fecha_alta' => 'nullable|date',
+            'alquiler_fecha_alta' => 'nullable|date',
 
 
             // Información económica y tasación
@@ -79,7 +79,7 @@ class StorePropiedadRequest extends FormRequest
             // Estado y otros detalles
             /* 'llave' => 'nullable|integer|nullable_with:llave|min:0|max:100', */
             'observacion_llave' => 'nullable|string|max:255',
-            'cartel' => 'required|in:SI,NO',
+            'cartel' => 'required',
             'observacion_cartel' => 'nullable|string|min:0|max:255',
 
 

@@ -37,9 +37,22 @@ class AgendaService
         $sectoresAEliminar = array_diff($sectoresActuales, $sectores);
         
         if (!empty($sectoresAEliminar)) {
-            Agenda::where('usuario_id', $usuario_id)
-                ->whereIn('sector_id', $sectoresAEliminar)
-                ->delete();
+            $hasNull = in_array(null, $sectoresAEliminar, true);
+            $sectoresNoNull = array_filter($sectoresAEliminar, function($v) { return $v !== null; });
+
+            $query = Agenda::where('usuario_id', $usuario_id);
+
+            if (!empty($sectoresNoNull) && $hasNull) {
+                $query->where(function($q) use ($sectoresNoNull) {
+                    $q->whereIn('sector_id', $sectoresNoNull)
+                      ->orWhereNull('sector_id');
+                });
+                $query->delete();
+            } elseif (!empty($sectoresNoNull)) {
+                $query->whereIn('sector_id', $sectoresNoNull)->delete();
+            } elseif ($hasNull) {
+                $query->whereNull('sector_id')->delete();
+            }
         }
     }
 

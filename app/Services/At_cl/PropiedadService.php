@@ -190,7 +190,8 @@ class PropiedadService
         });
     }
 
-    public function buscarPropiedadesVenta(string $codigo = '', string $calle = '', int $dormitorios = null, int $banios = null, string $cochera = ''){
+    public function buscarPropiedadesVenta(string $codigo = '', string $calle = '', int $dormitorios = null, int $banios = null, string $cochera = '')
+    {
         $query = Propiedad::with(['calle', 'barrio', 'zona', 'tipoInmueble']);
 
         // Filtro por código (solo, sin combinación)
@@ -214,26 +215,28 @@ class PropiedadService
 
         // Filtros combinados (calle, dormitorios, baños, cochera)
         $query->when($calle, function ($q) use ($calle) {
-            $q->whereHas('calle', fn($query) =>
+            $q->whereHas(
+                'calle',
+                fn($query) =>
                 $query->where('name', 'like', "%{$calle}%")
                     ->orWhere('numero_calle', 'like', "%{$calle}%")
             );
         })
-        ->when($dormitorios, function ($q) use ($dormitorios) {
-            $q->where('cantidad_dormitorios', $dormitorios);
-        })
-        ->when($banios, function ($q) use ($banios) {
-            $q->where('banios', $banios);
-        })
-        ->when($cochera, function ($q) use ($cochera) {
-            $q->where('cochera', $cochera);
-        });
+            ->when($dormitorios, function ($q) use ($dormitorios) {
+                $q->where('cantidad_dormitorios', $dormitorios);
+            })
+            ->when($banios, function ($q) use ($banios) {
+                $q->where('banios', $banios);
+            })
+            ->when($cochera, function ($q) use ($cochera) {
+                $q->where('cochera', $cochera);
+            });
 
         $props = $query->get();
 
         $props = $props->filter(function ($prop) {
             return $prop->cod_venta !== null
-            && !in_array($prop->id_estado_venta, ['3', '4', '6', '7']);
+                && !in_array($prop->id_estado_venta, ['3', '4', '6', '7']);
         });
 
         return $props->map(function ($prop) {
@@ -398,16 +401,14 @@ class PropiedadService
                 'mascota' => $datos['alquiler']['mascota'] ?? null,
                 'condicion' => $datos['condicionAlquiler']['condicion'] ?? null,
                 'last_modified_by' => $userId,
+                'updated_at' => now(),
             ]);
 
             DB::commit();
             return $propiedad;
-
         } catch (\Exception $e) {
             DB::rollBack();
             throw new \Exception('No se pudo crear la propiedad: ' . $e->getMessage());
         }
     }
-
-
 }

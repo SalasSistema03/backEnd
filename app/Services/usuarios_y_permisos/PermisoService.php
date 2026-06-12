@@ -171,12 +171,20 @@ class PermisoService
                 'usuario_id'=> $usuarioId,
             ]);
 
-            // Si viene sector (4to elemento), crear agenda
-            if (count($permiso) === 4 && !empty($permiso[3])) {
+            // Si es Agenda (nav_id = 3)
+            if ($permiso[0] == 3) {
                 Agenda::create([
-                    'sector_id' => $permiso[3],
+                    'sector_id' => (count($permiso) >= 4 && $permiso[3] !== null) ? $permiso[3] : null,
                     'usuario_id' => $usuarioId,
                 ]);
+            } else {
+                // Si viene sector (4to elemento) en otro nav
+                if (count($permiso) >= 4 && !empty($permiso[3])) {
+                    Agenda::create([
+                        'sector_id' => $permiso[3],
+                        'usuario_id' => $usuarioId,
+                    ]);
+                }
             }
         }
     }
@@ -208,15 +216,23 @@ class PermisoService
                 $permiso[2] ?? null
             ];
 
-            // Extraer sector si existe
-            if (count($permiso) == 4 && $permiso[3] !== null) {
-                $sectoresRecibidos[] = $permiso[3];
+            // Extraer sector si existe. Especial para Agenda (nav_id = 3)
+            if ($permiso[0] == 3) {
+                if (count($permiso) >= 4 && $permiso[3] !== null) {
+                    $sectoresRecibidos[] = $permiso[3];
+                } else {
+                    $sectoresRecibidos[] = null;
+                }
+            } else {
+                if (count($permiso) >= 4 && $permiso[3] !== null) {
+                    $sectoresRecibidos[] = $permiso[3];
+                }
             }
         }
 
         return [
             array_unique($permisosRecibidos, SORT_REGULAR),
-            array_unique($sectoresRecibidos)
+            array_unique($sectoresRecibidos, SORT_REGULAR)
         ];
     }
 
