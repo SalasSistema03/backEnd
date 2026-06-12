@@ -96,13 +96,16 @@ class Propiedad extends Model
         'venta_fecha_alta',
         'alquiler_fecha_alta',
         'zona_prop',
-        'flyer',
-        'reel',
-        'web',
-        'captador_int',
+        'flyer_v',
+        'reel_v',
+        'web_v',
+        'captador_int_v',
         'asesor',
         'mascota',
-
+        'flyer_a',
+        'reel_a',
+        'web_a',
+        'captador_int_a',
     ];
 
 
@@ -143,6 +146,15 @@ class Propiedad extends Model
         return $this->belongsTo(Usuario::class, 'captador_int', 'id');
     }
 
+    public function usuarioCaptadorIntV()
+    {
+        return $this->belongsTo(Usuario::class, 'captador_int_v', 'id');
+    }
+
+    public function usuarioCaptadorIntA()
+    {
+        return $this->belongsTo(Usuario::class, 'captador_int_a', 'id');
+    }
 
     /**
      * Relación con el modelo `EstadoGeneral`.
@@ -306,7 +318,7 @@ class Propiedad extends Model
             // Si busqueda es nulo/vacío, trae las que tienen al menos un código
             $query->where(function ($q) {
                 $q->whereNotNull('cod_venta')
-                  ->orWhereNotNull('cod_alquiler');
+                    ->orWhereNotNull('cod_alquiler');
             });
         }
 
@@ -321,7 +333,7 @@ class Propiedad extends Model
             } else {
                 $query->where(function ($q) use ($filtros) {
                     $q->where('cod_venta', $filtros['codigo'])
-                      ->orWhere('cod_alquiler', $filtros['codigo']);
+                        ->orWhere('cod_alquiler', $filtros['codigo']);
                 });
             }
         }
@@ -403,7 +415,7 @@ class Propiedad extends Model
             } else {
                 $query->where(function ($q) use ($estadosVentaExcluidos, $estadosAlquilerExcluidos) {
                     $q->whereNotIn('id_estado_venta', $estadosVentaExcluidos)
-                      ->orWhereNotIn('id_estado_alquiler', $estadosAlquilerExcluidos);
+                        ->orWhereNotIn('id_estado_alquiler', $estadosAlquilerExcluidos);
                 });
             }
         }
@@ -541,9 +553,9 @@ class Propiedad extends Model
     {
         // Primero busca por código de venta exacto
         if ($sector == 'Ventas') {
-            $propiedad = Propiedad::where('cod_venta','like', '%' . $codigo_calle . '%')
-            ->where('id_estado_venta', '=', 1 || 2 || 5)
-            ->get();
+            $propiedad = Propiedad::where('cod_venta', 'like', '%' . $codigo_calle . '%')
+                ->where('id_estado_venta', '=', 1 || 2 || 5)
+                ->get();
 
             // Si no encuentra por código, busca por nombre de calle
             if (!$propiedad || $propiedad->isEmpty()) {
@@ -557,9 +569,9 @@ class Propiedad extends Model
         }
 
         if ($sector == 'Alquiler') {
-            $propiedad = Propiedad::where('cod_alquiler','like', '%' . $codigo_calle . '%')
-            ->where('id_estado_alquiler', '=', 1 || 2)
-            ->get();
+            $propiedad = Propiedad::where('cod_alquiler', 'like', '%' . $codigo_calle . '%')
+                ->where('id_estado_alquiler', '=', 1 || 2)
+                ->get();
 
             // Si no encuentra por código, busca por nombre de calle
             if (!$propiedad || $propiedad->isEmpty()) {

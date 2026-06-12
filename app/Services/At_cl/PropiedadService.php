@@ -10,6 +10,7 @@ use App\Models\sys\Contratos_cabecera_sys;
 use App\Models\sys\Contratos_detalle_sys;
 use App\Models\At_cl\Empresas_propiedades;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PropiedadService
 {
@@ -348,10 +349,12 @@ class PropiedadService
 
     public function crearPropiedad(array $datos, int $userId): Propiedad
     {
+
         try {
             DB::beginTransaction();
 
             $propiedad = Propiedad::create([
+
                 'id_calle' => $datos['calle_id'],
                 'numero_calle' => $datos['altura'],
                 'ph' => $datos['ph'],
@@ -385,10 +388,10 @@ class PropiedadService
                 'fecha_autorizacion_venta' => $datos['venta']['fecha_autorizacion_venta'] ?? null,
                 'comentario_autorizacion' => $datos['venta']['comentario_autorizacion'] ?? null,
                 'zona_prop' => $datos['venta']['zona_prop'] ?? null,
-                'flyer' => $datos['venta']['flyer'] ?? null,
-                'reel' => $datos['venta']['reel'] ?? null,
-                'web' => $datos['venta']['web'] ?? null,
-                'captador_int' => $datos['venta']['captador_interno'] ?? null,
+                'flyer_v' => $datos['venta']['flyer_v'] ?? null,
+                'reel_v' => $datos['venta']['reel_v'] ?? null,
+                'web_v' => $datos['venta']['web_v'] ?? null,
+                'captador_int_v' => $datos['venta']['captador_interno_v'] ?? null,
                 'asesor' => $datos['venta']['asesor_resultado'] ?? null,
                 'cod_alquiler' => $datos['alquiler']['cod_alquiler'] ?? null,
                 'id_estado_alquiler' => $datos['alquiler']['estado_alquiler'] ?? null,
@@ -402,6 +405,11 @@ class PropiedadService
                 'condicion' => $datos['condicionAlquiler']['condicion'] ?? null,
                 'last_modified_by' => $userId,
                 'updated_at' => now(),
+                'captador_int_a' => $datos['alquiler']['captador_interno_a'] ?? null,
+                'flyer_a' => $datos['alquiler']['flyer_a'] ?? null,
+                'reel_a' => $datos['alquiler']['reel_a'] ?? null,
+                'web_a' => $datos['alquiler']['web_a'] ?? null,
+
             ]);
 
             DB::commit();
