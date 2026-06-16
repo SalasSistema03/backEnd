@@ -28,10 +28,12 @@
       rel="stylesheet"
     />
     <!-- Custom CSS -->
-    <!-- App -->
+       <!-- App -->
     <title>Salas</title>
-    <script type="module" crossorigin src="/assets/index-DyNDowd-.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-Dd6dcim2.css">
+   <!--  <script type="module" crossorigin src="/assets/index-BCyjMCuh.js"></script> -->
+     <script type="module" crossorigin src="/assets/index.js"></script>
+   <!--  <link rel="stylesheet" crossorigin href="/assets/index-Dd6dcim2.css"> -->
+      <link rel="stylesheet" crossorigin href="/assets/index.css">
   </head>
   <body>
     <!-- App Container -->
