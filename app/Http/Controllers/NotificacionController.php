@@ -12,7 +12,7 @@ class NotificacionController extends Controller
 {
     public function marcarUnaComoLeida(string $id)
     {
-        Log::info('Marcar notificación como leída', ['notificacionId' => $id]);
+        //Log::info('Marcar notificación como leída', ['notificacionId' => $id]);
         $usuarioId = auth('api')->id();
         $usuario = Usuario::find($usuarioId);
 
