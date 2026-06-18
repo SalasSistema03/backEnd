@@ -1,26 +1,17 @@
 <?php
-
 namespace App\Http\Controllers\clientes;
 
-
 use Illuminate\Http\Request;
-use App\Models\At_cl\Calle;
-use App\Models\cliente\Usuario_sector;
 use App\Models\cliente\Clientes;
 use App\Models\cliente\CriterioBusquedaVenta;
 use App\Models\cliente\HistorialCriteriosConversacion;
 use Illuminate\Support\Facades\DB;
 use App\Models\cliente\HistorialCodMuestra;
-use App\Models\At_cl\tipo_inmueble;
-use App\Models\At_cl\Zona;
-use App\Models\At_cl\Usuario;
 use App\Services\At_cl\PermitirAccesoPropiedadService;
 use App\Models\cliente\HistorialCodOfrecimiento;
 use App\Models\cliente\HistorialCodigoConsulta;
 use App\Services\At_cl\PropiedadService;
-use Illuminate\Support\Facades\Log;
 
-use function Pest\Laravel\json;
 
 class AsesoresController
 {
