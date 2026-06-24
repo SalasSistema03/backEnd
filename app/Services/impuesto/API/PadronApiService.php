@@ -68,10 +68,10 @@ WHERE ti.id_tipo_impuesto = 3
   AND cc.comienza <= CURDATE()
   AND (
       -- Contratos vigentes (rescisión a futuro)
-      cc.rescicion >= CURDATE()                             
-      OR 
+      cc.rescicion >= CURDATE()
+      OR
       -- Contratos rescindidos desde el primer día de hace 3 meses hasta hoy
-      (cc.rescicion >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 3 MONTH), '%Y-%m-01') 
+      (cc.rescicion >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 3 MONTH), '%Y-%m-01')
        AND cc.rescicion < CURDATE())
   )
 GROUP BY
@@ -90,7 +90,7 @@ ORDER BY e.id_empresa, FOLIO;
     ";
 
         $resultado = DB::connection('mysql2')->select($sql);
-  
+
         //Log::info($resultado);
         // Normalizar partida a 8 dígitos
         foreach ($resultado as $row) {
@@ -98,7 +98,7 @@ ORDER BY e.id_empresa, FOLIO;
                 $row->partida = str_replace(['-', '/'], '', $row->partida);
             }
         }
-         //Log::info('esta es la informacion del segundo log despues del foreach del foreach');
+        //Log::info('esta es la informacion del segundo log despues del foreach del foreach');
         Log::info($resultado);
         return $resultado;
     }

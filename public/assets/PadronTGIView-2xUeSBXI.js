@@ -1,1 +1,0 @@
-import{c as e,b as t,_ as o,F as a,j as r}from"./index-BmFj2bYs.js";import{_ as s}from"./PadronImpuesto-CnQiC3oQ.js";import"./useDateFormatter-Ca4_OelW.js";import"./tgiApi-Bwtuyns7.js";import"./BaseModal-ClooIZwl.js";const m="tgi",d={__name:"PadronTGIView",setup(_){return(c,n)=>(r(),e(a,null,[t(o),t(s,{impuesto:m})],64))}};export{d as default};
