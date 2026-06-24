@@ -11,6 +11,7 @@ use App\Models\sys\Contratos_detalle_sys;
 use App\Models\At_cl\Empresas_propiedades;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Http\Request;
 
 class PropiedadService
 {
@@ -418,5 +419,57 @@ class PropiedadService
             DB::rollBack();
             throw new \Exception('No se pudo crear la propiedad: ' . $e->getMessage());
         }
+    }
+
+    public function buscarPropiedadesAlquiler($cod_alquiler)
+    {
+
+        $codigo = $cod_alquiler;
+
+
+        // Si no viene código, devolvés vacío
+        if (!$codigo) {
+            return response()->json([]);
+        }
+
+        $propiedades = Propiedad::with(['calle', 'empresas'])
+            ->whereIn('id_estado_alquiler', [1, 2])
+            ->whereNotNull('cod_alquiler')
+            ->where('cod_alquiler', 'like', "%{$codigo}%")  // <--- FILTRO CLAVE
+            ->get();
+
+
+        // Formateás la salida para el front
+        $resultado = $propiedades->map(function ($prop) {
+            $folios = $prop->empresas->map(function ($empresa) {
+                $folio = optional($empresa->pivot)->folio;
+                if (!$folio) {
+                    return null;
+                }
+
+                return match ($empresa->id) {
+                    2 => "CAN {$folio}",
+                    3 => "TRIB {$folio}",
+                    default => $folio,
+                };
+            })
+                ->filter()
+                ->values()
+                ->implode(', ');
+
+            return [
+                'id' => $prop->id,
+                'cod_alquiler' => $prop->cod_alquiler,
+                'calle' => $prop->calle->name ?? 'Sin calle',
+                'numero' => $prop->numero_calle,
+                'direccion' => trim(sprintf('%s %s', $prop->calle->name ?? '', $prop->numero_calle)),
+                'folio' => $folios,
+                'estado' => $prop->estadoAlquiler->name ?? null,
+                'piso' => $prop->piso,
+                'departamento' => $prop->departamento,
+            ];
+        });
+        //Log::info($resultado);
+        return response()->json($resultado);
     }
 }

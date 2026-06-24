@@ -26,11 +26,17 @@ class Historial_estado_reserva extends Model
         'observaciones',
         'fecha_carga',
         'fecha_firma',
+        'quien_cargo',
+        'id_proceso_propiedad'
     ];
 
     public function estado()
     {
         return $this->belongsTo(Estado_reserva::class, 'id_estado', 'id');
     }
-    
+
+    public function proceso_propiedad()
+    {
+        return $this->belongsTo(Proceso_propiedad::class, 'id', 'id_historial_estado_reserva');
+    }
 }

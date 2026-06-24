@@ -26,10 +26,7 @@ class ImpuestosController extends Controller
 
     public function actualizarPadron($impuesto)
     {
-
-        if ($impuesto === 'tgi' || $impuesto === 'agua' || $impuesto === 'gas' || $impuesto === 'api') {
-            return (new PadronImpuestoService())->actualizarPadronImpuesto($impuesto);
-        }
+        return (new PadronImpuestoService())->actualizarPadronImpuesto($impuesto);
     }
 
     public function filtradoPadron(Request $request, $impuesto)

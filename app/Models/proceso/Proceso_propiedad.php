@@ -27,24 +27,28 @@ class Proceso_propiedad extends Model
 
 
     protected $fillable = [
-       'fecha_reserva',
-       'fecha_fin_reserva',
-       'id_cliente',//relacion con el modelo cliente
-       'reservante',
-       'id_propiedad',//relacion con el modelo propiedad
-       'tipo_reserva',
-       'moneda',
-       'monto_reserva',
-       'monto_aceptado',
-       'documentacion',
-       'id_historial_estado_reserva',
-       'id_historial_estado_contrato',
-       'id_historial_estado_dpto',
+        'asesor',
+        'fecha_reserva',
+        'fecha_fin_reserva',
+        'id_cliente', //relacion con el modelo cliente
+        'reservante',
+        'id_propiedad', //relacion con el modelo propiedad
+        'tipo_reserva',
+        'moneda',
+        'monto_reserva',
+        'monto_aceptado',
+        'documentacion',
+        'id_historial_estado_reserva',
+        'id_historial_estado_contrato',
+        'id_historial_estado_dpto',
+        'quien_cargo',
+        'quien_modifico',
+        'estado_alquiler_inicial'
     ];
 
     public function cliente()
     {
-        return $this->belongsTo(clientes::class, 'id_cliente', 'id');
+        return $this->belongsTo(clientes::class, 'id_cliente', 'id_cliente');
     }
 
     public function propiedad()
@@ -66,6 +70,4 @@ class Proceso_propiedad extends Model
     {
         return $this->belongsTo(Historial_estado_dpto::class, 'id_historial_estado_dpto', 'id');
     }
-   
-    
 }
