@@ -65,7 +65,10 @@ class PadronTgiService
         INNER JOIN desarrollo.empresa e ON cc.id_empresa = e.id_empresa
         WHERE ti.id_tipo_impuesto = 1
           AND cc.comienza <= CURDATE()
-          AND cc.rescicion >= CURDATE()
+          AND (cc.rescicion >= CURDATE()
+                OR (cc.rescicion >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                AND cc.rescicion < DATE_FORMAT(DATE_ADD(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-01'))
+                )
         GROUP BY
             pi.id_propiedad_impuesto,
             p.carpeta,

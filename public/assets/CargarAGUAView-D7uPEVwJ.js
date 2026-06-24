@@ -1,1 +1,0 @@
-import{c as e,b as a,_ as t,F as r,j as o}from"./index-CLESsIse.js";import{_ as s}from"./CargaImpuesto-oOdnS2V1.js";import"./tgiApi-DXZMtdaD.js";import"./useDateFormatter-Ca4_OelW.js";import"./BaseModal-CVT8SrRr.js";const m="agua",g={__name:"CargarAGUAView",setup(_){return(c,n)=>(o(),e(r,null,[a(t),a(s,{impuesto:m})],64))}};export{g as default};
