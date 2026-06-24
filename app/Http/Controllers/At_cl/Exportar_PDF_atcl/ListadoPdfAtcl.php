@@ -342,7 +342,8 @@ class ListadoPdfAtcl
             $html = view('pdfs.atcl.listadoPropiedad', compact('datosTotales', 'pertenece', 'sector'))->render();
         }
         if ($pertenece === 'informeNovedades') {
-            $query = Observaciones_propiedades::with([
+            // Primero, obtenemos las observaciones tipo 'A' aplicando filtros de fecha si existieran
+            $obsQuery = Observaciones_propiedades::with([
                 'propiedad.folios.empresa',
                 'propiedad.tipoInmueble',
                 'propiedad.estadoAlquiler',
@@ -355,20 +356,58 @@ class ListadoPdfAtcl
                 $fechaDesde = $request->input('desde') . ' 00:00:00';
                 $fechaHasta = $request->input('hasta') . ' 23:59:59';
 
-                $query->where('updated_at', '>=', $fechaDesde)
+                $obsQuery->where('updated_at', '>=', $fechaDesde)
                     ->where('updated_at', '<=', $fechaHasta);
             } elseif ($request->filled('desde')) {
                 $fechaDesde = $request->input('desde') . ' 00:00:00';
-                $query->where('updated_at', '>=', $fechaDesde);
+                $obsQuery->where('updated_at', '>=', $fechaDesde);
             } elseif ($request->filled('hasta')) {
                 $fechaHasta = $request->input('hasta') . ' 23:59:59';
-                $query->where('updated_at', '<=', $fechaHasta);
+                $obsQuery->where('updated_at', '<=', $fechaHasta);
             }
 
-            $data = $query->get()->groupBy('propiedad_id');
+            $observaciones = $obsQuery->get();
+            $data = $observaciones->groupBy('propiedad_id');
+
+            // Ahora buscamos propiedades que hayan sido actualizadas en el mismo rango
+            $propQuery = Propiedad::with([
+                'folios.empresa',
+                'tipoInmueble',
+                'estadoAlquiler',
+                'calle',
+                'zona',
+                'precio',
+            ]);
+
+            if (isset($fechaDesde) && isset($fechaHasta)) {
+                $propQuery->where('updated_at', '>=', $fechaDesde)
+                    ->where('updated_at', '<=', $fechaHasta);
+            } elseif (isset($fechaDesde)) {
+                $propQuery->where('updated_at', '>=', $fechaDesde);
+            } elseif (isset($fechaHasta)) {
+                $propQuery->where('updated_at', '<=', $fechaHasta);
+            }
+
+            $propiedadesActualizadas = $propQuery->get();
+
+            foreach ($propiedadesActualizadas as $propiedad) {
+                $propId = $propiedad->id;
+                // Si no hay observaciones para esta propiedad, añadimos una entrada sintética
+                if (!$data->has($propId) || $data[$propId]->isEmpty()) {
+                    $sintetica = (object) [
+                        'id' => null,
+                        'propiedad_id' => $propId,
+                        'propiedad' => $propiedad,
+                        'updated_at' => $propiedad->updated_at,
+                        'notes' => 'Propiedad modificada sin observación',
+                    ];
+
+                    $data[$propId] = collect([$sintetica]);
+                }
+            }
 
             $fechas = [$request->input('desde'), $request->input('hasta')];
-            Log::info('data', [$data]);
+            Log::info('data (informeNovedades combinado)', [$data]);
 
             $html = view('pdfs.atcl.listadoPropiedad', compact('data', 'username', 'pertenece', 'sector', 'fechas'))->render();
         }

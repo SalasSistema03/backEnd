@@ -32,6 +32,8 @@ class Permisos
             return false;
         }
 
+        //Log::info('tienePermiso: ' . $tienePermiso);
+
         return response()->json($tienePermiso);
     }
 }

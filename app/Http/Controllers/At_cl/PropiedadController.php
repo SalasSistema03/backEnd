@@ -196,9 +196,9 @@ class PropiedadController
             // Crear la propiedad usando el servicio
             $propiedad_creada = (new PropiedadService())->crearPropiedad($datos, $id);
 
-           // Log::info('Propiedad creada: ' . $propiedad_creada->id);
-           // Log::info('DB_DATABASE: ' . config('database.connections.mysql.database'));
-           // Log::info('DB_HOST: ' . config('database.connections.mysql.host'));
+            // Log::info('Propiedad creada: ' . $propiedad_creada->id);
+            // Log::info('DB_DATABASE: ' . config('database.connections.mysql.database'));
+            // Log::info('DB_HOST: ' . config('database.connections.mysql.host'));
             // Crear tasación si hay datos de venta
             (new TasacionService())->crearDesdeRequest($venta, $propiedad_creada->id);
 
@@ -222,7 +222,7 @@ class PropiedadController
             }
 
             // Asociación de la propiedad con los propietarios
-             if (!empty($propietario)) {
+            if (!empty($propietario)) {
                 $propietario_decoded = is_array($propietario) ? $propietario : json_decode($propietario, true);
 
                 if ($propietario_decoded) {
@@ -345,6 +345,8 @@ class PropiedadController
                 'tasaciones',
                 'usuarioAsesor',
                 'usuarioCaptadorInt',
+                'usuarioCaptadorIntV',
+                'usuarioCaptadorIntA',
                 'folios',
                 'fotos',
                 'video',
@@ -433,6 +435,7 @@ class PropiedadController
      */
     public function actualizarPropiedad(Request $request)
     {
+        //Log::info('entro', [$request->all()]);
 
         try {
             $propiedad = Propiedad::find($request->id);
@@ -484,7 +487,7 @@ class PropiedadController
                 'descipcion_propiedad'        => $descripcion['texto'] ?? null,
                 // Actualizar datos de venta
                 'asesor'                      => $venta['asesor_resultado'] ?? null,
-                'captador_int'                => $venta['captador_interno'] ?? null,
+                'captador_int_v'              => $venta['captador_interno_v'] ?? null,
                 'cod_venta'                   => $venta['cod_venta'] ?? null,
                 'id_estado_venta'             => $venta['estado_venta'] ?? null,
                 'exclusividad_venta'          => $venta['exclusividad_venta'] ?? null,
@@ -494,9 +497,9 @@ class PropiedadController
                 'fecha_autorizacion_venta'    => $venta['fecha_autorizacion_venta'] ?? null,
                 'comentario_autorizacion'     => $venta['comentario_autorizacion'] ?? null,
                 'zona_prop'                   => $venta['zona_prop'] ?? null,
-                'flyer'                       => $venta['flyer'] ?? null,
-                'reel'                        => $venta['reel'] ?? null,
-                'web'                         => $venta['web'] ?? null,
+                'flyer_v'                     => $venta['flyer_v'] ?? null,
+                'reel_v'                      => $venta['reel_v'] ?? null,
+                'web_v'                       => $venta['web_v'] ?? null,
                 'autorizacion_venta'          => $venta['autorizacion_venta'] ?? null,
                 // Actualizar datos de alquiler
                 'cod_alquiler'                => $alquiler['cod_alquiler'] ?? null,
@@ -508,6 +511,10 @@ class PropiedadController
                 'tiempo_clausula'             => $alquiler['tiempo_clausula'] ?? null,
                 'alquiler_fecha_alta'         => $alquiler['alquiler_fecha_alta'] ?? null,
                 'mascota'                     => $alquiler['mascota'] ?? null,
+                'captador_int_a'              => $alquiler['captador_interno_a'] ?? null,
+                'flyer_a'                     => $alquiler['flyer_a'] ?? null,
+                'reel_a'                      => $alquiler['reel_a'] ?? null,
+                'web_a'                       => $alquiler['web_a'] ?? null,
                 // Condición de alquiler
                 'condicion'                   => $condicion_alquiler['condicion'] ?? null,
                 'updated_at'               => now(),
@@ -864,23 +871,23 @@ class PropiedadController
     }
 
 
-     public function fichaPropiedad(Request $request)
+    public function fichaPropiedad(Request $request)
     {
         // Los datos que antes pasabas por props en Vue
         $propiedad = $request->propiedad;
         $ubicacion = $request->ubicacion;
         $usuario_id = auth('api')->id();
         $username = Usuario::where('id', $usuario_id)->first()->username;
-         $fotosOrdenadas = [];
+        $fotosOrdenadas = [];
         // Ordenar fotos por campo 'orden', null al final
-        usort($propiedad['fotos'], function($a, $b) {
+        usort($propiedad['fotos'], function ($a, $b) {
             $ordenA = $a['orden'] ?? PHP_INT_MAX;
             $ordenB = $b['orden'] ?? PHP_INT_MAX;
             return $ordenA <=> $ordenB;
         });
         // Tomar las primeras 3 fotos
-        foreach($propiedad['fotos'] as $foto) {
-            if(count($fotosOrdenadas) < 3) {
+        foreach ($propiedad['fotos'] as $foto) {
+            if (count($fotosOrdenadas) < 3) {
                 $fotosOrdenadas[] = $foto['url'];
             }
         }

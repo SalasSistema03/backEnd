@@ -30,6 +30,9 @@ use App\Http\Controllers\contable\retenciones\RetencionController;
 use App\Http\Controllers\contable\buscadorComprobante\BuscadorPdfController;
 use App\Models\usuarios_y_permisos\Usuario;
 use App\Http\Controllers\agenda\Exportar_PDF_agenda\Pdf_agenda;
+use App\Services\At_cl\PropiedadService;
+use App\Services\clientes\UsuarioSectorService;
+use App\Http\Controllers\proceso\ProcesoController;
 
 Route::prefix('v1')->group(function () {
 
@@ -209,6 +212,16 @@ Route::prefix('v1')->group(function () {
         //LISTADO ATCL
         Route::post('/broches/pdf/listadoPropiedad', [ListadoPdfAtcl::class, 'listadoPropiedad']);
         Route::get('propietarios/activos', [PadronController::class, 'padronActivos']);
+        Route::get('asesoresAlquiler', [UsuarioSectorService::class, 'getAllUsuarioSector']);
+        Route::get('/propiedad/buscar-por-codigo/{cod_alquiler}', [PropiedadService::class, 'buscarPropiedadesAlquiler']);
+
+        Route::post('/subir-reservas', [ProcesoController::class, 'subirReservas']);
+        Route::get('/obtener-reservas', [ProcesoController::class, 'obtenerReservas']);
+        Route::post('/guardar-estado', [ProcesoController::class, 'guardarEstado']);
+        Route::get('/getHistorialReservaAlquiler', [ProcesoController::class, 'getHistorial']);
+        Route::get('/getReservaIdentificada', [ProcesoController::class, 'getReservaIdentificadas']);
+        Route::post('/guardarReservaIdentificada', [ProcesoController::class, 'guardarReservaIdentificada']);
+        Route::post('/alquiler/obtener-comprobante', [ProcesoController::class, 'obtenerComprobante']);
     });
 }); // <--- Aquí cierra el middleware
 

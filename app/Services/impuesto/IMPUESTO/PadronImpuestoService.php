@@ -332,13 +332,16 @@ class PadronImpuestoService
         $modelo = $this->obtenerModeloPorImpuesto($impuesto);
 
         // ── Índices para búsqueda rápida ──────────────────────────────────────
+        //toma todos los datos de padronExistente y lo transforma en claves ej:123-1752484
         $existentePorFolioPartida = collect($padronExistente)->mapWithKeys(function ($item) {
             return [$item->folio . '-' . ltrim($item->partida, '0') => $item];
         });
+        
 
         $nuevoPorFolioPartida = collect($nuevoPadron)->mapWithKeys(function ($item) {
             return [$item->folio . '-' . ltrim($item->partida, '0') => $item];
         });
+        
 
         $existentePorFolioCalle = collect($padronExistente)->groupBy(function ($item) {
             return $item->folio . '-' . trim($item->calle);
