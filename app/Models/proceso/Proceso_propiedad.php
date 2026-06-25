@@ -9,6 +9,7 @@ use App\Models\proceso\Historial_estado_contrato;
 use App\Models\proceso\Historial_estado_dpto;
 use App\Models\cliente\clientes;
 use App\Models\At_cl\Propiedad;
+use App\Models\usuarios_y_permisos\Usuario;
 
 class Proceso_propiedad extends Model
 {
@@ -69,5 +70,10 @@ class Proceso_propiedad extends Model
     public function historialEstadoDpto()
     {
         return $this->belongsTo(Historial_estado_dpto::class, 'id_historial_estado_dpto', 'id');
+    }
+
+    public function asesorUsuario()
+    {
+        return $this->belongsTo(Usuario::class, 'asesor');
     }
 }
