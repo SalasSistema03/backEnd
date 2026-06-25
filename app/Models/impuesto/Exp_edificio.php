@@ -42,4 +42,10 @@ class Exp_edificio extends Model
     {
         return $this->hasMany(ExpUnidad::class);
     } */
+
+        // Definimos la relación: "Un edificio pertenece a un administrador"
+    public function administrador()
+    {
+        return $this->belongsTo(Exp_administrador_consorcio::class, 'id_administrador_consorcio', 'id');
+    }
 }
