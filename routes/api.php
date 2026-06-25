@@ -30,6 +30,7 @@ use App\Http\Controllers\contable\retenciones\RetencionController;
 use App\Http\Controllers\contable\buscadorComprobante\BuscadorPdfController;
 use App\Models\usuarios_y_permisos\Usuario;
 use App\Http\Controllers\agenda\Exportar_PDF_agenda\Pdf_agenda;
+use App\Http\Controllers\impuesto\Expensas\ExpensasController;
 
 Route::prefix('v1')->group(function () {
 
@@ -209,7 +210,28 @@ Route::prefix('v1')->group(function () {
         //LISTADO ATCL
         Route::post('/broches/pdf/listadoPropiedad', [ListadoPdfAtcl::class, 'listadoPropiedad']);
         Route::get('propietarios/activos', [PadronController::class, 'padronActivos']);
-    });
+
+
+        //EXPENSAS
+        Route::get('/expensas/unidades', [ExpensasController::class, 'getPadronUnidadesController']);
+        Route::get('/expensas/filtro-unidades-completo', [ExpensasController::class, 'filtroUnidadesCompleto']);
+        Route::post('/expensas/completar-carga', [ExpensasController::class, 'completarCargaUnidadesController']);
+        Route::post('/expensas/actualizar-padron', [ExpensasController::class, 'actualizarPadronUnidadesController']);
+        Route::delete('/expensas/eliminar-unidad/{id}', [ExpensasController::class, 'eliminarUnidadController']);
+        
+        // 1. Endpoint para llenar la tabla en Vue.js (Lee datos)
+        Route::get('/expensas/administradores', [ExpensasController::class, 'getAdministradoresController']);
+        // 2. Endpoint para el botón "Actualizar Padrón" (Modifica datos)
+        Route::post('/expensas/sincronizar-administradores', [ExpensasController::class, 'sincronizarAdministradoresController']);
+
+
+        Route::get('/expensas/obtener-edificio', [ExpensasController::class, 'obtenerEdificios']);
+        Route::post('/expensas/crear-edificio', [ExpensasController::class, 'crearEdificio']);
+        Route::put('/expensas/modificar-edificio/{id}', [ExpensasController::class, 'actualizarEdificio']);
+
+        Route::get('/expensas/broche', [ExpensasController::class, 'brocheExpensas']);
+
+        });
 }); // <--- Aquí cierra el middleware
 
 
