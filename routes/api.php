@@ -222,6 +222,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/getReservaIdentificada', [ProcesoController::class, 'getReservaIdentificadas']);
         Route::post('/guardarReservaIdentificada', [ProcesoController::class, 'guardarReservaIdentificada']);
         Route::post('/alquiler/obtener-comprobante', [ProcesoController::class, 'obtenerComprobante']);
+        Route::get('/getHistorialContrato', [ProcesoController::class, 'getHistorialContrato']);
     });
 }); // <--- Aquí cierra el middleware
 

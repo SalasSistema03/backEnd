@@ -432,7 +432,7 @@ class PropiedadService
             return response()->json([]);
         }
 
-        $propiedades = Propiedad::with(['calle', 'empresas'])
+        $propiedades = Propiedad::with(['calle', 'empresas', 'precioActual'])
             ->whereIn('id_estado_alquiler', [1, 2])
             ->whereNotNull('cod_alquiler')
             ->where('cod_alquiler', 'like', "%{$codigo}%")  // <--- FILTRO CLAVE
@@ -467,6 +467,7 @@ class PropiedadService
                 'estado' => $prop->estadoAlquiler->name ?? null,
                 'piso' => $prop->piso,
                 'departamento' => $prop->departamento,
+                'precio' => $prop->precioActual
             ];
         });
         //Log::info($resultado);

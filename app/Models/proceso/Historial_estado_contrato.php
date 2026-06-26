@@ -23,14 +23,23 @@ class Historial_estado_contrato extends Model
 
     protected $fillable = [
         'id_estado',
-        'observaciones',
-        'fecha_carga',
-        'fecha_firma',
+        'fecha_inventario',
+        'fecha_comercial_presenta_carpeta',
+        'fecha_preaprobada',
+        'fecha_reserva',
+        'gastos_administrativos',
+        'tirilla_entregada_a',
+        'fecha_tirilla_entregada',
+        'tirilla_controlada_por',
+        'fecha_tirilla_controlada',
+        'fecha_contrato',
+        'fecha_autorizacion',
+        'fecha_finalizacion_firma_cobro',
+        'observaciones'
     ];
 
     public function estado()
     {
         return $this->belongsTo(Estado_contrato::class, 'id_estado', 'id');
     }
-    
 }
