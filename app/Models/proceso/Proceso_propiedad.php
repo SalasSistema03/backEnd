@@ -44,7 +44,8 @@ class Proceso_propiedad extends Model
         'id_historial_estado_dpto',
         'quien_cargo',
         'quien_modifico',
-        'estado_alquiler_inicial'
+        'estado_alquiler_inicial',
+        'precio_alquiler'
     ];
 
     public function cliente()

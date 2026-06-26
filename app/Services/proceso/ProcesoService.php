@@ -3,6 +3,7 @@
 namespace App\Services\proceso;
 
 use App\Models\At_cl\Propiedad;
+use App\Models\proceso\Historial_estado_contrato;
 use App\Models\proceso\Proceso_propiedad;
 use App\Models\proceso\Historial_estado_reserva;
 use App\Models\usuarios_y_permisos\Usuario;
@@ -19,6 +20,8 @@ class ProcesoService
      */
     public function subirReserva(array $data, $usuarioId)
     {
+        //Log::info('Datos recibidos: ' . json_encode($data));
+        //dd($data);
         $comprobantePath = null;
 
         // Manejar comprobante si existe
@@ -53,6 +56,7 @@ class ProcesoService
             'documentacion' => $comprobantePath ?? $data['documentacion'] ?? null,
             'id_historial_estado_reserva' => $historial->id,
             'quien_cargo' => $usuarioId,
+            'precio_alquiler' => $data['precioFolio'] ?? null,
         ]);
 
         // Actualizar historial con el ID del proceso
@@ -138,6 +142,7 @@ class ProcesoService
             'proceso_propiedad.propiedad.calle',
             'proceso_propiedad.cliente',
             'proceso_propiedad.asesorUsuario',
+            'proceso_propiedad.propiedad.precioActual'
         ])->whereIn('id', $idsHistorialesActivos);
 
         // Filtrar por estado si se proporciona
@@ -179,8 +184,11 @@ class ProcesoService
             'id_proceso_propiedad' => $data['idProcesoPropiedad']
         ]);
 
-        // Si es estado 3 (firma), actualizar fecha de firma
+        // Si es estado 3, actualizar fecha de firma
         if ($data['estado'] == 3) {
+            $historial_estado_contrato = Historial_estado_contrato::create([
+                'id_estado' => 1, //???? no se que poner, pregunta
+            ]);
             $historial->update(['fecha_firma' => now()]);
         }
 
@@ -191,7 +199,10 @@ class ProcesoService
 
         // Actualizar proceso con nuevo historial
         Proceso_propiedad::where('id', $data['idProcesoPropiedad'])
-            ->update(['id_historial_estado_reserva' => $historial->id]);
+            ->update([
+                'id_historial_estado_reserva' => $historial->id,
+                'id_historial_estado_contrato' => $historial_estado_contrato->id ?? null
+            ]);
 
         return $historial;
     }
@@ -252,6 +263,7 @@ class ProcesoService
             'proceso_propiedad.propiedad.folios',
             'proceso_propiedad.propiedad.calle',
             'proceso_propiedad.cliente',
+            'proceso_propiedad.propiedad.precioActual'
         ])
             ->whereIn('id', $idsHistorialesActivos)
             ->orderBy('id_estado', 'asc')

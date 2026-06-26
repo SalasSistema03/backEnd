@@ -133,4 +133,16 @@ class ProcesoController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
+
+
+
+
+
+    public function getHistorialContrato()
+    {
+        try {
+        } catch (\Exception $e) {
+        }
+    }
 }
