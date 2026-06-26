@@ -226,6 +226,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/getReservaIdentificada', [ProcesoController::class, 'getReservaIdentificadas']);
         Route::post('/guardarReservaIdentificada', [ProcesoController::class, 'guardarReservaIdentificada']);
         Route::post('/alquiler/obtener-comprobante', [ProcesoController::class, 'obtenerComprobante']);
+        Route::get('/getHistorialContrato', [ProcesoController::class, 'getHistorialContrato']);
+
+
 
         // --- RUTAS INTEGRADAS DESDE EXPENSAS ---
         // EXPENSAS
@@ -234,7 +237,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/expensas/completar-carga', [ExpensasController::class, 'completarCargaUnidadesController']);
         Route::post('/expensas/actualizar-padron', [ExpensasController::class, 'actualizarPadronUnidadesController']);
         Route::delete('/expensas/eliminar-unidad/{id}', [ExpensasController::class, 'eliminarUnidadController']);
-        
+
         // 1. Endpoint para llenar la tabla en Vue.js (Lee datos)
         Route::get('/expensas/administradores', [ExpensasController::class, 'getAdministradoresController']);
         // 2. Endpoint para el botón "Actualizar Padrón" (Modifica datos)
@@ -245,7 +248,6 @@ Route::prefix('v1')->group(function () {
         Route::put('/expensas/modificar-edificio/{id}', [ExpensasController::class, 'actualizarEdificio']);
 
         Route::get('/expensas/broche', [ExpensasController::class, 'brocheExpensas']);
-
     }); // <--- Aquí cierra el middleware('auth:api') unificado
 }); // <--- Aquí cierra el prefix('v1')
 
