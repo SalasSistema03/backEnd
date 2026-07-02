@@ -407,7 +407,7 @@ class ListadoPdfAtcl
             }
 
             $fechas = [$request->input('desde'), $request->input('hasta')];
-            Log::info('data (informeNovedades combinado)', [$data]);
+            //Log::info('data (informeNovedades combinado)', [$data]);
 
             $html = view('pdfs.atcl.listadoPropiedad', compact('data', 'username', 'pertenece', 'sector', 'fechas'))->render();
         }

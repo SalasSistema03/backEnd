@@ -73,7 +73,7 @@ class AgendaController extends Controller
     // Método para guardar una nueva nota en la agenda
     public function store(Request $request)
     {
-        Log::info('llego la informacion', $request->all());
+        //Log::info('llego la informacion', $request->all());
         //dd($request->all());
         $cliente = null;
 
