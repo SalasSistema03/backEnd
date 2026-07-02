@@ -521,7 +521,7 @@ class CargaImpuestoService
         $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
         $registros = $modelo::where('periodo_anio', $anio)
             ->where('periodo_mes', $mes)
-            ->where('num_broche', null)
+            //->where('num_broche', null)
             ->where('bajado', 'N')
             ->get();
 
