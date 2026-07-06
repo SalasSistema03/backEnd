@@ -247,7 +247,11 @@ Route::prefix('v1')->group(function () {
         Route::post('/expensas/crear-edificio', [ExpensasController::class, 'crearEdificio']);
         Route::put('/expensas/modificar-edificio/{id}', [ExpensasController::class, 'actualizarEdificio']);
 
-        Route::get('/expensas/broche', [ExpensasController::class, 'brocheExpensas']);
+        Route::get('/expensas/broche', [ExpensasController::class, 'getBrochesController']);
+        Route::get('/expensas/broche-buscar', [ExpensasController::class, 'brocheExpensasBuscar']);
+        Route::post('/expensas/broche-guardar', [ExpensasController::class, 'guardarBrocheExpensaController']);
+        Route::delete('/expensas/broche-eliminar/{id}', [ExpensasController::class, 'eliminarBrocheController']);
+        Route::get('/expensas/broche/descargar-pdf', [ExpensasController::class, 'descargarBrocheExpensas']);
     }); // <--- Aquí cierra el middleware('auth:api') unificado
 }); // <--- Aquí cierra el prefix('v1')
 
