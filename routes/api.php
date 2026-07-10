@@ -250,6 +250,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/expensas/broche', [ExpensasController::class, 'getBrochesController']);
         Route::get('/expensas/broche-buscar', [ExpensasController::class, 'brocheExpensasBuscar']);
         Route::post('/expensas/broche-guardar', [ExpensasController::class, 'guardarBrocheExpensaController']);
+        Route::put('/expensas/broche-editar/{id}', [ExpensasController::class, 'editarBroche']);
         Route::delete('/expensas/broche-eliminar/{id}', [ExpensasController::class, 'eliminarBrocheController']);
         Route::get('/expensas/broche/descargar-pdf', [ExpensasController::class, 'descargarBrocheExpensas']);
     }); // <--- Aquí cierra el middleware('auth:api') unificado

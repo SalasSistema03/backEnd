@@ -170,6 +170,7 @@ class ExpensasService
             ->select(
                 'exp_broche.*',
                 'exp_broche.id as id_broche',
+                'exp_broche.vencimiento as vencimientobroche', // <-- ¡EL SALVAVIDAS!
                 'exp_unidades.*',
                 'exp_unidades.id as id_unidad',
                 'exp_administrador_consorcio.*',
@@ -320,5 +321,32 @@ class ExpensasService
             ->orderBy('exp_edificios.id')
             ->orderBy('exp_unidades_sys.folio')
             ->get();
+    }
+
+
+
+    public function actualizarBroche($id, array $datos)
+    {
+        // 1. Verificamos que el registro exista antes de tocarlo
+        $broche = DB::connection('mysql9')->table('exp_broche')->where('id', $id)->first();
+
+        if (!$broche) {
+            throw new \Exception("El broche con ID {$id} no fue encontrado.");
+        }
+
+        // 2. Hacemos el UPDATE mapeando los datos de Vue a las columnas de SQL
+        DB::connection('mysql9')->table('exp_broche')
+            ->where('id', $id)
+            ->update([
+                'vencimiento' => $datos['vencimiento'],
+                'periodo'     => $datos['periodo'],
+                'anio'        => $datos['anio'],
+                // Vue nos mandó esto como 'importe_...', lo guardamos en la columna real de tu DB
+                'extraordinaria' => $datos['importe_extraordinaria'],
+                'ordinaria'      => $datos['importe_ordinaria'],
+                'total'          => $datos['total']
+            ]);
+
+        return true;
     }
 }
