@@ -364,48 +364,80 @@ class ExpensasController extends Controller
 
 
     public function descargarBrocheExpensas(Request $request)
-{
-    try {
-        // 1. Validamos que lleguen los datos mínimos
-        $mes = $request->input('mes');
-        $anio = $request->input('anio');
-        $administrador = $request->input('administrador');
+    {
+        try {
+            // 1. Validamos que lleguen los datos mínimos
+            $mes = $request->input('mes');
+            $anio = $request->input('anio');
+            $administrador = $request->input('administrador');
 
-        // 2. Traemos los datos del servicio
-        $resultado = $this->ExpensasService->obtenerDatosBrochePdf($mes, $anio, $administrador);
+            // 2. Traemos los datos del servicio
+            $resultado = $this->ExpensasService->obtenerDatosBrochePdf($mes, $anio, $administrador);
 
-        // 3. Obtenemos el nombre del usuario desde el Token de la API (¡Chau session!)
-        $username = auth('api')->user()->username ?? 'Usuario';
+            // 3. Obtenemos el nombre del usuario desde el Token de la API (¡Chau session!)
+            $username = auth('api')->user()->username ?? 'Usuario';
 
-        // 4. Generamos el PDF con Snappy
-        $pdf = SnappyPdf::loadView(
-            'pdfs.impuestos.expensa.Carga_Broche_Expensas_Pdf', // <-- ACÁ ESTÁ EL CAMBIO
-            compact('resultado')
-        )
-            ->setOption('page-size', 'legal')
-            ->setOption('orientation', 'portrait')
-            ->setOption('margin-top', 20)
-            ->setOption('margin-bottom', 15)
-            ->setOption('margin-left', 15)
-            ->setOption('margin-right', 15)
-            ->setOption('disable-smart-shrinking', true)
-            ->setOption('footer-left', 'Salas Inmobiliaria')
-            ->setOption('footer-font-size', 8)
-            ->setOption('footer-center', 'Page [page] of [toPage]')
-            ->setOption('footer-right', $username) // Pasamos la variable $username
-            ->setOption('zoom', 0.85);
+            // 4. Generamos el PDF con Snappy
+            $pdf = SnappyPdf::loadView(
+                'pdfs.impuestos.expensa.Carga_Broche_Expensas_Pdf', // <-- ACÁ ESTÁ EL CAMBIO
+                compact('resultado')
+            )
+                ->setOption('page-size', 'legal')
+                ->setOption('orientation', 'portrait')
+                ->setOption('margin-top', 20)
+                ->setOption('margin-bottom', 15)
+                ->setOption('margin-left', 15)
+                ->setOption('margin-right', 15)
+                ->setOption('disable-smart-shrinking', true)
+                ->setOption('footer-left', 'Salas Inmobiliaria')
+                ->setOption('footer-font-size', 8)
+                ->setOption('footer-center', 'Page [page] of [toPage]')
+                ->setOption('footer-right', $username) // Pasamos la variable $username
+                ->setOption('zoom', 0.85);
 
-        // 5. Devolvemos el PDF para que Axios (con responseType: 'blob') lo descargue
-        return $pdf->download("broches_expensas_{$anio}_{$mes}.pdf");
-
-    } catch (\Exception $e) {
-        // En vez de un mensaje genérico, le decimos a Laravel que nos escupa el error exacto y la línea
-        return response()->json([
-            'status' => 'error',
-            'message' => 'ERROR REAL: ' . $e->getMessage(),
-            'linea' => $e->getLine(),
-            'archivo' => $e->getFile()
-        ], 500);
+            // 5. Devolvemos el PDF para que Axios (con responseType: 'blob') lo descargue
+            return $pdf->download("broches_expensas_{$anio}_{$mes}.pdf");
+        } catch (\Exception $e) {
+            // En vez de un mensaje genérico, le decimos a Laravel que nos escupa el error exacto y la línea
+            return response()->json([
+                'status' => 'error',
+                'message' => 'ERROR REAL: ' . $e->getMessage(),
+                'linea' => $e->getLine(),
+                'archivo' => $e->getFile()
+            ], 500);
+        }
     }
-}
+
+
+
+
+    public function editarBroche($id, Request $request)
+    {
+        try {
+            // 1. Opcional pero recomendado: Validamos que lleguen los datos requeridos
+            $request->validate([
+                'vencimiento' => 'required|date',
+                'periodo' => 'required|numeric',
+                'anio' => 'required|numeric',
+                'importe_extraordinaria' => 'required|numeric',
+                'importe_ordinaria' => 'required|numeric',
+                'total' => 'required|numeric'
+            ]);
+
+            // 2. Le pasamos el ID y los datos limpios al servicio
+            $this->ExpensasService->actualizarBroche($id, $request->all());
+
+            // 3. Devolvemos el mensaje de éxito a Vue
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Broche actualizado correctamente.'
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se pudo actualizar el broche. ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
