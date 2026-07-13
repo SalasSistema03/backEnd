@@ -61,6 +61,7 @@ class ProcesoService
                 'id_historial_estado_reserva' => $historial->id,
                 'quien_cargo' => $usuarioId,
                 'precio_alquiler' => $data['precioFolio'] ?? null,
+                'meses_contrato' => $data['mesesContrato'] ?? null,
             ]);
 
             // Actualizar historial con el ID del proceso
