@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\Agenda\Recordatorio;
-use App\Models\At_cl\Usuario;
+use App\Models\usuarios_y_permisos\Usuario;
 use App\Notifications\RecordatorioNotificacion;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -78,6 +78,7 @@ class RecordatorioService
             'activo'            => 0,
             'es_asesor_activo'  => 1,
             'es_criterio'       => 0,
+            'folio'             => "-"
         ];
 
         // Enviar notificación al asesor si existe
@@ -134,6 +135,7 @@ class RecordatorioService
             'activo'            => 0,
             'es_asesor_activo'  => 0,
             'es_criterio'       => 1,
+            'folio'             => "-"
         ];
 
         /* Si el asesor existe, se emite la notificación asociada al recordatorio */

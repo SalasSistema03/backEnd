@@ -135,6 +135,7 @@ class RecordatorioController
                 'activo' => 1,
                 'es_asesor_activo' => 0,
                 'es_criterio' => 0,
+                'folio' => "-"
             ];
 
             if ($request->agenda_id != null) {

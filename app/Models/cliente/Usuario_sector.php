@@ -25,6 +25,8 @@ class Usuario_sector extends Model
         'id_usuario',
         'venta',
         'alquiler',
+        'contrato_nuevo',
+
     ];
 
     public function usuario()

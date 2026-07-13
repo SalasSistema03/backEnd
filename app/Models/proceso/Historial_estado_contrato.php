@@ -4,6 +4,7 @@ namespace App\Models\proceso;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\proceso\Estado_contrato;
+use App\Models\usuarios_y_permisos\Usuario;
 
 class Historial_estado_contrato extends Model
 {
@@ -41,5 +42,15 @@ class Historial_estado_contrato extends Model
     public function estado()
     {
         return $this->belongsTo(Estado_contrato::class, 'id_estado', 'id');
+    }
+
+    public function tirillaEntregadaPor()
+    {
+        return $this->belongsTo(Usuario::class, 'tirilla_entregada_a');
+    }
+
+    public function tirillaControladaPor()
+    {
+        return $this->belongsTo(Usuario::class, 'tirilla_controlada_por');
     }
 }

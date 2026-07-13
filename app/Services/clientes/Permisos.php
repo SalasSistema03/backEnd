@@ -36,4 +36,22 @@ class Permisos
 
         return response()->json($tienePermiso);
     }
+
+
+
+
+    public function traerUsuarioPorBoton($botonNombre)
+    {
+        //Log::info("botonNombre: " . $botonNombre);
+        $data = Permiso::where('boton_id', 49)->get();
+        foreach ($data as $usuario) {
+            // Utilizamos ->first() o find() para obtener un solo modelo, no una colección
+            $user = Usuario::find($usuario->usuario_id);
+
+            // Asignamos la propiedad (asumiendo que el campo en tu tabla usuarios se llame 'username' o 'nombre')
+            $usuario->username = $user ? $user->username : null;
+        }
+
+        return response()->json($data);
+    }
 }

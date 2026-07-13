@@ -179,45 +179,45 @@ class ClientesController extends Controller
                 //Log::info('sssssssssssssssssssssssss');
                 //Log::info('criteriosVenta', $criteriosVenta);
                 //mensajes
-                try{
-                // Encontrar el criterioventa con el ID más grande
-                $criterioVentaMasGrande = null;
-                $maxId = 0;
+                try {
+                    // Encontrar el criterioventa con el ID más grande
+                    $criterioVentaMasGrande = null;
+                    $maxId = 0;
 
-                foreach ($criteriosVentaCreados as $criterio) {
-                    if (isset($criterio['id_criterio_venta']) && $criterio['id_criterio_venta'] > $maxId) {
-                        $maxId = $criterio['id_criterio_venta'];
-                        $criterioVentaMasGrande = $criterio;
-                    }
-                }
-
-                // Si no hay criterios creados, usar el primero del log si existe
-                if ($criterioVentaMasGrande === null && !empty($criteriosVenta)) {
-                    foreach ($criteriosVenta as $criterio) {
+                    foreach ($criteriosVentaCreados as $criterio) {
                         if (isset($criterio['id_criterio_venta']) && $criterio['id_criterio_venta'] > $maxId) {
                             $maxId = $criterio['id_criterio_venta'];
                             $criterioVentaMasGrande = $criterio;
                         }
                     }
-                }
 
-                $idCriterioVenta = $criterioVentaMasGrande ? $criterioVentaMasGrande['id_criterio_venta'] : null;
+                    // Si no hay criterios creados, usar el primero del log si existe
+                    if ($criterioVentaMasGrande === null && !empty($criteriosVenta)) {
+                        foreach ($criteriosVenta as $criterio) {
+                            if (isset($criterio['id_criterio_venta']) && $criterio['id_criterio_venta'] > $maxId) {
+                                $maxId = $criterio['id_criterio_venta'];
+                                $criterioVentaMasGrande = $criterio;
+                            }
+                        }
+                    }
 
-                $mensaje = [
-                    'descripcion'       => $cliente->nombre . ' ' . $cliente->apellido,
-                    'fecha'             => now()->isoFormat('DD/MM/YYYY'),  // 13/04/2026
-                    'hora'              => now()->isoFormat('HH:mm'),       // 14:53
-                    'activo'            => 1,
-                    'usuarioNotificar'  => $request->input('cliente.id_asesor'),
-                    'cliente_id'        => $cliente->id_cliente,
-                    'id_criterio_venta' => $idCriterioVenta
-                ];
-                }
-                catch(\Exception $e){
+                    $idCriterioVenta = $criterioVentaMasGrande ? $criterioVentaMasGrande['id_criterio_venta'] : null;
+
+                    $mensaje = [
+                        'descripcion'       => $cliente->nombre . ' ' . $cliente->apellido,
+                        'fecha'             => now()->isoFormat('DD/MM/YYYY'),  // 13/04/2026
+                        'hora'              => now()->isoFormat('HH:mm'),       // 14:53
+                        'activo'            => 1,
+                        'usuarioNotificar'  => $request->input('cliente.id_asesor'),
+                        'cliente_id'        => $cliente->id_cliente,
+                        'id_criterio_venta' => $idCriterioVenta,
+                        'pertenece'         => "asesores",
+                        'folio'             => "-"
+                    ];
+                } catch (\Exception $e) {
                     Log::error('Error al crear mensaje', ['error' => $e->getMessage()]);
                 }
-                //Log::info('mensaje', ['mensaje' => $mensaje]);
-                //dd($mensaje);
+
 
 
 

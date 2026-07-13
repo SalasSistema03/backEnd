@@ -45,7 +45,8 @@ class Proceso_propiedad extends Model
         'quien_cargo',
         'quien_modifico',
         'estado_alquiler_inicial',
-        'precio_alquiler'
+        'precio_alquiler',
+        'meses_contrato'
     ];
 
     public function cliente()
