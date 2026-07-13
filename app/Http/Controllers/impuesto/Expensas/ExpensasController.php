@@ -10,6 +10,7 @@ use App\Services\impuesto\EXP\UnidadesServices;
 use App\Services\impuesto\EXP\ProveedoresServices;
 use Barryvdh\Snappy\Facades\SnappyPdf;
 use Exception;
+use Illuminate\Support\Facades\Log;
 
 
 class ExpensasController extends Controller
@@ -362,8 +363,8 @@ class ExpensasController extends Controller
     }
 
 
-
-    public function descargarBrocheExpensas(Request $request)
+//DEPRECATED - ESTA USANDO SNAPPY, YA NO SE USA ESO
+   /*  public function descargarBrocheExpensas(Request $request)
     {
         try {
             // 1. Validamos que lleguen los datos mínimos
@@ -398,6 +399,7 @@ class ExpensasController extends Controller
             // 5. Devolvemos el PDF para que Axios (con responseType: 'blob') lo descargue
             return $pdf->download("broches_expensas_{$anio}_{$mes}.pdf");
         } catch (\Exception $e) {
+            Log::info($e);
             // En vez de un mensaje genérico, le decimos a Laravel que nos escupa el error exacto y la línea
             return response()->json([
                 'status' => 'error',
@@ -406,7 +408,41 @@ class ExpensasController extends Controller
                 'archivo' => $e->getFile()
             ], 500);
         }
+    } */
+
+        public function descargarBrocheExpensas(Request $request)
+{
+    try {
+        $mes = $request->input('mes');
+        $anio = $request->input('anio');
+        $administrador = $request->input('administrador');
+
+        $resultado = $this->ExpensasService->obtenerDatosBrochePdf($mes, $anio, $administrador);
+        $username = auth('api')->user()->username ?? 'Usuario';
+
+        $html = view('pdfs.impuestos.expensa.Carga_Broche_Expensas_Pdf', compact('resultado'))->render();
+
+        return response()->streamDownload(function () use ($html, $username) {
+            echo \Spatie\Browsershot\Browsershot::html($html)
+                ->format('Legal')
+                ->margins(20, 15, 15, 15)
+                ->emulateMedia('screen')
+                ->showBackground()
+                ->setOption('displayHeaderFooter', true)
+                ->setOption('footerTemplate', '<div style="font-size:8px; width:100%; display:flex; justify-content:space-between; padding:0 15px;"><span>Salas Inmobiliaria</span><span></span><span>' . $username . '</span></div>')
+                ->pdf();
+        }, "broches_expensas_{$anio}_{$mes}.pdf");
+
+    } catch (\Exception $e) {
+        Log::info($e);
+        return response()->json([
+            'status' => 'error',
+            'message' => 'ERROR REAL: ' . $e->getMessage(),
+            'linea' => $e->getLine(),
+            'archivo' => $e->getFile()
+        ], 500);
     }
+}
 
 
 

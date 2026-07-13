@@ -45,7 +45,7 @@ class PdfImpuestoController
         $impuesto = $request->input('impuesto');
         $usuario_id = auth('api')->id();
         $username = Usuario::where('id', $usuario_id)->first()->username;
-        Log::info('informacion del broche', ['broches' => $broches, 'anio' => $anio, 'mes' => $mes, 'impuesto' => $impuesto, 'request' => $request->all()]);
+        //Log::info('informacion del broche', ['broches' => $broches, 'anio' => $anio, 'mes' => $mes, 'impuesto' => $impuesto, 'request' => $request->all()]);
 
         // Generamos el HTML usando una vista de Blade limpia
         $html = view('pdfs.broches', compact('broches', 'anio', 'mes', 'impuesto'))->render();
