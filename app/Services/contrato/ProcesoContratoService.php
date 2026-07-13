@@ -23,32 +23,19 @@ class ProcesoContratoService
 
     public function getHistorialContrato($form)
     {
-        //Log::info('form recibida:', ['form' => $form]);
-
-        // Eager load all relations including historialEstadoContrato and its state (estado)
         $query = Proceso_propiedad::with([
             'propiedad.folios',
             'cliente',
             'asesorUsuario',
             'historialEstadoReserva',
             'historialEstadoContrato.estado',
+            'historialEstadoContrato.tirillaEntregadaPor',
+            'historialEstadoContrato.tirillaControladaPor',
             'propiedad.calle',
         ])->whereNotNull('id_historial_estado_contrato');
 
-        // Diagnostic log: let's query the dates and IDs of all records that have a contract history
         $todos = Proceso_propiedad::whereNotNull('id_historial_estado_contrato')
             ->get();
-
-        /* Log::info('Registros existentes en DB:', [
-            'total' => $todos->count(),
-            'valores' => $todos->map(function($item) {
-                return [
-                    'id' => $item->id,
-                    'fecha_reserva' => $item->fecha_reserva,
-                    'id_historial_estado_contrato' => $item->id_historial_estado_contrato
-                ];
-            })->toArray()
-        ]); */
 
         // Filter by year and month
         if (!empty($form['mes']) && !empty($form['anio'])) {
@@ -78,7 +65,35 @@ class ProcesoContratoService
         }
 
         $res = $query->get();
+
+        Log::info($res);
+        //dd($res);
         //Log::info('Resultados filtrados:', ['count' => $res->count()]);
         return $res;
+    }
+
+    public function crearHistorialEstadoContrato(array $request)
+    {
+
+
+
+        $data = historial_estado_contrato::create([
+            'id_estado' => $request['id_estado'] ?? null,
+            'fecha_comercial_presenta_carpeta' => $request['fecha_comercial_presenta_carpeta'] ?? null,
+            'fecha_preaprobada' => $request['fecha_preaprobada'] ?? null,
+            'fecha_reserva' => $request['fecha_reserva'] ?? null,
+            'gastos_administrativos' => $request['gastos_administrativos'] ?? null,
+            'tirilla_entregada_a' => $request['tirilla_entregada_a'] ?? null,
+            'fecha_tirilla_entregada' => $request['fecha_tirilla_entregada'] ?? null,
+            'tirilla_controlada_por' => is_array($request['tirilla_controlada_por'] ?? null) ? $request['tirilla_controlada_por']['id'] : ($request['tirilla_controlada_por'] ?? null),
+            'fecha_tirilla_controlada' => $request['fecha_tirilla_controlada'] ?? null,
+            'fecha_contrato' => $request['fecha_contrato'] ?? null,
+            'fecha_autorizacion' => $request['fecha_autorizacion'] ?? null,
+            'fecha_finalizacion_firma_cobro' => $request['fecha_finalizacion_firma_cobro'] ?? null,
+            'observaciones' => $request['observaciones'] ?? null,
+            'fecha_inventario' => $request['fecha_inventario'] ?? null,
+        ]);
+
+        return $data;
     }
 }

@@ -7,6 +7,19 @@ use App\Services\proceso\ProcesoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\proceso\Estado_reserva;
+use App\Models\proceso\Proceso_propiedad;
+use App\Services\contrato\ProcesoContratoService;
+use App\Models\proceso\Estado_contrato;
+use App\Models\proceso\Historial_estado_contrato;
+use App\Models\proceso\Historial_estado_reserva;
+use App\Models\usuarios_y_permisos\Usuario;
+use App\Notifications\RecordatorioNotificacion;
+use App\Models\At_cl\Empresas_propiedades;
+use App\Models\At_cl\Propiedad;
+
+
+
 
 class ProcesoController extends Controller
 {
@@ -19,6 +32,7 @@ class ProcesoController extends Controller
 
     public function subirReservas(Request $request)
     {
+        Log::info('llego');
         DB::beginTransaction();
         try {
             $usuarioId = auth('api')->id();
@@ -134,15 +148,73 @@ class ProcesoController extends Controller
         }
     }
 
-
-
-
-
-
-    public function getHistorialContrato()
+    public function getEstadosContrato()
     {
         try {
+
+            $estados = (new ProcesoContratoService())->EstadosContrato();
+
+            return response()->json(['resultado' => $estados]);
         } catch (\Exception $e) {
+            Log::error('Error getEstadosContrato: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json(['error' => 'Error al obtener estados del contrato.'], 500);
+        }
+    }
+
+    public function getHistorialContrato(Request $request)
+    {
+        try {
+            $form = $request->input('form');
+            $historial = (new ProcesoContratoService())->getHistorialContrato($form);
+
+            return response()->json(['resultado' => $historial]);
+        } catch (\Exception $e) {
+            Log::error('Error getHistorialContrato: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json(['error' => 'Error al obtener el historial.'], 500);
+        }
+    }
+
+
+    public function ActualizarEstadoContrato(Request $request)
+    {
+
+    Log::info('ActualizarEstadoContrato request: ', $request->all());
+        $data = (new ProcesoContratoService())->crearHistorialEstadoContrato($request->all());
+
+        $proceso = Proceso_propiedad::find($request->id_proceso);
+        $asesor = $proceso->asesor;
+        $proceso->update(['id_historial_estado_contrato' => $data->id]);
+
+        //parte de notificacion
+        $usuarioId =   auth('api')->id();
+        $usuario = Usuario::find($usuarioId);
+
+        //buscamos el cod_ de la propiedad
+        $propiedad = Propiedad::where('id', $proceso->id_propiedad)->first();
+        $empresaPropiedad = Empresas_propiedades::where('propiedad_id', $propiedad->id)->first();
+        $folio = $empresaPropiedad->folio ?? 'N/D';
+        $mensaje = [
+            'descripcion'       => "El folio " . $folio . " a cambiado de estado",
+            'fecha'             => now()->isoFormat('DD/MM/YYYY'),  // 13/04/2026
+            'hora'              => now()->isoFormat('HH:mm'),       // 14:53
+            'activo'            => 1,
+            'usuarioNotificar'  => $asesor,
+            'cliente_id'        => null,
+            'id_criterio_venta' => null,
+            'pertenece'         => "reserva",
+            'folio'             => $folio
+        ];
+
+        if ($request->id_estado == 8) {
+            historial_estado_reserva::where('id', $proceso->id_historial_estado_reserva)->update(['id_estado' => 2]);
+            if ($usuario) {
+                $usuario->notify(new RecordatorioNotificacion($mensaje));
+            }
+        } elseif ($request->id_estado == 9) {
+            historial_estado_reserva::where('id', $proceso->id_historial_estado_reserva)->update(['id_estado' => 1]);
+            if ($usuario) {
+                $usuario->notify(new RecordatorioNotificacion($mensaje));
+            }
         }
     }
 }

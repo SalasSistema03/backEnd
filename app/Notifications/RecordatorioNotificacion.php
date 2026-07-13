@@ -30,16 +30,18 @@ class RecordatorioNotificacion extends Notification
         return [
             //'pertenece'=>$this->mensaje['pertenece'],
             //'id'=>$this->mensaje['id'],
-            'descripcion'=>$this->mensaje['descripcion'],
-            'fecha'=>$this->mensaje['fecha'],
-            'hora'=>$this->mensaje['hora'],
-            'activo'=>$this->mensaje['activo'],
-            'cliente_id'=>$this->mensaje['cliente_id'],
+            'descripcion' => $this->mensaje['descripcion'],
+            'fecha' => $this->mensaje['fecha'],
+            'hora' => $this->mensaje['hora'],
+            'activo' => $this->mensaje['activo'],
+            'cliente_id' => $this->mensaje['cliente_id'],
             //'es_asesor_activo'=>$this->mensaje['es_asesor_activo'],
             //'es_criterio'=>$this->mensaje['es_criterio'],
             //'usuario_id' =>$this->mensaje['usuario_id']
-            'usuarioNotificar'=>$this->mensaje['usuarioNotificar'],
-            'id_criterio_venta'=>$this->mensaje['id_criterio_venta']
+            'usuarioNotificar' => $this->mensaje['usuarioNotificar'],
+            'id_criterio_venta' => $this->mensaje['id_criterio_venta'],
+            'pertenece' => $this->mensaje['pertenece'],
+            'folio' => $this->mensaje['folio'],
         ];
     }
 }

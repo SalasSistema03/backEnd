@@ -12,6 +12,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use App\Models\At_cl\Empresas_propiedades;
+use App\Models\cliente\Usuario_sector;
+use App\Notifications\RecordatorioNotificacion;
 
 class ProcesoService
 {
@@ -22,56 +25,60 @@ class ProcesoService
     {
         //Log::info('Datos recibidos: ' . json_encode($data));
         //dd($data);
-        $comprobantePath = null;
+        try {
+            $comprobantePath = null;
 
-        // Manejar comprobante si existe
-        if (isset($data['comprobante'])) {
-            $comprobantePath = $this->guardarComprobante(
-                $data['comprobante'],
-                $data['fechaReserva'] ?? null,
-                $data['idPropiedad'] ?? '0'
-            );
+            // Manejar comprobante si existe
+            if (isset($data['comprobante'])) {
+                $comprobantePath = $this->guardarComprobante(
+                    $data['comprobante'],
+                    $data['fechaReserva'] ?? null,
+                    $data['idPropiedad'] ?? '0'
+                );
+            }
+
+            // Crear historial inicial
+            $historial = Historial_estado_reserva::create([
+                'id_estado' => 1,
+                'observaciones' => 'Reserva creada',
+                'quien_cargo' => $data['asesor'] ?? null,
+                'fecha_carga' => now(),
+            ]);
+
+            // Crear proceso de propiedad
+            $proceso = Proceso_propiedad::create([
+                'asesor' => $data['asesor'] ?? null,
+                'fecha_reserva' => $data['fechaReserva'] ?? null,
+                'fecha_fin_reserva' => $data['fechaFinReserva'] ?? null,
+                'id_cliente' => $data['idCliente'] ?? null,
+                'reservante' => $data['nombreReservante'] ?? null,
+                'id_propiedad' => $data['idPropiedad'] ?? null,
+                'tipo_reserva' => $data['tipo'] ?? null,
+                'moneda' => $data['moneda'] ?? null,
+                'monto_reserva' => $data['montoReserva'] ?? null,
+                'monto_aceptado' => 0,
+                'documentacion' => $comprobantePath ?? $data['documentacion'] ?? null,
+                'id_historial_estado_reserva' => $historial->id,
+                'quien_cargo' => $usuarioId,
+                'precio_alquiler' => $data['precioFolio'] ?? null,
+            ]);
+
+            // Actualizar historial con el ID del proceso
+            $historial->update(['id_proceso_propiedad' => $proceso->id]);
+
+            // Actualizar estado de la propiedad
+            $estadoInicial = $this->actualizarEstadoPropiedad($data['idPropiedad'] ?? null, $usuarioId);
+
+            // Guardar estado inicial en el proceso
+            $proceso->update(['estado_alquiler_inicial' => $estadoInicial]);
+
+            return [
+                'proceso' => $proceso,
+                'comprobantePath' => $comprobantePath
+            ];
+        } catch (\Exception $e) {
+            throw $e;
         }
-
-        // Crear historial inicial
-        $historial = Historial_estado_reserva::create([
-            'id_estado' => 1,
-            'observaciones' => 'Reserva creada',
-            'quien_cargo' => $data['asesor'] ?? null,
-            'fecha_carga' => now(),
-        ]);
-
-        // Crear proceso de propiedad
-        $proceso = Proceso_propiedad::create([
-            'asesor' => $data['asesor'] ?? null,
-            'fecha_reserva' => $data['fechaReserva'] ?? null,
-            'fecha_fin_reserva' => $data['fechaFinReserva'] ?? null,
-            'id_cliente' => $data['idCliente'] ?? null,
-            'reservante' => $data['nombreReservante'] ?? null,
-            'id_propiedad' => $data['idPropiedad'] ?? null,
-            'tipo_reserva' => $data['tipo'] ?? null,
-            'moneda' => $data['moneda'] ?? null,
-            'monto_reserva' => $data['montoReserva'] ?? null,
-            'monto_aceptado' => 0,
-            'documentacion' => $comprobantePath ?? $data['documentacion'] ?? null,
-            'id_historial_estado_reserva' => $historial->id,
-            'quien_cargo' => $usuarioId,
-            'precio_alquiler' => $data['precioFolio'] ?? null,
-        ]);
-
-        // Actualizar historial con el ID del proceso
-        $historial->update(['id_proceso_propiedad' => $proceso->id]);
-
-        // Actualizar estado de la propiedad
-        $estadoInicial = $this->actualizarEstadoPropiedad($data['idPropiedad'] ?? null, $usuarioId);
-
-        // Guardar estado inicial en el proceso
-        $proceso->update(['estado_alquiler_inicial' => $estadoInicial]);
-
-        return [
-            'proceso' => $proceso,
-            'comprobantePath' => $comprobantePath
-        ];
     }
 
     /**
@@ -175,6 +182,7 @@ class ProcesoService
      */
     public function guardarEstado(array $data, $usuarioId)
     {
+        Log::info($data);
         // Crear nuevo historial
         $historial = Historial_estado_reserva::create([
             'id_estado' => $data['estado'],
@@ -183,13 +191,37 @@ class ProcesoService
             'quien_cargo' => $usuarioId,
             'id_proceso_propiedad' => $data['idProcesoPropiedad']
         ]);
+        $proceso = Proceso_propiedad::find($data['idProcesoPropiedad']);
+        $folio = Empresas_propiedades::where('propiedad_id', $proceso->id_propiedad)->first();
+        $notificar = Usuario_sector::where('contrato_nuevo', 'S')->get();
+
+
+        //Armamos la parte de notificacion si el estado pasa reserva finalizada
+        $mensajeBase = [
+            'descripcion'       => "Nuevo ingreso, Folio: " . $folio->folio ?? "-",
+            'fecha'             => now()->isoFormat('DD/MM/YYYY'),
+            'hora'              => now()->isoFormat('HH:mm'),
+            'activo'            => 1,
+            'cliente_id'        => null,
+            'id_criterio_venta' => null,
+            'pertenece'         => "contratoNuevo",
+            'folio'             => $folio->folio ?? "-"
+        ];
 
         // Si es estado 3, actualizar fecha de firma
         if ($data['estado'] == 3) {
             $historial_estado_contrato = Historial_estado_contrato::create([
-                'id_estado' => 1, //???? no se que poner, pregunta
+                'id_estado' => 7,
             ]);
             $historial->update(['fecha_firma' => now()]);
+
+            foreach ($notificar as $us) {
+                $usuario = Usuario::find($us->id_usuario); // ajustá el nombre del campo FK real
+                if ($usuario) {
+                    $mensaje = array_merge($mensajeBase, ['usuarioNotificar' => $usuario->id]);
+                    $usuario->notify(new RecordatorioNotificacion($mensaje));
+                }
+            }
         }
 
         // Si es estado 4 (finalizado), restaurar estado de propiedad
