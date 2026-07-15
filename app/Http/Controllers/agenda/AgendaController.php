@@ -13,6 +13,7 @@ use App\Models\agenda\Agenda;
 use App\Models\cliente\HistorialCodMuestra;
 use App\Models\At_cl\Calle;
 use App\Models\cliente\CriterioBusquedaVenta;
+use App\Models\cliente\HistorialCriteriosConversacion;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Models\usuarios_y_permisos\Usuario;
@@ -80,25 +81,18 @@ class AgendaController extends Controller
         DB::beginTransaction(); // Inicia la transacción
 
         try {
-
-
             // Buscar la agenda correspondiente al sector y usuario
             $agenda = Agenda::where('sector_id', $request->sector)
                 ->where('usuario_id', $request->usuario)
                 ->first();
 
-
-
-
             if (!$agenda) {
                 // Si no se encuentra la agenda, redirigir con error
                 return response()->json(['error' => 'No se encontró una agenda válida para este sector y usuario'], 404);
             }
-
             // Redondear horas de inicio y fin
             $horaInicioRedondeada = $request->horaInicio;
             $horaFinRedondeada = $request->horaFin;
-
 
             if (isset($request->propiedad['id'])) {
                 $propiedadV = $request->propiedad['id'];
@@ -121,8 +115,6 @@ class AgendaController extends Controller
                 //Log::info('cliente', ['cliente' => $cliente]);
             }
 
-
-
             // Crear la nota con horas redondeadas
             try {
                 $nuevaHoraInicio = $horaInicioRedondeada . ':00';
@@ -134,7 +126,7 @@ class AgendaController extends Controller
                     ->where('activo', 1)
                     ->first();
                 if ($repetida) {
-                    Log::info('Ya existe una nota en ese horario');
+                    //Log::info('Ya existe una nota en ese horario');
                     return response()->json([
                         'status' => 'error',
                         'message' => "Ya existe una nota en ese horario (de {$repetida->hora_inicio} a {$repetida->hora_fin})"
@@ -163,7 +155,7 @@ class AgendaController extends Controller
 
             //Log::info('Nota creada correctamente');
             // Si se proporciona un criterio, crear el evento en el historial
-            if ($request->criterioSeleccionado != null) {
+            if ($request->criterioSeleccionado != null ) {
                 if ($propiedadV === null) {
                     //Log::error('Propiedad no encontrada');
                     return response()->json([
@@ -172,7 +164,10 @@ class AgendaController extends Controller
                     ], 404);
                 }
                 //Log::info('antes de buscar cliente');
+
                 $busca_cliente = CriterioBusquedaVenta::where('id_criterio_venta', $request->criterioSeleccionado)->first();
+
+
                 //Log::info('despues de buscar cliente');
                 // Buscar la propiedad correspondiente al sector y usuario
                 $propiedadNC = Propiedad::where('id', $propiedadV)->first();
@@ -206,6 +201,48 @@ class AgendaController extends Controller
                     'success' => true,
                     //'evento' => $evento
                 ]);
+            }elseif ($request->sector == 2 && $request->telefono && $request->propiedad == null){
+
+
+                //Log::info($request->all());
+                $cliente = Clientes::where('telefono',$request->telefono)->first();
+                if(!$cliente){
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No se encontró un cliente con ese teléfono'
+                    ], 404);
+                }
+                //necesito tomar el id_criterio_venta mas grande del cliente
+                $criterio_venta = CriterioBusquedaVenta::where('id_cliente',$cliente->id_cliente)
+                    ->orderBy('id_criterio_venta','desc')
+                    ->first();
+
+                HistorialCriteriosConversacion::create([
+                    'id_criterio_venta' => $criterio_venta->id_criterio_venta,
+                    'mensaje' => $request->descripcion ?? 'conversacion generada por agenda', 
+                    'last_modified_by' => $usuario_id,
+                    'fecha_hora' => now()
+                ]);  
+
+            }elseif ($request->sector == 2 && $request->telefono && $request->propiedad != null){
+                Log::info($request->all());
+                $cliente_buscado = Clientes::where('telefono',$request->telefono)->first();
+                $criterio_buscado = CriterioBusquedaVenta::where('id_cliente',$cliente_buscado->id_cliente)
+                    ->orderBy('id_criterio_venta','desc')
+                    ->first();
+                HistorialCodMuestra::create([
+                    'codigo_muestra' => $request->propiedad['cod_venta'],
+                    'mensaje' => 'Se muestra la propiedad: ' . $request->propiedad['cod_venta'] . ' - Direccion: ' .
+                        $request->propiedad['calle'] . ' ' . $request->propiedad['numero_calle'] . ' a las ' . $horaInicioRedondeada .
+                        ' en el dia ' . Carbon::parse($request->fecha)->format('d/m/Y'),
+                    'fecha_hora' => now(),
+                    'last_modified_by' => $request->usuario,
+                    'id_criterio_venta' => $criterio_buscado->id_criterio_venta,
+                    'devolucion' => null,
+                    'fecha_devolucion' => null,
+                    'direccion' => $request->propiedad['calle'] . ' ' . $request->propiedad['numero_calle'],
+                ]);
+
             }
 
             DB::commit(); // Confirmar transacción
@@ -262,17 +299,7 @@ class AgendaController extends Controller
         }
     }
 
-    /* public function eventosDelDia()
-    {
-        $usuarioId = session('usuario_id');
-        $hoy = now()->toDateString();
-
-        $eventos = Notas::where('usuario_id', $usuarioId)
-            ->whereDate('fecha', $hoy)
-            ->get(['id', 'descripcion', 'hora_inicio', 'hora_fin', 'fecha', 'activo', 'realizado', 'cliente_id', 'devoluciones', 'propiedad_id', 'usuario_id']);
-
-        return response()->json($eventos);
-    } */
+    
 
     public function buscarSectores()
     {
