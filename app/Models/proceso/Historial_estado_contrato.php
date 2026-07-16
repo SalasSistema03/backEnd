@@ -36,7 +36,9 @@ class Historial_estado_contrato extends Model
         'fecha_contrato',
         'fecha_autorizacion',
         'fecha_finalizacion_firma_cobro',
-        'observaciones'
+        'observaciones',
+        'quien_cargo',
+        'fecha_carga'
     ];
 
     public function estado()

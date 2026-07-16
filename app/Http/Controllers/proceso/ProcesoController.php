@@ -178,7 +178,7 @@ class ProcesoController extends Controller
     public function ActualizarEstadoContrato(Request $request)
     {
 
-    Log::info('ActualizarEstadoContrato request: ', $request->all());
+        Log::info('ActualizarEstadoContrato request: ', $request->all());
         $data = (new ProcesoContratoService())->crearHistorialEstadoContrato($request->all());
 
         $proceso = Proceso_propiedad::find($request->id_proceso);

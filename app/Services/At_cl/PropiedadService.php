@@ -424,6 +424,7 @@ class PropiedadService
     public function buscarPropiedadesAlquiler($cod_alquiler)
     {
 
+    //Log::info("entro al servicio");
         $codigo = $cod_alquiler;
 
 

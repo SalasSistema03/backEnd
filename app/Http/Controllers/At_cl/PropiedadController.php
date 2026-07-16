@@ -313,6 +313,8 @@ class PropiedadController
                 'precio_venta' => $propiedad->precioActual?->moneda_venta_dolar ?? $propiedad->precioActual?->moneda_venta_pesos,
                 'estado_alquiler' => $propiedad->estadoAlquiler?->name,
                 'estado_venta' => $propiedad->estadoVenta?->name,
+                'piso' => $propiedad->piso,
+                'departamento' => $propiedad->departamento,
             ];
         });
 

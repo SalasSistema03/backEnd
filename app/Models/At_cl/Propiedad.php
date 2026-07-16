@@ -340,7 +340,8 @@ class Propiedad extends Model
 
         // Calle
         if (!empty($filtros['calle_id'])) {
-            $query->where('id_calle', $filtros['calle_id']);
+            $query->where('id_calle', $filtros['calle_id'])
+             ->orderBy('numero_calle', 'asc');;
         }
 
         // Tipos de inmueble
@@ -551,6 +552,7 @@ class Propiedad extends Model
 
     public function buscarPorCodigoCalle($codigo_calle, $sector)
     {
+        //Log::info("entro al modelo");
         // Primero busca por código de venta exacto
         if ($sector == 'Ventas') {
             $propiedad = Propiedad::where('cod_venta', 'like', '%' . $codigo_calle . '%')
