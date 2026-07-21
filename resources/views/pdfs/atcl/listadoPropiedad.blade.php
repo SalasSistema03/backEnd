@@ -159,6 +159,9 @@
                             @if (in_array('captador', $campos))
                                 <th>Captador</th>
                             @endif
+                            @if (in_array('autorizacion', $campos))
+                                <th>Autorizacion</th>
+                            @endif
                             @if (in_array('zonaprop', $campos) && $sector === 'Venta')
                                 <th>ZonaProp</th>
                             @endif
@@ -377,6 +380,10 @@
                                     <td>{{ $propiedad->captador_int_v ?? '' }}</td>
                                 @elseif(in_array('captador', $campos) && $sector === 'Alquiler')
                                     <td>{{ $propiedad->captador_int_a ?? '' }}</td>
+                                @endif
+
+                               @if (in_array('autorizacion', $campos) && $sector === 'Alquiler')
+                                    <td>{{ $propiedad->autorizacion_alquiler ?? '' }}</td>
                                 @endif
 
                                 @if (in_array('zonaprop', $campos) && $sector === 'Venta')

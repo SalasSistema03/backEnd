@@ -46,6 +46,11 @@ class ListadoPdfAtcl
                 $propiedades = (new FiltrosPdfService)->ordenarPorPrecio($propiedades, $request->orden, $sector);
             }
 
+            if($request->orden === 'autorizacion'){
+                 Log::info('entroa aurizacion', [$request->orden]);
+                $propiedades = (new FiltrosPdfService)->ordenarPorAutorizacion($propiedades, $request->orden, $sector);
+            }
+
             // Obtener usernames
             $modifierIds = $propiedades->pluck('last_modified_by')->filter()->unique()->values();
             $usernamesById = $modifierIds->isNotEmpty()

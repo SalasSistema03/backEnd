@@ -40,6 +40,7 @@ class FiltrosPdfService
         $this->aplicarFiltroImportePorSector($query, $filtros, $sector);
         $this->aplicarOrdenPorSector($query, $filtros, $sector);
 
+
         // Eager loading de relaciones comunes
         return $query->with([
             'fotos',
@@ -61,6 +62,7 @@ class FiltrosPdfService
         $filtros['sector'] = 'Alquiler';
         return $this->aplicarFiltrosUnificados($filtros);
     }
+
 
     /**
      * Método legacy para mantener compatibilidad con código existente (Venta)
@@ -105,6 +107,9 @@ class FiltrosPdfService
             $query->where('id_inmueble', $filtros['tipo']);
         }
     }
+
+
+
 
     private function aplicarFiltroCartel(Builder $query, array $filtros): void
     {
@@ -254,6 +259,29 @@ class FiltrosPdfService
 
         return $propiedades;
     }
+
+    public function ordenarPorAutorizacion($propiedades, string $orden, string $sector)
+{
+    Log::info('Entró a autorización');
+
+    if ($orden === 'autorizacion') {
+        $propiedades = $propiedades->sortBy(function ($propiedad) {
+
+            $valor = strtoupper(trim($propiedad->autorizacion_alquiler ?? ''));
+
+            return match ($valor) {
+                'SI' => 1,
+                'NO' => 2,
+                ''   => 3,
+                default => 4,
+            };
+        })->values();
+    }
+
+    return $propiedades;
+}
+
+
 
 
     // ========== MÉTODOS AUXILIARES EXISTENTES (sin cambios) ==========
