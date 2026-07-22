@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\proceso\Estado_reserva;
 use App\Models\proceso\Proceso_propiedad;
 use App\Services\contrato\ProcesoContratoService;
+use App\Services\contable\sellado\RegistroSelladoService;
 use App\Models\proceso\Estado_contrato;
 use App\Models\proceso\Historial_estado_contrato;
 use App\Models\proceso\Historial_estado_reserva;
@@ -17,22 +18,27 @@ use App\Models\usuarios_y_permisos\Usuario;
 use App\Notifications\RecordatorioNotificacion;
 use App\Models\At_cl\Empresas_propiedades;
 use App\Models\At_cl\Propiedad;
-
-
-
+use App\Models\Contable\Sellado\Registro_sellado;
+use App\Models\sys\Contratos_cabecera_sys;
+use App\Models\sys\Padron_sys;
+use App\Models\sys\Propiedades_sys;
 
 class ProcesoController extends Controller
 {
     protected $reservaService;
+    protected RegistroSelladoService $registroSelladoService;
+    protected $prueba;
 
-    public function __construct(ProcesoService $reservaService)
+
+    public function __construct(ProcesoService $reservaService, RegistroSelladoService $registroSelladoService)
     {
         $this->reservaService = $reservaService;
+        $this->registroSelladoService = $registroSelladoService;
     }
 
     public function subirReservas(Request $request)
     {
-        Log::info('llego');
+        //Log::info('llego');
         DB::beginTransaction();
         try {
             $usuarioId = auth('api')->id();
@@ -178,10 +184,16 @@ class ProcesoController extends Controller
     public function ActualizarEstadoContrato(Request $request)
     {
 
-        Log::info('ActualizarEstadoContrato request: ', $request->all());
+        //Log::info('ActualizarEstadoContrato request: ', $request->all());
+
+
         $data = (new ProcesoContratoService())->crearHistorialEstadoContrato($request->all());
 
         $proceso = Proceso_propiedad::find($request->id_proceso);
+        if ($proceso && $request->cant_meses) {
+
+            $proceso->update(['meses_contrato' => $request->cant_meses]);
+        }
         $asesor = $proceso->asesor;
         $proceso->update(['id_historial_estado_contrato' => $data->id]);
 
@@ -193,6 +205,111 @@ class ProcesoController extends Controller
         $propiedad = Propiedad::where('id', $proceso->id_propiedad)->first();
         $empresaPropiedad = Empresas_propiedades::where('propiedad_id', $propiedad->id)->first();
         $folio = $empresaPropiedad->folio ?? 'N/D';
+
+
+
+        if (
+            $request->monto != null || $request->monto_contrato != null || $request->chojas != null ||
+            $request->informe != null || $request->CantInforme != null || $request->contrato != null || $request->inquilino_propietario != null
+        ) {
+
+
+            if ($request->folio) {
+                $buscarFolioSellado = Registro_sellado::where('folio', $request->folio[0]['folio'])->exists();
+
+                $idCasa = Propiedades_sys::where('carpeta', $request->folio[0]['folio'])->value('id_casa');
+                $idEmpresa = $request->folio[0]['empresa_id'];
+
+
+                $contrato = Contratos_cabecera_sys::where('id_casa', $idCasa)
+                    ->where('id_empresa', $idEmpresa)
+                    ->orderByDesc('id_contrato_cabecera')
+                    ->first(['id_inquilino', 'comienza']);
+
+                $id_inquilino = $contrato?->id_inquilino;
+                $comienza = $contrato?->comienza;
+
+                if ($buscarFolioSellado) {
+
+                    $folioEncontrado = Registro_sellado::where('folio', $request->folio[0]['folio'])->first();
+
+                    //Log::info($folioEncontrado);
+                    $folioEncontrado->update([
+                        'mostrar'                  => 1,
+                        'folio'                    => $request->folio[0]['folio'],
+                        'nombre'                   => $nombre_inquilino ?? '', //nombre del inquilino
+                        'cantidad_meses'           => $request->cant_meses, //c/meses
+                        'monto_documento'          => $request->monto,
+                        'monto_contrato'           => $request->monto_contrato ?? null,
+                        'hojas'                    => $request->chojas ?? null,
+                        'informe'                  => $request->informe ?? null,
+                        'cantidad_informes'        => $request->CantInforme ?? null,
+                        'tipo_contrato'            => $request->tipo_contrato ?? null,
+                        'inq_prop'                 => $request->inquilino_propietario ?? null,
+                        'fecha_inicio'             => $comienza,
+                        'usuario_id'               => $usuario->id,
+
+                    ]);
+                } else {
+
+                    //Log::info('entro mal');
+
+
+
+
+                    if ($id_inquilino != null) {
+                        $nombre_inquilino = Padron_sys::where('id_inquilino', $id_inquilino)->value('razon_social');
+                    }
+
+                    /*  $selladoMonto = $this->registroSelladoService->sellado(
+                        $request->cant_meses,
+                        $request->monto,
+                        $request->contrato,
+                        $request->chojas,
+                        $request->inquilino_propietario,
+                        $request->monto_contrato
+                    );
+
+
+
+                    $monto_tipo_calc = $this->registroSelladoService->montoAlquilerComercialVivienda(
+                        $request->contrato,
+                        $request->precio_alquiler
+                    ); */
+
+                    $registro = Registro_sellado::create([
+                        'mostrar'                  => 1,
+                        'folio'                    => $request->folio[0]['folio'],
+                        'nombre'                   => $nombre_inquilino ?? '', //nombre del inquilino
+                        'cantidad_meses'           => $request->cant_meses, //c/meses
+                        'monto_documento'          => $request->monto,
+                        'monto_contrato'           => $request->monto_contrato ?? null,
+                        'hojas'                    => $request->chojas ?? null,
+                        'informe'                  => $request->informe ?? null,
+                        'cantidad_informes'        => $request->CantInforme ?? null,
+                        'tipo_contrato'            => $request->tipo_contrato ?? null,
+                        'inq_prop'                 => $request->inquilino_propietario ?? null,
+                        'fecha_inicio'             => $comienza,
+                        'usuario_id'               => $usuario->id,
+
+                        /* 'total_contrato'           => $selladoMonto['total_alquiler'],
+                        'sellado'                  => $selladoMonto['total_sellado_con_hojas'],
+                        'monto_alquiler_comercial' => $monto_tipo_calc['monto_alquiler_comercial'] ?? 0,
+                        'monto_alquiler_vivienda'  => $monto_tipo_calc['monto_alquiler_vivienda'] ?? 0, */
+
+
+
+                    ]);
+
+                    //Log::info("registro: " . $registro);
+
+                    $proceso->update([
+                        'id_registro_sellado' => $registro->id_registro_sellado,
+                    ]);
+                }
+            }
+        }
+
         $mensaje = [
             'descripcion'       => "El folio " . $folio . " a cambiado de estado",
             'fecha'             => now()->isoFormat('DD/MM/YYYY'),  // 13/04/2026
@@ -215,6 +332,20 @@ class ProcesoController extends Controller
             if ($usuario) {
                 $usuario->notify(new RecordatorioNotificacion($mensaje));
             }
+        }
+    }
+
+    public function getObservacionesContratoNuevo(Request $request)
+    {
+
+        Log::info('llego al controlador');
+        try {
+            $observaciones = (new ProcesoContratoService())->getObservacionesContratoNuevo($request->all());
+
+            return response()->json(['resultado' => $observaciones]);
+        } catch (\Exception $e) {
+            Log::error('Error getObservacionesContratoNuevo: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json(['error' => 'Error al obtener observaciones del contrato.'], 500);
         }
     }
 }

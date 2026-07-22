@@ -43,6 +43,7 @@ class RegistroSelladoService
     {
         // IMPORTANTE: El 'id' debe estar presente para que Laravel pueda unir las tablas
         return Registro_sellado::with('usuario')
+            ->where('mostrar', 1) // Filtra solo los registros donde mostrar = 1
             ->orderBy('id_registro_sellado', 'desc')
             ->get()
             ->toArray();
@@ -152,7 +153,8 @@ class RegistroSelladoService
                 'total_contrato'          => $resultados['total_contrato'],
                 'valor_informe'           => $resultados['valor_informe'],
                 'fecha_carga'             => $resultados['fecha_carga'],
-                'usuario_id'              => $usuario_id
+                'usuario_id'              => $usuario_id,
+                'mostrar'                 => 1, 
             ]);
         });
     }
@@ -210,7 +212,7 @@ class RegistroSelladoService
 
 
     //En esta seccion se creara la logica para calcular el registro sellado
-    protected function calculateGastoAdministrativo($monto_alquiler, $monto_documento, $tipo_contrato, $meses)
+    public function calculateGastoAdministrativo($monto_alquiler, $monto_documento, $tipo_contrato, $meses)
     {
         $g_adm = 0;
         $valor_adm = $this->valorGastoAdminitrativo->getAllValorGastoAdministrativo();
@@ -258,7 +260,7 @@ class RegistroSelladoService
         ];
     }
 
-    protected function sellado($meses, $monto_a, $tipo_c, $hojas, $inq_prop, $monto_c)
+    public function sellado($meses, $monto_a, $tipo_c, $hojas, $inq_prop, $monto_c)
     {
         $valor_hojas = $this->valorHoja->getAllValorHoja();
         $valor_tipos = $this->valorSellado->getAllValorSellado();
@@ -343,7 +345,7 @@ class RegistroSelladoService
     }
 
 
-    protected function montoAlquilerComercialVivienda($tipo_c, $monto_alquiler)
+    public function montoAlquilerComercialVivienda($tipo_c, $monto_alquiler)
     {
         $monto_alquiler_comercial = 0;
         $monto_alquiler_vivienda = 0;

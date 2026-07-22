@@ -44,6 +44,7 @@ class Registro_sellado extends Model
         'valor_informe',
         'fecha_carga',
         'usuario_id',
+        'mostrar',
     ];
 
     //Esta funcion trae los datos del usuario

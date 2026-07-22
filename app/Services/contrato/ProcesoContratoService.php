@@ -3,6 +3,7 @@
 namespace App\Services\contrato;
 
 use App\Models\At_cl\Propiedad;
+use App\Models\Contable\Sellado\Registro_sellado;
 use App\Models\proceso\Estado_contrato;
 use App\Models\proceso\Historial_estado_contrato;
 use App\Models\proceso\Proceso_propiedad;
@@ -32,6 +33,7 @@ class ProcesoContratoService
             'historialEstadoContrato.tirillaEntregadaPor',
             'historialEstadoContrato.tirillaControladaPor',
             'propiedad.calle',
+            'registroSellado',
         ])->whereNotNull('id_historial_estado_contrato');
 
         $todos = Proceso_propiedad::whereNotNull('id_historial_estado_contrato')
@@ -74,9 +76,6 @@ class ProcesoContratoService
 
     public function crearHistorialEstadoContrato(array $request)
     {
-
-
-    //parte de notificacion
         $usuarioId =   auth('api')->id();
         $usuario = Usuario::find($usuarioId);
 
@@ -97,8 +96,31 @@ class ProcesoContratoService
             'fecha_inventario' => $request['fecha_inventario'] ?? null,
             'quien_cargo' => $usuario->id ?? null,
             'fecha_carga' => now()->format('Y-m-d H:i:s'),
+            'id_proceso_propiedad' => $request['id_proceso'] ?? null,
         ]);
 
+        return $data;
+    }
+
+    public function getObservacionesContratoNuevo(array $request)
+    {
+        //Log::info('getObservacionesContratoNuevo request: ', $request);
+
+
+        $observaciones = Historial_estado_contrato::where('id_proceso_propiedad', $request['id_proceso'])->get(['observaciones', 'fecha_carga', 'quien_cargo', 'id_estado']);
+        foreach ($observaciones as $observacion) {
+            $usuario = Usuario::find($observacion->quien_cargo);
+            $observacion->nombre_usuario = $usuario ? $usuario->username : 'Usuario no encontrado';
+            $estado = Estado_contrato::find($observacion->id_estado);
+            $observacion->nombre_estado = $estado ? $estado->estado : 'Estado no encontrado';
+        }
+        //Log::info($observaciones);
+        return $observaciones;
+    }
+
+    public function getSelladoPrecargado(Request $request)
+    {
+        $data = Registro_sellado::where('folio', $request->folio);
         return $data;
     }
 }

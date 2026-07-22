@@ -213,6 +213,7 @@ class ProcesoService
         if ($data['estado'] == 3) {
             $historial_estado_contrato = Historial_estado_contrato::create([
                 'id_estado' => 7,
+                'id_proceso_propiedad' => $data['idProcesoPropiedad'],
             ]);
             $historial->update(['fecha_firma' => now()]);
 

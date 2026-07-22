@@ -35,6 +35,7 @@ use App\Services\At_cl\PropiedadService;
 use App\Services\clientes\UsuarioSectorService;
 use App\Http\Controllers\proceso\ProcesoController;
 use App\Http\Controllers\impuesto\Expensas\ExpensasController;
+use App\Services\contrato\ProcesoContratoService;
 
 
 Route::prefix('v1')->group(function () {
@@ -259,8 +260,10 @@ Route::prefix('v1')->group(function () {
         //Route::get('/getHistorialContrato', [ProcesoController::class, 'getHistorialContrato']);
         Route::get('/verificaPermisoUsuario/{botonNombre}', [Permisos::class, 'traerUsuarioPorBoton']);
         Route::post('/ActualizarEstadoContrato', [ProcesoController::class, 'ActualizarEstadoContrato']);
-    }); // <--- Aquí cierra el middleware('auth:api') unificado
-}); // <--- Aquí cierra el prefix('v1')
+        Route::get('/getObservacionesContratoNuevo', [ProcesoController::class, 'getObservacionesContratoNuevo']);
+        Route::get('/getSelladoPrecargado', [ProcesoContratoService::class, 'getSelladoPrecargado']);
+    });
+});
 
 
 // Ruta de redirección por defecto si falla el token
