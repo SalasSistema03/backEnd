@@ -38,16 +38,16 @@ class ListadoPdfAtcl
             // Usar el filtro unificado (el ordenamiento se aplica dentro, excepto precio)
             $query = (new FiltrosPdfService)->aplicarFiltrosUnificados($request->all());
 
-            // Ejecutar la query
-            $propiedades = $query->get();
+            // Ejecutar la query traendo también la relación de observaciones
+            $propiedades = $query->with('observacionesPropiedades')->get();
 
             // Solo ordenar por precio si es necesario (post-query)
             if ($request->orden === 'precio_asc' || $request->orden === 'precio_desc') {
                 $propiedades = (new FiltrosPdfService)->ordenarPorPrecio($propiedades, $request->orden, $sector);
             }
 
-            if($request->orden === 'autorizacion'){
-                 Log::info('entroa aurizacion', [$request->orden]);
+            if ($request->orden === 'autorizacion') {
+                Log::info('entroa aurizacion', [$request->orden]);
                 $propiedades = (new FiltrosPdfService)->ordenarPorAutorizacion($propiedades, $request->orden, $sector);
             }
 
@@ -65,11 +65,17 @@ class ListadoPdfAtcl
                     : '-';
             }
 
-            //Modificar captador_int
+            //Modificar captador_int_v
             foreach ($propiedades as $propiedad) {
-                $usernameCaptador = $propiedad->captador_int ? Usuario::find($propiedad->captador_int)->username : '-';
-                $propiedad->captador_int = $usernameCaptador;
+                $usernameCaptador = $propiedad->captador_int_v ? Usuario::find($propiedad->captador_int_v)->username : '-';
+                $propiedad->captador_int_v = $usernameCaptador;
+
+                $usernameCaptador_a = $propiedad->captador_int_a ? Usuario::find($propiedad->captador_int_a)->username : '-';
+                $propiedad->captador_int_a = $usernameCaptador_a;
             }
+            //Log::info('propiedades', [$propiedades]);
+
+
 
             //Modificar asesor
             foreach ($propiedades as $propiedad) {
@@ -81,7 +87,7 @@ class ListadoPdfAtcl
             $authUser = $usuario_id ? Usuario::find($usuario_id) : null;
             $username = $authUser->username ?? '-';
 
-            //Log::info('propiedades', [$propiedades]);
+            Log::info('propiedades', [$propiedades]);
 
             // Generar HTML
             $html = view('pdfs.atcl.listadoPropiedad', compact('propiedades', 'username', 'informacionMostrar', 'pertenece', 'sector', 'contadorPropiedades'))->render();

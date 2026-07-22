@@ -159,7 +159,7 @@
                             @if (in_array('captador', $campos))
                                 <th>Captador</th>
                             @endif
-                            @if (in_array('autorizacion', $campos))
+                            @if (in_array('autorizacion', $campos) && $sector === 'Alquiler')
                                 <th>Autorizacion</th>
                             @endif
                             @if (in_array('zonaprop', $campos) && $sector === 'Venta')
@@ -174,11 +174,15 @@
                             @if (in_array('usuario', $campos))
                                 <th>Usuario</th>
                             @endif
+                            @if (in_array('novedades', $campos) && $sector === 'Venta')
+                                <th>Novedades</th>
+                            @endif
                         </tr>
                     </thead>
 
                     <tbody class="listado_tabla">
                         @foreach ($propiedades as $propiedad)
+
                             <tr>
 
                                 @if ($sector === 'Alquiler')
@@ -408,6 +412,16 @@
 
                                 @if (in_array('usuario', $campos))
                                     <td>{{ $propiedad->username ?? '-' }}</td>
+                                @endif
+
+                                @if(in_array('novedades', $campos) && $sector === 'Venta')
+                                    <td style="text-align: left;">
+                                        @foreach ($propiedad->observacionesPropiedades as $obs)
+                                            @if ($obs->tipo_ofera === 'V')
+                                                {{ preg_replace('/[\r\n]+/', ' - ', trim($obs->notes)) }}
+                                            @endif
+                                        @endforeach
+                                    </td>
                                 @endif
 
                             </tr>
