@@ -64,7 +64,12 @@
                 @endif
 
                 @isset($contadorPropiedades)
-                    Total de Propiedades: {{ $contadorPropiedades }}
+                    <div>Total de Propiedades: {{ $contadorPropiedades }}</div>
+                @endisset
+                @isset($conteoPorTipoArray)
+                    @foreach ($conteoPorTipoArray as $tipo => $cantidad)
+                        <span class="listado_texto_titulo">{{ $tipo }}: {{ $cantidad }}</span>
+                    @endforeach
                 @endisset
                 @isset($consultaTotal)
                     <span class="listado_texto_titulo">Consultas: {{ $consultaTotal }}</span>

@@ -35,62 +35,94 @@ class ListadoPdfAtcl
 
         if ($pertenece === 'listadoPropiedades') {
 
-            // Usar el filtro unificado (el ordenamiento se aplica dentro, excepto precio)
-            $query = (new FiltrosPdfService)->aplicarFiltrosUnificados($request->all());
+            $filtrosService = new FiltrosPdfService; // instanciar una sola vez
 
-            // Ejecutar la query traendo también la relación de observaciones
-            $propiedades = $query->with('observacionesPropiedades')->get();
+            // Usar el filtro unificado (el ordenamiento se aplica dentro, excepto precio)
+            $query = $filtrosService->aplicarFiltrosUnificados($request->all());
+
+            // Ejecutar la query trayendo también la relación de observaciones y tipoInmueble
+            $propiedades = $query->with(['observacionesPropiedades', 'tipoInmueble'])->get();
 
             // Solo ordenar por precio si es necesario (post-query)
             if ($request->orden === 'precio_asc' || $request->orden === 'precio_desc') {
-                $propiedades = (new FiltrosPdfService)->ordenarPorPrecio($propiedades, $request->orden, $sector);
+                $propiedades = $filtrosService->ordenarPorPrecio($propiedades, $request->orden, $sector);
             }
 
             if ($request->orden === 'autorizacion') {
-                Log::info('entroa aurizacion', [$request->orden]);
-                $propiedades = (new FiltrosPdfService)->ordenarPorAutorizacion($propiedades, $request->orden, $sector);
+                //Log::info('entro autorizacion', [$request->orden]);
+                $propiedades = $filtrosService->ordenarPorAutorizacion($propiedades, $request->orden, $sector);
             }
 
-            // Obtener usernames
-            $modifierIds = $propiedades->pluck('last_modified_by')->filter()->unique()->values();
-            $usernamesById = $modifierIds->isNotEmpty()
-                ? Usuario::whereIn('id', $modifierIds)->pluck('username', 'id')->all()
+            $contadorPropiedades = $propiedades->count();
+
+            // --- Recolectar TODOS los IDs de usuario que necesitamos en una sola pasada ---
+            $modifierIds  = $propiedades->pluck('last_modified_by')->filter();
+            $captadorVIds = $propiedades->pluck('captador_int_v')->filter();
+            $captadorAIds = $propiedades->pluck('captador_int_a')->filter();
+            $asesorIds    = $propiedades->pluck('asesor')->filter();
+
+            $todosLosIds = $modifierIds
+                ->merge($captadorVIds)
+                ->merge($captadorAIds)
+                ->merge($asesorIds)
+                ->unique()
+                ->values();
+
+            // Una sola query para traer todos los usernames
+            $usernamesById = $todosLosIds->isNotEmpty()
+                ? Usuario::whereIn('id', $todosLosIds)->pluck('username', 'id')->all()
                 : [];
 
+            // Una sola pasada por la colección, aplicando todas las transformaciones
             foreach ($propiedades as $propiedad) {
-                $contadorPropiedades++;
                 $modId = $propiedad->last_modified_by;
                 $propiedad->username = ($modId && isset($usernamesById[$modId]))
                     ? $usernamesById[$modId]
                     : '-';
+
+                $propiedad->captador_int_v = ($propiedad->captador_int_v && isset($usernamesById[$propiedad->captador_int_v]))
+                    ? $usernamesById[$propiedad->captador_int_v]
+                    : '-';
+
+                $propiedad->captador_int_a = ($propiedad->captador_int_a && isset($usernamesById[$propiedad->captador_int_a]))
+                    ? $usernamesById[$propiedad->captador_int_a]
+                    : '-';
+
+                $propiedad->asesor = ($propiedad->asesor && isset($usernamesById[$propiedad->asesor]))
+                    ? $usernamesById[$propiedad->asesor]
+                    : '-';
             }
 
-            //Modificar captador_int_v
-            foreach ($propiedades as $propiedad) {
-                $usernameCaptador = $propiedad->captador_int_v ? Usuario::find($propiedad->captador_int_v)->username : '-';
-                $propiedad->captador_int_v = $usernameCaptador;
-
-                $usernameCaptador_a = $propiedad->captador_int_a ? Usuario::find($propiedad->captador_int_a)->username : '-';
-                $propiedad->captador_int_a = $usernameCaptador_a;
-            }
-            //Log::info('propiedades', [$propiedades]);
-
-
-
-            //Modificar asesor
-            foreach ($propiedades as $propiedad) {
-                $usernameAsesor = $propiedad->asesor ? Usuario::find($propiedad->asesor)->username : '-';
-                $propiedad->asesor = $usernameAsesor;
-            }
             // Usuario actual
             $usuario_id = auth('api')->id();
             $authUser = $usuario_id ? Usuario::find($usuario_id) : null;
             $username = $authUser->username ?? '-';
 
-            Log::info('propiedades', [$propiedades]);
+            //Log::info($propiedades);
+            $conteoPorTipo = $propiedades
+                ->groupBy(function ($propiedad) {
+                    // El nombre de la relación en el modelo Propiedad es tipoInmueble (en camelCase)
+                    return $propiedad->tipoInmueble->inmueble ?? 'SIN TIPO';
+                })
+                ->map(function ($grupo) {
+                    return $grupo->count();
+                });
+
+            // Si querés un array plano simple: ['DEPARTAMENTO' => 5, 'CASA' => 3, ...]
+            $conteoPorTipoArray = $conteoPorTipo->toArray();
+
+            //Log::info($conteoPorTipoArray);
 
             // Generar HTML
-            $html = view('pdfs.atcl.listadoPropiedad', compact('propiedades', 'username', 'informacionMostrar', 'pertenece', 'sector', 'contadorPropiedades'))->render();
+            $html = view('pdfs.atcl.listadoPropiedad', compact(
+                'propiedades',
+                'username',
+                'informacionMostrar',
+                'pertenece',
+                'sector',
+                'contadorPropiedades',
+                'conteoPorTipoArray'
+            ))->render();
         }
         if ($pertenece === 'estadoPropietario') {
             /*  $contadorPropietarios = 0; */
