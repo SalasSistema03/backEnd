@@ -24,13 +24,14 @@ class Historial_estado_dpto extends Model
     protected $fillable = [
         'id_estado',
         'observaciones',
+        'fecha_inventario',
         'fecha_carga',
-        'fecha_firma',
+        'quien_cargo',
+
     ];
 
     public function estado()
     {
         return $this->belongsTo(Estado_dpto::class, 'id_estado', 'id');
     }
-    
 }

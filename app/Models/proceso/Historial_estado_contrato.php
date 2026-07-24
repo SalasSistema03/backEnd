@@ -24,7 +24,7 @@ class Historial_estado_contrato extends Model
 
     protected $fillable = [
         'id_estado',
-        'fecha_inventario',
+        /* 'fecha_inventario', */
         'fecha_comercial_presenta_carpeta',
         'fecha_preaprobada',
         'fecha_reserva',
