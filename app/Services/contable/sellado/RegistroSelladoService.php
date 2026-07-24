@@ -10,6 +10,7 @@ use App\Services\contable\sellado\ValorHojaService;
 use App\Services\contable\sellado\ValorSelladoService;
 use App\Services\contable\sellado\ValorDatosRegistralesService;
 use App\Models\contable\sellado\Valor_registro_extra;
+use Illuminate\Support\Facades\Log;
 
 class RegistroSelladoService
 {
@@ -122,40 +123,43 @@ class RegistroSelladoService
 
     public function guardarSellado(array $data)
     {
-        //Obtiene el id del usuario actual
-
         return DB::transaction(function () use ($data) {
             // Primero obtenemos los resultados del cálculo para estar seguros de qué guardamos
             $resultados = $this->calcularSellado($data);
             //Llama el id del usuario actual
             $usuario_id = auth('api')->id();
 
-            // Insertamos en la tabla (Ajusta los nombres de las columnas a tu BD)
-            return Registro_sellado::create([
-                'cantidad_informes'       => $resultados['cantidad_informes'],
-                'cantidad_meses'          => $resultados['cantidad_meses'],
-                'fecha_inicio'            => $resultados['fecha_inicio'],
-                'folio'                   => $resultados['folio'],
-                'gasto_administrativo'    => $resultados['gasto_administrativo'],
-                'hojas'                   => $resultados['hojas'],
-                'informe'                 => $resultados['informe'],
-                'inq_prop'                => $resultados['inq_prop'],
-                'iva_gasto_adm'           => $resultados['iva_gasto_adm'],
-                'monto_alquiler_comercial' => $resultados['monto_alquiler_comercial'],
-                'monto_alquiler_vivienda'  => $resultados['monto_alquiler_vivienda'],
-                'monto_contrato'          => $resultados['monto_contrato'],
-                'monto_documento'         => $resultados['monto_documento'],
-                'nombre'                  => $resultados['nombre'],
-                'prop_alquiler'           => $resultados['prop_alquiler'],
-                'prop_doc'                => $resultados['prop_doc'],
-                'sellado'                 => $resultados['sellado'],
-                'tipo_contrato'           => $resultados['tipo_contrato'],
-                'total_contrato'          => $resultados['total_contrato'],
-                'valor_informe'           => $resultados['valor_informe'],
-                'fecha_carga'             => $resultados['fecha_carga'],
-                'usuario_id'              => $usuario_id,
-                'mostrar'                 => 1, 
-            ]);
+            // Insertamos o actualizamos en la tabla buscando por folio y empresa
+            return Registro_sellado::updateOrCreate(
+                [
+                    'folio'                   => $resultados['folio'],
+                    'empresa'                 => $data['empresa'],
+                ],
+                [
+                    'cantidad_informes'       => $resultados['cantidad_informes'],
+                    'cantidad_meses'          => $resultados['cantidad_meses'],
+                    'fecha_inicio'            => $resultados['fecha_inicio'],
+                    'gasto_administrativo'    => $resultados['gasto_administrativo'],
+                    'hojas'                   => $resultados['hojas'],
+                    'informe'                 => $resultados['informe'],
+                    'inq_prop'                => $resultados['inq_prop'],
+                    'iva_gasto_adm'           => $resultados['iva_gasto_adm'],
+                    'monto_alquiler_comercial' => $resultados['monto_alquiler_comercial'],
+                    'monto_alquiler_vivienda'  => $resultados['monto_alquiler_vivienda'],
+                    'monto_contrato'          => $resultados['monto_contrato'],
+                    'monto_documento'         => $resultados['monto_documento'],
+                    'nombre'                  => $resultados['nombre'],
+                    'prop_alquiler'           => $resultados['prop_alquiler'],
+                    'prop_doc'                => $resultados['prop_doc'],
+                    'sellado'                 => $resultados['sellado'],
+                    'tipo_contrato'           => $resultados['tipo_contrato'],
+                    'total_contrato'          => $resultados['total_contrato'],
+                    'valor_informe'           => $resultados['valor_informe'],
+                    'fecha_carga'             => $resultados['fecha_carga'],
+                    'usuario_id'              => $usuario_id,
+                    'mostrar'                 => 1,
+                ]
+            );
         });
     }
 

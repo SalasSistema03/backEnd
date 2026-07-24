@@ -68,7 +68,7 @@ class ProcesoContratoService
 
         $res = $query->get();
 
-        Log::info($res);
+        //Log::info($res);
         //dd($res);
         //Log::info('Resultados filtrados:', ['count' => $res->count()]);
         return $res;
@@ -120,7 +120,14 @@ class ProcesoContratoService
 
     public function getSelladoPrecargado(Request $request)
     {
-        $data = Registro_sellado::where('folio', $request->folio);
+
+        //Log::info($request->all());
+        $data = Registro_sellado::where('folio', $request->folio)
+            ->where('empresa', $request->empresa)
+            ->first();
+        $procesoPropiedad = Proceso_propiedad::where('id_registro_sellado', $data->id_registro_sellado)->first();
+        $data->proceso_monto = $procesoPropiedad->monto_reserva;
+        //Log::info($data);
         return $data;
     }
 }

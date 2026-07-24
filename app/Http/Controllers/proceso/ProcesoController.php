@@ -185,6 +185,7 @@ class ProcesoController extends Controller
     {
 
         //Log::info('ActualizarEstadoContrato request: ', $request->all());
+        //dd("actualizarEstadoContrato");
 
 
         $data = (new ProcesoContratoService())->crearHistorialEstadoContrato($request->all());
@@ -232,24 +233,29 @@ class ProcesoController extends Controller
                 if ($buscarFolioSellado) {
 
                     $folioEncontrado = Registro_sellado::where('folio', $request->folio[0]['folio'])->first();
+                    if ($folioEncontrado->mostrar != 0) {
+                        return response()->json(['error' => 'Folio ya calculado']);
+                    } else {
 
-                    //Log::info($folioEncontrado);
-                    $folioEncontrado->update([
-                        'mostrar'                  => 1,
-                        'folio'                    => $request->folio[0]['folio'],
-                        'nombre'                   => $nombre_inquilino ?? '', //nombre del inquilino
-                        'cantidad_meses'           => $request->cant_meses, //c/meses
-                        'monto_documento'          => $request->monto,
-                        'monto_contrato'           => $request->monto_contrato ?? null,
-                        'hojas'                    => $request->chojas ?? null,
-                        'informe'                  => $request->informe ?? null,
-                        'cantidad_informes'        => $request->CantInforme ?? null,
-                        'tipo_contrato'            => $request->tipo_contrato ?? null,
-                        'inq_prop'                 => $request->inquilino_propietario ?? null,
-                        'fecha_inicio'             => $comienza,
-                        'usuario_id'               => $usuario->id,
+                        //Log::info($folioEncontrado);
+                        $folioEncontrado->update([
+                            'mostrar'                  => 0,
+                            'folio'                    => $request->folio[0]['folio'],
+                            'empresa'                  => $idEmpresa,
+                            'nombre'                   => $nombre_inquilino ?? '', //nombre del inquilino
+                            'cantidad_meses'           => $request->cant_meses, //c/meses
+                            'monto_documento'          => $request->monto,
+                            'monto_contrato'           => $request->monto_contrato ?? null,
+                            'hojas'                    => $request->chojas ?? null,
+                            'informe'                  => $request->informe ?? null,
+                            'cantidad_informes'        => $request->CantInforme ?? null,
+                            'tipo_contrato'            => $request->tipo_contrato ?? null,
+                            'inq_prop'                 => $request->inquilino_propietario ?? null,
+                            'fecha_inicio'             => $comienza,
+                            'usuario_id'               => $usuario->id,
 
-                    ]);
+                        ]);
+                    }
                 } else {
 
                     //Log::info('entro mal');
@@ -261,25 +267,11 @@ class ProcesoController extends Controller
                         $nombre_inquilino = Padron_sys::where('id_inquilino', $id_inquilino)->value('razon_social');
                     }
 
-                    /*  $selladoMonto = $this->registroSelladoService->sellado(
-                        $request->cant_meses,
-                        $request->monto,
-                        $request->contrato,
-                        $request->chojas,
-                        $request->inquilino_propietario,
-                        $request->monto_contrato
-                    );
-
-
-
-                    $monto_tipo_calc = $this->registroSelladoService->montoAlquilerComercialVivienda(
-                        $request->contrato,
-                        $request->precio_alquiler
-                    ); */
 
                     $registro = Registro_sellado::create([
-                        'mostrar'                  => 1,
+                        'mostrar'                  => 0,
                         'folio'                    => $request->folio[0]['folio'],
+                        'empresa'                  => $idEmpresa,
                         'nombre'                   => $nombre_inquilino ?? '', //nombre del inquilino
                         'cantidad_meses'           => $request->cant_meses, //c/meses
                         'monto_documento'          => $request->monto,
@@ -291,14 +283,6 @@ class ProcesoController extends Controller
                         'inq_prop'                 => $request->inquilino_propietario ?? null,
                         'fecha_inicio'             => $comienza,
                         'usuario_id'               => $usuario->id,
-
-                        /* 'total_contrato'           => $selladoMonto['total_alquiler'],
-                        'sellado'                  => $selladoMonto['total_sellado_con_hojas'],
-                        'monto_alquiler_comercial' => $monto_tipo_calc['monto_alquiler_comercial'] ?? 0,
-                        'monto_alquiler_vivienda'  => $monto_tipo_calc['monto_alquiler_vivienda'] ?? 0, */
-
-
-
                     ]);
 
                     //Log::info("registro: " . $registro);
