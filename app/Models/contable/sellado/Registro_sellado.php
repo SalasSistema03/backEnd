@@ -26,6 +26,7 @@ class Registro_sellado extends Model
         'cantidad_meses',
         'fecha_inicio',
         'folio',
+        'empresa',
         'gasto_administrativo',
         'hojas',
         'informe',
@@ -44,11 +45,12 @@ class Registro_sellado extends Model
         'valor_informe',
         'fecha_carga',
         'usuario_id',
+        'mostrar',
     ];
 
     //Esta funcion trae los datos del usuario
-    public function usuario(){
+    public function usuario()
+    {
         return $this->belongsTo('App\Models\usuarios_y_permisos\Usuario', 'usuario_id');
     }
-
 }

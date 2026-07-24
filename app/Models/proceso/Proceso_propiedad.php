@@ -46,7 +46,8 @@ class Proceso_propiedad extends Model
         'quien_modifico',
         'estado_alquiler_inicial',
         'precio_alquiler',
-        'meses_contrato'
+        'meses_contrato',
+        'id_registro_sellado'
     ];
 
     public function cliente()
@@ -77,5 +78,12 @@ class Proceso_propiedad extends Model
     public function asesorUsuario()
     {
         return $this->belongsTo(Usuario::class, 'asesor');
+    }
+
+    public function registroSellado()
+    {
+        // Como Registro_sellado está en otra base de datos (mysql3), Eloquent manejará la consulta.
+        // Si el registro se borra, esta relación devolverá null automáticamente sin romper la base de datos.
+        return $this->belongsTo(\App\Models\Contable\Sellado\Registro_sellado::class, 'id_registro_sellado', 'id_registro_sellado');
     }
 }

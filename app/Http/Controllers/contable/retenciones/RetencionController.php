@@ -9,6 +9,7 @@ use App\Services\At_cl\ProvinciaService;
 use App\Services\contable\retenciones\RetencionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Response;
 
 class RetencionController extends Controller
 {
@@ -79,7 +80,7 @@ class RetencionController extends Controller
         }
     }
 
-    // GET 
+    // GET
     public function getCalculoRetencion(Request $request)
     {
         try {
@@ -230,8 +231,8 @@ class RetencionController extends Controller
             ], 200);
         } catch (\Exception $e) {
             Log::info('error persona', [
-    'exception' => $e
-]);
+                'exception' => $e
+            ]);
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error al guardar la persona',
@@ -320,6 +321,34 @@ class RetencionController extends Controller
             echo $contenido;
         }, $nombreArchivo, [
             'Content-Type' => 'text/plain',
+        ]);
+    }
+
+    public function exportarRetencionesFaltantesTXTController(Request $request)
+    {
+        $registros = $request->input('registros', []);
+
+
+        $contenido = "Razon Social\tCUIT\tFecha\tImporte Comprobante\tImporte Retención\n";
+
+        foreach ($registros as $r) {
+            $fila = [
+                $r['razon_social_retencion'] ?? '',
+                $r['cuit_retencion'] ?? '',
+                $r['fecha_comprobante'] ?? '',
+                $r['importe_comprobante'] ?? '',
+                $r['importe_retencion'] ?? '',
+            ];
+
+            $contenido .= implode("\t", $fila) . "\n";
+        }
+
+        $cuit = $registros[0]['cuit_retencion'] ?? 'desconocido';
+        $nombreArchivo = "retenciones_cuit_{$cuit}.txt";
+
+        return Response::make($contenido, 200, [
+            'Content-Type' => 'text/plain',
+            'Content-Disposition' => "attachment; filename={$nombreArchivo}",
         ]);
     }
 }
