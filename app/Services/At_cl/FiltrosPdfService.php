@@ -34,6 +34,7 @@ class FiltrosPdfService
         $this->aplicarFiltroCalle($query, $filtros);
         $this->aplicarFiltroZona($query, $filtros);
         $this->aplicarFiltroTipo($query, $filtros);
+        $this->aplicarFiltroCantDorm($query, $filtros);
         $this->aplicarFiltroEstadoPorSector($query, $filtros, $sector);
         $this->aplicarFiltroCartel($query, $filtros);
 
@@ -104,7 +105,14 @@ class FiltrosPdfService
     private function aplicarFiltroTipo(Builder $query, array $filtros): void
     {
         if (!empty($filtros['tipo'])) {
-            $query->where('id_inmueble', $filtros['tipo']);
+            $query->whereIn('id_inmueble', (array) $filtros['tipo']);
+        }
+    }
+
+     private function aplicarFiltroCantDorm(Builder $query, array $filtros): void
+    {
+        if (!empty($filtros['cant_dorm'])) {
+            $query->whereIn('cantidad_dormitorios', (array) $filtros['cant_dorm']);
         }
     }
 
@@ -261,25 +269,25 @@ class FiltrosPdfService
     }
 
     public function ordenarPorAutorizacion($propiedades, string $orden, string $sector)
-{
-    Log::info('Entró a autorización');
+    {
+        Log::info('Entró a autorización');
 
-    if ($orden === 'autorizacion') {
-        $propiedades = $propiedades->sortBy(function ($propiedad) {
+        if ($orden === 'autorizacion') {
+            $propiedades = $propiedades->sortBy(function ($propiedad) {
 
-            $valor = strtoupper(trim($propiedad->autorizacion_alquiler ?? ''));
+                $valor = strtoupper(trim($propiedad->autorizacion_alquiler ?? ''));
 
-            return match ($valor) {
-                'SI' => 1,
-                'NO' => 2,
-                ''   => 3,
-                default => 4,
-            };
-        })->values();
+                return match ($valor) {
+                    'SI' => 1,
+                    'NO' => 2,
+                    ''   => 3,
+                    default => 4,
+                };
+            })->values();
+        }
+
+        return $propiedades;
     }
-
-    return $propiedades;
-}
 
 
 
