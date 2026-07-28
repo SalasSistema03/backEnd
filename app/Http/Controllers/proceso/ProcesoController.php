@@ -195,8 +195,14 @@ class ProcesoController extends Controller
 
             $proceso->update(['meses_contrato' => $request->cant_meses]);
         }
+        if($proceso && $request->precio_alquiler != null){
+            $proceso->update(['precio_alquiler' => $request->precio_alquiler]);
+        }
         $asesor = $proceso->asesor;
-        $proceso->update(['id_historial_estado_contrato' => $data->id]);
+        $proceso->update([
+            'id_historial_estado_contrato' => $data->id,
+            
+        ]);
 
         //parte de notificacion
         $usuarioId =   auth('api')->id();
@@ -210,8 +216,8 @@ class ProcesoController extends Controller
 
 
         if (
-            $request->monto != null || $request->monto_contrato != null || $request->chojas != null ||
-            $request->informe != null || $request->CantInforme != null || $request->contrato != null || $request->inquilino_propietario != null
+            $request->monto != null  || $request->chojas != null ||
+            $request->informe != null || $request->CantInforme != null || $request->contrato != null || $request->inquilino_propietario != null || $request->precio_alquiler != null
         ) {
 
 
@@ -322,7 +328,7 @@ class ProcesoController extends Controller
     public function getObservacionesContratoNuevo(Request $request)
     {
 
-        Log::info('llego al controlador');
+        //Log::info('llego al controlador');
         try {
             $observaciones = (new ProcesoContratoService())->getObservacionesContratoNuevo($request->all());
 

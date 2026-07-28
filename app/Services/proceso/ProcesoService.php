@@ -183,7 +183,7 @@ class ProcesoService
      */
     public function guardarEstado(array $data, $usuarioId)
     {
-        Log::info($data);
+        //Log::info($data);
         // Crear nuevo historial
         $historial = Historial_estado_reserva::create([
             'id_estado' => $data['estado'],
@@ -214,6 +214,9 @@ class ProcesoService
             $historial_estado_contrato = Historial_estado_contrato::create([
                 'id_estado' => 7,
                 'id_proceso_propiedad' => $data['idProcesoPropiedad'],
+                'observaciones' => 'Ingresa al sector Contratos Nuevos',
+                'quien_cargo' => $usuarioId,
+                'fecha_carga' => now()
             ]);
             $historial->update(['fecha_firma' => now()]);
 
