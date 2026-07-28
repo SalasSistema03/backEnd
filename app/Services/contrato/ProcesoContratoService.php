@@ -93,7 +93,7 @@ class ProcesoContratoService
             'fecha_autorizacion' => $request['fecha_autorizacion'] ?? null,
             'fecha_finalizacion_firma_cobro' => $request['fecha_finalizacion_firma_cobro'] ?? null,
             'observaciones' => $request['observaciones'] ?? null,
-            'fecha_inventario' => $request['fecha_inventario'] ?? null,
+            /* 'fecha_inventario' => $request['fecha_inventario'] ?? null, */
             'quien_cargo' => $usuario->id ?? null,
             'fecha_carga' => now()->format('Y-m-d H:i:s'),
             'id_proceso_propiedad' => $request['id_proceso'] ?? null,
