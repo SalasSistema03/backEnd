@@ -27,18 +27,18 @@ class ProcesoController extends Controller
 {
     protected $reservaService;
     protected RegistroSelladoService $registroSelladoService;
-    protected $prueba;
+    protected ProcesoContratoService $procesoContratoService;
 
 
-    public function __construct(ProcesoService $reservaService, RegistroSelladoService $registroSelladoService)
+    public function __construct(ProcesoService $reservaService, RegistroSelladoService $registroSelladoService,ProcesoContratoService $procesoContratoService)
     {
         $this->reservaService = $reservaService;
         $this->registroSelladoService = $registroSelladoService;
+        $this->procesoContratoService = $procesoContratoService;
     }
 
     public function subirReservas(Request $request)
     {
-        //Log::info('llego');
         DB::beginTransaction();
         try {
             $usuarioId = auth('api')->id();
@@ -69,7 +69,6 @@ class ProcesoController extends Controller
             $usuarioId = auth('api')->id();
             $estado = $request->input('estado');
             $mes = $request->input('mes');
-
             $reservas = $this->reservaService->obtenerReservas($usuarioId, $estado, $mes);
 
             return response()->json(['resultado' => $reservas]);
@@ -154,6 +153,8 @@ class ProcesoController extends Controller
         }
     }
 
+
+
     public function getEstadosContrato()
     {
         try {
@@ -183,152 +184,19 @@ class ProcesoController extends Controller
 
     public function ActualizarEstadoContrato(Request $request)
     {
-
-        //Log::info('ActualizarEstadoContrato request: ', $request->all());
-        //dd("actualizarEstadoContrato");
-
-
-        $data = (new ProcesoContratoService())->crearHistorialEstadoContrato($request->all());
-
-        $proceso = Proceso_propiedad::find($request->id_proceso);
-        if ($proceso && $request->cant_meses) {
-
-            $proceso->update(['meses_contrato' => $request->cant_meses]);
-        }
-        if($proceso && $request->precio_alquiler != null){
-            $proceso->update(['precio_alquiler' => $request->precio_alquiler]);
-        }
-        $asesor = $proceso->asesor;
-        $proceso->update([
-            'id_historial_estado_contrato' => $data->id,
-            
-        ]);
-
-        //parte de notificacion
-        $usuarioId =   auth('api')->id();
-        $usuario = Usuario::find($usuarioId);
-
-        //buscamos el cod_ de la propiedad
-        $propiedad = Propiedad::where('id', $proceso->id_propiedad)->first();
-        $empresaPropiedad = Empresas_propiedades::where('propiedad_id', $propiedad->id)->first();
-        $folio = $empresaPropiedad->folio ?? 'N/D';
-
-
-
-        if (
-            $request->monto != null  || $request->chojas != null ||
-            $request->informe != null || $request->CantInforme != null || $request->contrato != null || $request->inquilino_propietario != null || $request->precio_alquiler != null
-        ) {
-
-
-            if ($request->folio) {
-                $buscarFolioSellado = Registro_sellado::where('folio', $request->folio[0]['folio'])->exists();
-
-                $idCasa = Propiedades_sys::where('carpeta', $request->folio[0]['folio'])->value('id_casa');
-                $idEmpresa = $request->folio[0]['empresa_id'];
-
-
-                $contrato = Contratos_cabecera_sys::where('id_casa', $idCasa)
-                    ->where('id_empresa', $idEmpresa)
-                    ->orderByDesc('id_contrato_cabecera')
-                    ->first(['id_inquilino', 'comienza']);
-
-                $id_inquilino = $contrato?->id_inquilino;
-                $comienza = $contrato?->comienza;
-
-                if ($buscarFolioSellado) {
-
-                    $folioEncontrado = Registro_sellado::where('folio', $request->folio[0]['folio'])->first();
-                    if ($folioEncontrado->mostrar != 0) {
-                        return response()->json(['error' => 'Folio ya calculado']);
-                    } else {
-
-                        //Log::info($folioEncontrado);
-                        $folioEncontrado->update([
-                            'mostrar'                  => 0,
-                            'folio'                    => $request->folio[0]['folio'],
-                            'empresa'                  => $idEmpresa,
-                            'nombre'                   => $nombre_inquilino ?? '', //nombre del inquilino
-                            'cantidad_meses'           => $request->cant_meses, //c/meses
-                            'monto_documento'          => $request->monto,
-                            'monto_contrato'           => $request->monto_contrato ?? null,
-                            'hojas'                    => $request->chojas ?? null,
-                            'informe'                  => $request->informe ?? null,
-                            'cantidad_informes'        => $request->CantInforme ?? null,
-                            'tipo_contrato'            => $request->tipo_contrato ?? null,
-                            'inq_prop'                 => $request->inquilino_propietario ?? null,
-                            'fecha_inicio'             => $comienza,
-                            'usuario_id'               => $usuario->id,
-
-                        ]);
-                    }
-                } else {
-
-                    //Log::info('entro mal');
-
-
-
-
-                    if ($id_inquilino != null) {
-                        $nombre_inquilino = Padron_sys::where('id_inquilino', $id_inquilino)->value('razon_social');
-                    }
-
-
-                    $registro = Registro_sellado::create([
-                        'mostrar'                  => 0,
-                        'folio'                    => $request->folio[0]['folio'],
-                        'empresa'                  => $idEmpresa,
-                        'nombre'                   => $nombre_inquilino ?? '', //nombre del inquilino
-                        'cantidad_meses'           => $request->cant_meses, //c/meses
-                        'monto_documento'          => $request->monto,
-                        'monto_contrato'           => $request->monto_contrato ?? null,
-                        'hojas'                    => $request->chojas ?? null,
-                        'informe'                  => $request->informe ?? null,
-                        'cantidad_informes'        => $request->CantInforme ?? null,
-                        'tipo_contrato'            => $request->tipo_contrato ?? null,
-                        'inq_prop'                 => $request->inquilino_propietario ?? null,
-                        'fecha_inicio'             => $comienza,
-                        'usuario_id'               => $usuario->id,
-                    ]);
-
-                    //Log::info("registro: " . $registro);
-
-                    $proceso->update([
-                        'id_registro_sellado' => $registro->id_registro_sellado,
-                    ]);
-                }
-            }
-        }
-
-        $mensaje = [
-            'descripcion'       => "El folio " . $folio . " a cambiado de estado",
-            'fecha'             => now()->isoFormat('DD/MM/YYYY'),  // 13/04/2026
-            'hora'              => now()->isoFormat('HH:mm'),       // 14:53
-            'activo'            => 1,
-            'usuarioNotificar'  => $asesor,
-            'cliente_id'        => null,
-            'id_criterio_venta' => null,
-            'pertenece'         => "reserva",
-            'folio'             => $folio
-        ];
-
-        if ($request->id_estado == 8) {
-            historial_estado_reserva::where('id', $proceso->id_historial_estado_reserva)->update(['id_estado' => 2]);
-            if ($usuario) {
-                $usuario->notify(new RecordatorioNotificacion($mensaje));
-            }
-        } elseif ($request->id_estado == 9) {
-            historial_estado_reserva::where('id', $proceso->id_historial_estado_reserva)->update(['id_estado' => 1]);
-            if ($usuario) {
-                $usuario->notify(new RecordatorioNotificacion($mensaje));
-            }
+        try {
+            $usuarioId = auth('api')->id();
+ 
+            $proceso = $this->procesoContratoService->actualizarEstadoContrato($request->all(), $usuarioId);
+ 
+            return response()->json(['success' => true, 'data' => $proceso]);
+        } catch (\Exception $e) {
+            Log::error('Error ActualizarEstadoContrato: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json(['error' => $e->getMessage()], 500);
         }
     }
-
     public function getObservacionesContratoNuevo(Request $request)
     {
-
-        //Log::info('llego al controlador');
         try {
             $observaciones = (new ProcesoContratoService())->getObservacionesContratoNuevo($request->all());
 

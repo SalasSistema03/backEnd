@@ -39,6 +39,8 @@
                 @if ($pertenece === 'consultasIngresadas')
                     <span class="listado_texto_titulo">Total Consultas: {{ $total_criterios ?? '-' }} </span>
                     <br>
+                    <span class="listado_texto_titulo ">Desde: {{ Carbon\Carbon::parse($fechaDesde)->format('d/m/Y') ?? '-' }} &nbsp;&nbsp;&nbsp;&nbsp; Hasta: {{ Carbon\Carbon::parse($fechaHasta)->format('d/m/Y') ?? '-' }} </span>
+                    <br>
                     @foreach ($conteoAsesores as $nombre => $cantidad)
                         <span class="listado_texto_titulo">{{ $nombre }}: {{ $cantidad }}</span>
                     @endforeach
@@ -711,6 +713,7 @@
                 <table class="table table-striped w-100">
                     <thead class="listado_tabla_titulo">
                         <tr>
+                            <th>Fecha</th>
                             <th>Cliente</th>
                             <th>Telefono</th>
                             <th>Ingreso</th>
@@ -727,9 +730,12 @@
                         @foreach ($data as $criterio)
                             @php $historial = $criterio->historialConsultas ?? []; @endphp
 
+
                             @if ($historial && count($historial) > 0)
                                 @foreach ($historial as $consulta)
+
                                     <tr>
+                                        <td>{{Carbon\Carbon::parse($consulta->fecha_hora ?? '-')->format('d/m/Y')}}</td>
                                         @if ($loop->first)
                                             <td rowspan="{{ count($historial) }}">
                                                 {{ $criterio->cliente->nombre ?? '-' }}
@@ -765,6 +771,7 @@
                                 @endforeach
                             @else
                                 <tr>
+                                    <td>{{ Carbon\Carbon::parse($criterio->fecha_criterio_venta)->format('d/m/Y')}}</td>
                                     <td>{{ $criterio->cliente->nombre ?? '-' }}</td>
                                     <td>{{ $criterio->cliente->telefono ?? '-' }}</td>
                                     <td>{{ $criterio->cliente->ingreso ?? '-' }}</td>

@@ -322,7 +322,7 @@ class ListadoPdfAtcl
         }
         if ($pertenece === 'consultasIngresadas') {
             $data = CriterioBusquedaVenta::query()
-                ->where('estado_criterio_venta', 'Activo')
+                //->where('estado_criterio_venta', 'Activo')
                 ->with(['tipoInmueble', 'zona', 'cliente.asesor.usuario', 'historialConsultas']);
 
             $fechaDesde = $request->desde;
@@ -340,7 +340,15 @@ class ListadoPdfAtcl
             }
 
             $data = $data->orderBy('id_categoria', 'desc')->get();
+            // Si el mismo cliente consulto mas de una vez (reconsulta) en el rango,
+            // nos quedamos con el criterio de venta mas reciente (id_criterio_venta mas grande)
+            $data = $data->sortByDesc('id_criterio_venta')
+                ->unique('id_cliente')
+                ->sortByDesc('id_categoria')
+                ->values();
 
+            //por ultimo las ordenamos por fecha de menor a mayor
+            $data = $data->sortBy('fecha_criterio_venta')->values();
 
             // 1. Contamos el total de criterios directamente usando el método count() de la colección
             $total_criterios = $data->count();
@@ -356,7 +364,7 @@ class ListadoPdfAtcl
             foreach ($agrupadosPorAsesor as $username => $criterios) {
                 $conteoAsesores[$username] = $criterios->count();
             }
-            //Log::info($data);
+            // Log::info($data);
 
             // 3. Agrupamos y contamos cuántos criterios tiene cada tipo de ingreso (Whatsapp, Sitio web, etc)
             $total_tipo_ingreso = [];
@@ -369,7 +377,7 @@ class ListadoPdfAtcl
                 $total_tipo_ingreso[$ingreso] = $criterios->count();
             }
 
-            $html = view('pdfs.atcl.listadoPropiedad', compact('data', 'username', 'pertenece', 'sector', 'total_criterios', 'conteoAsesores', 'total_tipo_ingreso'))->render();
+            $html = view('pdfs.atcl.listadoPropiedad', compact('data', 'username', 'pertenece', 'sector', 'total_criterios', 'conteoAsesores', 'total_tipo_ingreso', 'fechaDesde', 'fechaHasta'))->render();
         }
         if ($pertenece === 'conversaciones') {
             //  Log::info($request->all());

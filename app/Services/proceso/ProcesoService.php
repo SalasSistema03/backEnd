@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\At_cl\Empresas_propiedades;
 use App\Models\cliente\Usuario_sector;
 use App\Notifications\RecordatorioNotificacion;
+use App\Models\proceso\Historial_estado_dpto;
 
 class ProcesoService
 {
@@ -23,8 +24,6 @@ class ProcesoService
      */
     public function subirReserva(array $data, $usuarioId)
     {
-        //Log::info('Datos recibidos: ' . json_encode($data));
-        //dd($data);
         try {
             $comprobantePath = null;
 
@@ -209,7 +208,7 @@ class ProcesoService
             'folio'             => $folio->folio ?? "-"
         ];
 
-        // Si es estado 3, actualizar fecha de firma
+        // Si es estado 3 === reserva finalizada
         if ($data['estado'] == 3) {
             $historial_estado_contrato = Historial_estado_contrato::create([
                 'id_estado' => 7,
@@ -227,9 +226,14 @@ class ProcesoService
                     $usuario->notify(new RecordatorioNotificacion($mensaje));
                 }
             }
+
+            $inventario_dpto = Historial_estado_dpto::create([
+                'id_estado' => 1,
+                
+            ]);
         }
 
-        // Si es estado 4 (finalizado), restaurar estado de propiedad
+        // Si es estado 4 (caida), restaurar estado de propiedad
         if ($data['estado'] == 4) {
             $this->restaurarEstadoPropiedad($data['idProcesoPropiedad'], $usuarioId);
         }
