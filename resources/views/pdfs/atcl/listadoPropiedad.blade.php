@@ -741,7 +741,7 @@
                                         <td>{{Carbon\Carbon::parse($consulta->fecha_hora ?? '-')->format('d/m/Y')}}</td>
                                         @if ($loop->first)
                                             <td rowspan="{{ count($historial) }}">
-                                                {{ $criterio->cliente->nombre ?? '-' }} @if($criterio->tipo_consulta === 'R') (R) @endif
+                                             @if($criterio->tipo_consulta === 'R') (*) @endif   {{ $criterio->cliente->nombre ?? '-' }}
                                             </td>
                                             <td rowspan="{{ count($historial) }}">
                                                 {{ $criterio->cliente->telefono ?? '-' }}
@@ -776,7 +776,7 @@
                                 <tr>
 
                                     <td>{{ Carbon\Carbon::parse($criterio->fecha_criterio_venta)->format('d/m/Y')}}</td>
-                                    <td>{{ $criterio->cliente->nombre ?? '-' }} @if($criterio->tipo_consulta === 'R') (R) @endif</td>
+                                    <td>@if($criterio->tipo_consulta === 'R') (*) @endif {{ $criterio->cliente->nombre ?? '-' }} </td>
                                     <td>{{ $criterio->cliente->telefono ?? '-' }}</td>
                                     <td>{{ $criterio->cliente->ingreso ?? '-' }}</td>
                                     <td>-</td>
