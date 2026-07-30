@@ -154,13 +154,15 @@ class ImpuestosController extends Controller
             return app(CargaTgiService::class)->cargarNuevoTgiService($codigoBarras);
         }
         if ($request->impuesto === 'agua') {
+           // Log::info('entro a agua');
             $codigoBarras = $request->codigo_barras;
 
             if (!$codigoBarras) {
                 return response()->json(['error' => 'El campo código de barras es obligatorio'], 400);
             }
 
-            if (empty($codigoBarras) || strlen($codigoBarras) !== 41) {
+            if (empty($codigoBarras) || strlen($codigoBarras) !== 45) {
+               // Log::info('error cod barras');
                 return response()->json(['error' => 'Debés ingresar un código de barras válido de 35 caracteres'], 400);
             }
 

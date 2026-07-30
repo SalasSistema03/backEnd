@@ -18,11 +18,12 @@ class CargaAguaService
     //Este metodo carga un nuevo registro de la tabla tgi_carga
     public function cargarNuevoAguaService($codigoBarras)
     {
-        //Log::info('llego al servicio');
+        Log::info('llego al servicio');
         try {
             //Obtenemos todos los registros de la tabla carga
             $listaCargaCompleta = (new CargaImpuestoService())->obtenerRegistros('agua')->get();
 
+            //separamos el codigo de barras
             $cod_separado = (new ExtraerCodBarraAgua())->separarCodigoBarras($codigoBarras);
             $fecha_1 = Carbon::parse($cod_separado['fecha_vencimiento_1']);
             $fecha_2 = Carbon::parse($cod_separado['fecha_vencimiento_2']);

@@ -19,7 +19,7 @@ class ExtraerCodBarraAgua
         $importe_1 = $this->separarImporte($codigoBarras, 14);
 
         $fechaVencimiento_2 = $this->separarFechaVencimiento($codigoBarras, 24);
-        $importe_2 = $this->separarImporte($codigoBarras, 30);
+        $importe_2 = $this->separarImporte($codigoBarras, 34);
 
 
 
@@ -53,7 +53,7 @@ class ExtraerCodBarraAgua
         return $registro;
     }
 
-    public function separarImporte($codigoBarras, $inicio)
+   /*  public function separarImporte($codigoBarras, $inicio)
     {
         $importe = substr($codigoBarras, $inicio, 10);
 
@@ -62,7 +62,20 @@ class ExtraerCodBarraAgua
         $importe = str_pad($importe, 3, '0', STR_PAD_LEFT);
 
         return number_format(((int)$importe) / 100, 2, '.', '');
-    }
+    }  */
+
+
+    public function separarImporte($codigoBarras, $inicio)
+    {
+        // Extrae los 10 dígitos (ej: "0003016451")
+        $subcadena = substr($codigoBarras, $inicio, 10);
+
+        // Convierte directamente a float dividiendo entre 100
+        $importeFloat = (float)$subcadena / 100;
+
+        // Retorna el formato decimal con 2 decimales (ej: "30164.51")
+        return number_format($importeFloat, 2, '.', '');
+    } 
 
     public function separarFechaVencimiento($codigoBarras, $inicio)
     {
