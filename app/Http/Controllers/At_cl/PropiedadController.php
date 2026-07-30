@@ -557,13 +557,16 @@ class PropiedadController
 
             // Manejar actualización de videos
             if ($request->has('videos_nuevos_data')) {
+                Log::info('entro a videos nuevos');
                 (new PropiedadMediaService())->subirdesdeUpdate($request, $propiedad->id);
             }
             if ($request->has('videos_modificados')) {
+                  Log::info('entro a videos modificados');
                 $videos_modificados = $this->cleanArray(json_decode($request->videos_modificados, true));
                 (new PropiedadMediaService())->modificarVideo($videos_modificados);
             }
             if ($request->has('videos_eliminados')) {
+                  Log::info('entro a videos eliminados');
                 $videos_eliminados = $this->cleanArray(json_decode($request->videos_eliminados));
                 (new PropiedadMediaService())->eliminarVideo($videos_eliminados);
             }

@@ -18,7 +18,7 @@ class CargaAguaService
     //Este metodo carga un nuevo registro de la tabla tgi_carga
     public function cargarNuevoAguaService($codigoBarras)
     {
-        Log::info('llego al servicio');
+        //Log::info('llego al servicio');
         try {
             //Obtenemos todos los registros de la tabla carga
             $listaCargaCompleta = (new CargaImpuestoService())->obtenerRegistros('agua')->get();
