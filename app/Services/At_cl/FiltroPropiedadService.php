@@ -29,14 +29,6 @@ class FiltroPropiedadService
     public function filtrarPropiedades(array $filtros): Collection
     {
         try {
-            //Log::info(['filtros' => $filtros]);
-            // Si no se recibió ningún filtro significativo, no tiene sentido consultar la BD
-            /* if (empty(array_filter($filtros))) {
-                return collect();
-            } */
-           /* if ($filtros['busqueda'] === null) {
-                //return collect();
-            } */
 
             // Si el usuario solicitó un ordenamiento específico,
             // delegamos la responsabilidad al método especializado
