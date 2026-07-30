@@ -181,7 +181,7 @@
                             @if (in_array('usuario', $campos))
                                 <th>Usuario</th>
                             @endif
-                            @if (in_array('novedades', $campos) && $sector === 'Venta')
+                            @if (in_array('novedades', $campos) )
                                 <th>Novedades</th>
                             @endif
                         </tr>
@@ -425,6 +425,16 @@
                                     <td style="text-align: left;">
                                         @foreach ($propiedad->observacionesPropiedades as $obs)
                                             @if ($obs->tipo_ofera === 'V')
+                                                {{ preg_replace('/[\r\n]+/', ' - ', trim($obs->notes)) }}
+                                            @endif
+                                        @endforeach
+                                    </td>
+                                @endif
+
+                                @if(in_array('novedades', $campos) && $sector === 'Alquiler')
+                                    <td style="text-align: left;">
+                                        @foreach ($propiedad->observacionesPropiedades as $obs)
+                                            @if ($obs->tipo_ofera === 'A')
                                                 {{ preg_replace('/[\r\n]+/', ' - ', trim($obs->notes)) }}
                                             @endif
                                         @endforeach
