@@ -182,7 +182,6 @@ class ProcesoService
      */
     public function guardarEstado(array $data, $usuarioId)
     {
-        //Log::info($data);
         // Crear nuevo historial
         $historial = Historial_estado_reserva::create([
             'id_estado' => $data['estado'],

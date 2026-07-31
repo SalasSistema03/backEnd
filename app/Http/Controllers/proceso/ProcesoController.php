@@ -7,21 +7,9 @@ use App\Services\proceso\ProcesoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Models\proceso\Estado_reserva;
-use App\Models\proceso\Proceso_propiedad;
 use App\Services\contrato\ProcesoContratoService;
 use App\Services\contable\sellado\RegistroSelladoService;
-use App\Models\proceso\Estado_contrato;
-use App\Models\proceso\Historial_estado_contrato;
-use App\Models\proceso\Historial_estado_reserva;
-use App\Models\usuarios_y_permisos\Usuario;
-use App\Notifications\RecordatorioNotificacion;
-use App\Models\At_cl\Empresas_propiedades;
-use App\Models\At_cl\Propiedad;
-use App\Models\Contable\Sellado\Registro_sellado;
-use App\Models\sys\Contratos_cabecera_sys;
-use App\Models\sys\Padron_sys;
-use App\Models\sys\Propiedades_sys;
+
 
 class ProcesoController extends Controller
 {
@@ -30,7 +18,7 @@ class ProcesoController extends Controller
     protected ProcesoContratoService $procesoContratoService;
 
 
-    public function __construct(ProcesoService $reservaService, RegistroSelladoService $registroSelladoService,ProcesoContratoService $procesoContratoService)
+    public function __construct(ProcesoService $reservaService, RegistroSelladoService $registroSelladoService, ProcesoContratoService $procesoContratoService)
     {
         $this->reservaService = $reservaService;
         $this->registroSelladoService = $registroSelladoService;
@@ -153,8 +141,6 @@ class ProcesoController extends Controller
         }
     }
 
-
-
     public function getEstadosContrato()
     {
         try {
@@ -186,9 +172,9 @@ class ProcesoController extends Controller
     {
         try {
             $usuarioId = auth('api')->id();
- 
+
             $proceso = $this->procesoContratoService->actualizarEstadoContrato($request->all(), $usuarioId);
- 
+
             return response()->json(['success' => true, 'data' => $proceso]);
         } catch (\Exception $e) {
             Log::error('Error ActualizarEstadoContrato: ' . $e->getMessage(), ['exception' => $e]);
