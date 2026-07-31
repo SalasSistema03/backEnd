@@ -142,6 +142,9 @@
                             @if (in_array('cartel', $campos))
                                 <th>Cartel</th>
                             @endif
+                            @if (in_array('comentarioCartel', $campos))
+                                <th>Coment. Cartel</th>
+                            @endif
                             @if (in_array('autorizacion', $campos) && $sector === 'Venta')
                                 <th>Autorización</th>
                             @endif
@@ -320,6 +323,9 @@
                                 @endif
                                 @if (in_array('cartel', $campos))
                                     <td>{{ $propiedad->cartel ?? '' }}</td>
+                                @endif
+                                 @if (in_array('comentarioCartel', $campos))
+                                    <td>{{ $propiedad->comentario_cartel ?? '' }}</td>
                                 @endif
 
                                 @if (in_array('autorizacion', $campos) && $sector === 'Venta')

@@ -198,14 +198,14 @@ class ProcesoService
 
         //Armamos la parte de notificacion si el estado pasa reserva finalizada
         $mensajeBase = [
-            'descripcion'       => "Nuevo ingreso, Folio: " . $folio->folio ?? "-",
+            'descripcion'       => 'Nuevo ingreso, Folio: ' . ($folio?->folio ?? '-'),
             'fecha'             => now()->isoFormat('DD/MM/YYYY'),
             'hora'              => now()->isoFormat('HH:mm'),
             'activo'            => 1,
             'cliente_id'        => null,
             'id_criterio_venta' => null,
-            'pertenece'         => "contratoNuevo",
-            'folio'             => $folio->folio ?? "-"
+            'pertenece'         => 'contratoNuevo',
+            'folio'             => $folio?->folio ?? '-',
         ];
 
         // Si es estado 3 === reserva finalizada
@@ -229,7 +229,7 @@ class ProcesoService
 
             $inventario_dpto = Historial_estado_dpto::create([
                 'id_estado' => 1,
-                
+
             ]);
         }
 
