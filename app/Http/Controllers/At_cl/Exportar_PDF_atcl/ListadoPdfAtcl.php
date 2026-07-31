@@ -130,6 +130,7 @@ class ListadoPdfAtcl
             $propietario = $request->propietario;
             //sLog::info('propietario', [$propietario]);
             $campoCodigo = ($sector === 'Alquiler') ? 'cod_alquiler' : 'cod_venta';
+            Log::info($campoCodigo);
 
             if ($propietario !== null) {
                 $propiedades = Propiedades_padron::where('padron_id', $propietario)
@@ -141,7 +142,9 @@ class ListadoPdfAtcl
                         'propiedad.calle',
                         'propiedad.folios.empresa',
                         'propiedad.tipoInmueble',
-                        'propiedad.precio'
+                        'propiedad.precio',
+                        'propiedad.estadoAlquiler',
+                        'propiedad.estadoVenta',
                     ])
                     ->get()
                     ->map(function ($pp) {
@@ -149,15 +152,10 @@ class ListadoPdfAtcl
                     })
                     ->filter(function ($propiedad) use ($campoCodigo) {
                         return $propiedad && !is_null($propiedad->$campoCodigo);
-                    })
-                    ->sortBy(function ($propiedad) {
-                        return $propiedad->calle->name ?? '';
                     });
-
-                foreach ($propiedades as $propiedad) {
-                    $contadorPropiedades++;
-                }
             } else {
+                //Log::info('request', [$request->all()]);
+
                 $propiedades = Propiedad::whereNotNull($campoCodigo)
                     ->with([
                         'fotos',
@@ -169,15 +167,42 @@ class ListadoPdfAtcl
                         'precio',
                         'folios.empresa',
                         'propietarios',
+                        'estadoAlquiler',
+                        'estadoVenta',
                     ])
-                    ->get()
-                    ->sortBy(function ($propiedad) {
-                        return $propiedad->calle->name ?? '';
-                    });
+                    ->get();
+            }
 
-                foreach ($propiedades as $propiedad) {
-                    $contadorPropiedades++;
-                }
+            // Aplicar ordenamiento
+            $orden = $request->orden;
+            if ($orden === 'precio_asc' || $orden === 'precio_desc') {
+                $filtrosService = new FiltrosPdfService;
+                $propiedades = $filtrosService->ordenarPorPrecio($propiedades, $orden, $sector);
+            } elseif ($orden === 'estado') {
+                $propiedades = $propiedades->sortBy(function ($propiedad) use ($sector) {
+                    return ($sector === 'Alquiler') ? ($propiedad->estadoAlquiler->name ?? '') : ($propiedad->estadoVenta->name ?? '');
+                });
+            } elseif ($orden === 'tipo') {
+                $propiedades = $propiedades->sortBy(function ($propiedad) {
+                    return $propiedad->tipoInmueble->name ?? '';
+                });
+            } elseif ($orden === 'zona') {
+                $propiedades = $propiedades->sortBy(function ($propiedad) {
+                    return $propiedad->zona->name ?? '';
+                });
+            } /* elseif ($orden === 'codigo') {
+                $propiedades = $propiedades->sortBy(function ($propiedad) use ($campoCodigo) {
+                    return $propiedad->$campoCodigo ?? 0;
+                });
+            } */ else {
+                // Por defecto o si orden === 'calle'
+                $propiedades = $propiedades->sortBy(function ($propiedad) {
+                    return $propiedad->calle->name ?? '';
+                });
+            }
+
+            foreach ($propiedades as $propiedad) {
+                $contadorPropiedades++;
             }
 
             //Log::info('eeee', [$propiedades]);

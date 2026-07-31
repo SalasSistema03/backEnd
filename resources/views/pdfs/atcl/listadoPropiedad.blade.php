@@ -457,6 +457,7 @@
                             <th>Direccion</th>
                             <th>Piso / Depto</th>
                             <th>Zona</th>
+                            <th>Estado</th>
                             <th>Dormitorios</th>
                             <th>Cochera</th>
                             <th>Inmueble</th>
@@ -472,17 +473,25 @@
                         @foreach ($propiedades as $propiedad)
                             <!--  {{ $propiedad->propietarios }} -->
                             <tr>
-                                <td>{{ $propiedad->cod_alquiler }}</td>
+                                @if ($sector === 'Alquiler')
+                                    <td>{{ $propiedad->cod_alquiler }}</td>
+                                @else
+                                    <td>{{ $propiedad->cod_venta }}</td>
+                                @endif
                                 <td>
                                     @foreach ($propiedad->folios as $folio)
-                                        {{ $folio->folio }}
                                         @if ($folio->empresa->nombre === 'Atilio')
-                                            CENT /
+                                            {{ $folio->folio }}
                                         @elseif($folio->empresa->nombre === 'Dolly')
-                                            CAN /
+                                            CAN {{ $folio->folio }}
                                         @elseif($folio->empresa->nombre === 'Flor')
-                                            TRIB
+                                            TRIB {{ $folio->folio }}
                                         @else
+                                            {{ $folio->folio }}
+                                        @endif
+
+                                        @if (!$loop->last)
+                                            -
                                         @endif
                                     @endforeach
                                 </td>
@@ -507,6 +516,15 @@
                                 <td>
                                     {{ $propiedad->zona->name ?? '' }}
                                 </td>
+                                @if ($sector === 'Alquiler')
+                                    <td>
+                                        {{ $propiedad->estadoAlquiler->name ?? ''}}
+                                    </td>
+                                @elseif($sector === 'Venta')
+                                    <td>
+                                        {{ $propiedad->estadoVenta->name ?? ''}}
+                                    </td>
+                                @endif
                                 <td>
                                     {{ $propiedad->cantidad_dormitorios ?? '' }}
                                 </td>
