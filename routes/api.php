@@ -30,6 +30,7 @@ use App\Http\Controllers\contable\retenciones\RetencionController;
 use App\Http\Controllers\contable\buscadorComprobante\BuscadorPdfController;
 use App\Models\usuarios_y_permisos\Usuario;
 use App\Http\Controllers\agenda\Exportar_PDF_agenda\Pdf_agenda;
+use App\Http\Controllers\At_cl\MapaPropiedadController;
 // --- IMPORTACIONES UNIDAS DE AMBAS RAMAS ---
 use App\Services\At_cl\PropiedadService;
 use App\Services\clientes\UsuarioSectorService;
@@ -264,6 +265,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/ActualizarEstadoContrato', [ProcesoController::class, 'ActualizarEstadoContrato']);
         Route::get('/getObservacionesContratoNuevo', [ProcesoController::class, 'getObservacionesContratoNuevo']);
         Route::get('/getSelladoPrecargado', [ProcesoContratoService::class, 'getSelladoPrecargado']);
+
+
+        //Mapa de propiedades
+        Route::get('/mapa-propiedades', [MapaPropiedadController::class, 'obtenerUbicaciones']);
     });
 });
 

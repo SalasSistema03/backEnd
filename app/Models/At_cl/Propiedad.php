@@ -106,6 +106,8 @@ class Propiedad extends Model
         'reel_a',
         'web_a',
         'captador_int_a',
+        'latitud',
+        'longitud'
     ];
 
 
