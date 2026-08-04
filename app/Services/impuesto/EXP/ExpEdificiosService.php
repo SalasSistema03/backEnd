@@ -75,7 +75,7 @@ class ExpEdificiosService
             $payload['direccion'] = At_clCalle::find($data['calle'])->name;
 
             $admin = Exp_administrador_consorcio::find($data['administra']);
-            $payload['id_administrador_consorcio'] = $admin ? $admin->nombre : null;
+            $payload['id_administrador_consorcio'] = $admin ? $admin->id : null;
         } else {
             $payload['id_administrador_consorcio'] = $data['administra'];
         }

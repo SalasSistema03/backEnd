@@ -230,7 +230,7 @@
                                                 <br>
                                             @endif
                                         @empty
-                                            114
+                                            -
                                         @endforelse
                                     </td>
                                 @endif
