@@ -19,6 +19,7 @@ use App\Models\cliente\CriterioBusquedaVenta;
 use App\Models\cliente\Clientes;
 use App\Models\At_cl\Tipo_inmueble;
 use App\Services\At_cl\Exportar_PDF_atcl\PdfVentaService;
+use Illuminate\Support\Carbon;
 
 class ListadoPdfAtcl
 {
@@ -28,6 +29,7 @@ class ListadoPdfAtcl
     public function listadoPropiedad(Request $request)
     {
         $informacionMostrar = $request->informacionMostrar;
+        //Log::info('request', [$request->all()]);
         $pertenece = $request->pertenece;
         $username = '-';
         $sector = $request->sector;
@@ -41,7 +43,7 @@ class ListadoPdfAtcl
             $query = $filtrosService->aplicarFiltrosUnificados($request->all());
 
             // Ejecutar la query trayendo también la relación de observaciones y tipoInmueble
-            $propiedades = $query->with(['observacionesPropiedades', 'tipoInmueble'])->get();
+            $propiedades = $query->with(['observacionesPropiedades', 'tipoInmueble', 'historialEstadosAlquiler'])->get();
 
             // Solo ordenar por precio si es necesario (post-query)
             if ($request->orden === 'precio_asc' || $request->orden === 'precio_desc') {
@@ -91,6 +93,23 @@ class ListadoPdfAtcl
                 $propiedad->asesor = ($propiedad->asesor && isset($usernamesById[$propiedad->asesor]))
                     ? $usernamesById[$propiedad->asesor]
                     : '-';
+
+
+                if ($request->estado_id === 1 || $request->estado_id === 2) {
+
+                    $historial = $propiedad->historialEstadosAlquiler;
+
+                    if ($historial && in_array($historial->id_estado_alquiler, [1, 2])) {
+                        $propiedad->fecha_antiguedad = Carbon::parse($historial->fecha_alquiler);
+                        $propiedad->antiguedad = $this->formatearAntiguedad($historial->fecha_alquiler);
+                    } else {
+                        $propiedad->fecha_antiguedad = Carbon::parse($propiedad->created_at);
+                        $propiedad->antiguedad = $this->formatearAntiguedad($propiedad->created_at);
+                    }
+                } else {
+
+                    $propiedad->antiguedad = "-";
+                }
             }
 
             // Usuario actual
@@ -98,7 +117,7 @@ class ListadoPdfAtcl
             $authUser = $usuario_id ? Usuario::find($usuario_id) : null;
             $username = $authUser->username ?? '-';
 
-            //Log::info($propiedades);
+            // Log::info($propiedades);
             $conteoPorTipo = $propiedades
                 ->groupBy(function ($propiedad) {
                     // El nombre de la relación en el modelo Propiedad es tipoInmueble (en camelCase)
@@ -712,5 +731,26 @@ class ListadoPdfAtcl
                 <span style="text-align:left;">Salas Inmobiliaria</span><span style="text-align:center;">' . $username . '</span>  <span style="text-align:right;" class="date"></span></div>')
                 ->pdf();
         }, 'ficha_propiedad.pdf');
+    }
+
+    private function formatearAntiguedad($fecha): string
+    {
+        $diff = Carbon::parse($fecha)->diff(now());
+
+        $partes = [];
+
+        if ($diff->y > 0) {
+            $partes[] = $diff->y . ' año' . ($diff->y > 1 ? 's' : '');
+        }
+
+        if ($diff->m > 0) {
+            $partes[] = $diff->m . ' mes' . ($diff->m > 1 ? 'es' : '');
+        }
+
+        if ($diff->d > 0) {
+            $partes[] = $diff->d . ' día' . ($diff->d > 1 ? 's' : '');
+        }
+
+        return implode(' ', $partes) ?: '0 días';
     }
 }
