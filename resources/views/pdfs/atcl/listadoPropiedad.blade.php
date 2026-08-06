@@ -1,3 +1,4 @@
+
 <html lang="es">
 
 <head>
@@ -6,9 +7,7 @@
 
     <style>
         /*asi tiene que quedar siempre {!! file_get_contents(public_path('css/pdfStyles.css')) !!} */
-            {
-            ! ! file_get_contents(public_path('css/pdfStyles.css')) ! !
-        }
+            {!! file_get_contents(public_path('css/pdfStyles.css')) !!}
     </style>
 </head>
 
