@@ -61,6 +61,7 @@ class ExpEdificiosService
      */
     public function actualizarEdificio(int $id, array $data): void
     {
+        \Illuminate\Support\Facades\Log::info('Edificio actualizado', $data);
         $edificio = Exp_edificio::findOrFail($id);
 
         $payload = [
@@ -69,13 +70,13 @@ class ExpEdificiosService
         ];
 
         // Lógica original: si viene la calle, actualiza dirección y administrador
-        // Nota: En tu código original guardabas el 'nombre' del administrador en la columna 'id_...'. 
+        // Nota: En tu código original guardabas el 'nombre' del administrador en la columna 'id_...'.
         // He mantenido esa lógica, pero ten cuidado si la columna es estrictamente numérica.
         if (!empty($data['calle'])) {
             $payload['direccion'] = At_clCalle::find($data['calle'])->name;
 
             $admin = Exp_administrador_consorcio::find($data['administra']);
-            $payload['id_administrador_consorcio'] = $admin ? $admin->nombre : null;
+            $payload['id_administrador_consorcio'] = $admin ? $admin->id : null;
         } else {
             $payload['id_administrador_consorcio'] = $data['administra'];
         }
@@ -86,7 +87,7 @@ class ExpEdificiosService
 
     public function consultaBuscarFolio()
     {
-        $sql = "SELECT 
+        $sql = "SELECT
     padron.id_proveedor AS id,
    /* padron.razon_social AS nombre,*/
     /*padron.cuit,*/
@@ -105,31 +106,31 @@ class ExpEdificiosService
     se.a_cargo_expensas,
     se.quien_administra_expensas*/
 FROM padron
-INNER JOIN proveedores 
+INNER JOIN proveedores
     ON proveedores.id_proveedor = padron.id_proveedor
-INNER JOIN tipo_proveedores 
+INNER JOIN tipo_proveedores
     ON tipo_proveedores.id_tipo_proveedor = proveedores.id_tipo_proveedor
 INNER JOIN (
     SELECT id_casa, MAX(id_servicios_expensas) AS max_id
     FROM servicios_expensas
     GROUP BY id_casa
-) AS sub_se 
+) AS sub_se
     ON TRUE
-INNER JOIN servicios_expensas se 
-    ON se.id_casa = sub_se.id_casa 
-    AND se.id_servicios_expensas = sub_se.max_id 
+INNER JOIN servicios_expensas se
+    ON se.id_casa = sub_se.id_casa
+    AND se.id_servicios_expensas = sub_se.max_id
     AND se.id_proveedor = proveedores.id_proveedor
-INNER JOIN propiedades 
+INNER JOIN propiedades
     ON propiedades.id_casa = se.id_casa
 LEFT JOIN (
     SELECT id_casa, MAX(id_contrato_cabecera) AS max_contrato
     FROM contratos_cabecera
     GROUP BY id_casa
-) AS sub_cc 
+) AS sub_cc
     ON sub_cc.id_casa = se.id_casa
     INNER JOIN nomenclador ON nomenclador.Id_Nomenclador = propiedades.id_nomenclador
-LEFT JOIN contratos_cabecera cc 
-    ON cc.id_casa = sub_cc.id_casa 
+LEFT JOIN contratos_cabecera cc
+    ON cc.id_casa = sub_cc.id_casa
     AND cc.id_contrato_cabecera = sub_cc.max_contrato
 WHERE padron.razon_social LIKE '%'
   AND padron.es_proveedor = 'S'

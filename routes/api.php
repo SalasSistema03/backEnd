@@ -264,6 +264,12 @@ Route::prefix('v1')->group(function () {
         Route::post('/ActualizarEstadoContrato', [ProcesoController::class, 'ActualizarEstadoContrato']);
         Route::get('/getObservacionesContratoNuevo', [ProcesoController::class, 'getObservacionesContratoNuevo']);
         Route::get('/getSelladoPrecargado', [ProcesoContratoService::class, 'getSelladoPrecargado']);
+
+        //Proceso DPTO
+        Route::get('/getHistorialInventario', [ProcesoController::class, 'getHistorialInventario']);
+        Route::get('/getUsuariosDpto', [ProcesoController::class, 'getUsuariosDpto']);
+        Route::get('/getEstadoDpto', [ProcesoController::class, 'getEstadoDpto']);
+        Route::post('/ActualizarInventario', [ProcesoController::class, 'ActualizarInventario']);
     });
 });
 

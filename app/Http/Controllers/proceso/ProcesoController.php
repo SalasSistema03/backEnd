@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Services\contrato\ProcesoContratoService;
 use App\Services\contable\sellado\RegistroSelladoService;
-
+use App\Services\Dpto_Tecnico\ProcesoDptoTecnicoService;
 
 class ProcesoController extends Controller
 {
@@ -190,6 +190,65 @@ class ProcesoController extends Controller
         } catch (\Exception $e) {
             Log::error('Error getObservacionesContratoNuevo: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json(['error' => 'Error al obtener observaciones del contrato.'], 500);
+        }
+    }
+
+
+
+    //ACA EMPIEZA DPTO
+    public function getHistorialInventario(Request $request)
+    {
+        $form = $request->input('form', $request->all());
+
+        if (is_array($form) && isset($form[0]) && is_array($form[0])) {
+            $form = $form[0];
+        }
+
+        try {
+            $historial = (new ProcesoDptoTecnicoService())->getHistorialInventario($form);
+
+            return response()->json(['resultado' => $historial]);
+        } catch (\Exception $e) {
+            Log::error('Error getHistorialInventario: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json(['error' => 'Error al obtener el historial.'], 500);
+        }
+    }
+
+    public function getUsuariosDpto(Request $request)
+    {
+        try {
+            $usuarios = (new ProcesoDptoTecnicoService())->getUsuariosDpto($request);
+
+            return response()->json(['resultado' => $usuarios]);
+        } catch (\Exception $e) {
+            Log::error('Error getUsuariosDpto: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json(['error' => 'Error al obtener los usuarios.'], 500);
+        }
+    }
+
+    public function getEstadoDpto(Request $request)
+    {
+        try {
+            $estados = (new ProcesoDptoTecnicoService())->getEstadoDpto();
+
+            return response()->json(['resultado' => $estados]);
+        } catch (\Exception $e) {
+            Log::error('Error getEstadoDpto: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json(['error' => 'Error al obtener los estados.'], 500);
+        }
+    }
+
+    public function ActualizarInventario(Request $request)
+    {
+        try {
+            //$usuarioId = auth('api')->id();
+
+            $proceso = (new procesoDptoTecnicoService())->actualizarInventario($request);
+
+            return response()->json(['success' => true, 'data' => $proceso]);
+        } catch (\Exception $e) {
+            Log::error('Error ActualizarInventario: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json(['error' => $e->getMessage()], 500);
         }
     }
 }

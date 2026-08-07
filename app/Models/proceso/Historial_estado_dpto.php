@@ -4,6 +4,7 @@ namespace App\Models\proceso;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\proceso\Estado_dpto;
+use App\Models\usuarios_y_permisos\Usuario;
 
 class Historial_estado_dpto extends Model
 {
@@ -27,11 +28,17 @@ class Historial_estado_dpto extends Model
         'fecha_inventario',
         'fecha_carga',
         'quien_cargo',
-
+        'id_proceso_propiedad',
+        'verificado_por'
     ];
 
     public function estado()
     {
         return $this->belongsTo(Estado_dpto::class, 'id_estado', 'id');
+    }
+
+    public function verificadoPor()
+    {
+        return $this->belongsTo(Usuario::class, 'verificado_por', 'id');
     }
 }
