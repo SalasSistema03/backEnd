@@ -1,3 +1,4 @@
+
 <html lang="es">
 
 <head>
@@ -6,9 +7,7 @@
 
     <style>
         /*asi tiene que quedar siempre {!! file_get_contents(public_path('css/pdfStyles.css')) !!} */
-            {
-            ! ! file_get_contents(public_path('css/pdfStyles.css')) ! !
-        }
+            {!! file_get_contents(public_path('css/pdfStyles.css')) !!}
     </style>
 </head>
 
@@ -92,9 +91,9 @@
                 <table class="table table-striped w-100">
                     <thead class="listado_tabla_titulo">
                         <tr>
-                            @if ($sector === 'Alquiler')
+                            @if ($sector === 'Alquiler' && in_array('cod_alquiler', $campos))
                                 <th>Código Alquiler</th>
-                            @elseif ($sector === 'Venta')
+                            @elseif ($sector === 'Venta' && in_array('cod_venta', $campos))
                                 <th>Código Venta</th>
                             @endif
                             @if (in_array('folio', $campos))
@@ -115,6 +114,12 @@
                             @if (in_array('fecha alta', $campos) && $sector === 'Venta')
                                 <th>Fecha Alta</th>
                             @endif
+                             @if (in_array('estado', $campos))
+                                <th>Estado</th>
+                            @endif
+                            @if (in_array('antiguedad', $campos))
+                                <th>Antigüedad</th>
+                            @endif
                             @if (in_array('dormitorio', $campos))
                                 <th>Dormitorios</th>
                             @endif
@@ -124,9 +129,7 @@
                             @if (in_array('inmueble', $campos))
                                 <th>Inmueble</th>
                             @endif
-                            @if (in_array('estado', $campos))
-                                <th>Estado</th>
-                            @endif
+                           
                             @if (in_array('precio', $campos))
                                 <th>Precio</th>
                             @endif
@@ -195,14 +198,14 @@
 
                             <tr>
 
-                                @if ($sector === 'Alquiler')
+                                @if ($sector === 'Alquiler' && in_array('cod_alquiler', $campos))
                                     <td @if ($propiedad->estadoVenta?->name === 'EN VENTA' || $propiedad->estadoVenta?->name === 'EN VENTA COMPARTIDA') class="listado_estado_en_ambos" @endif>
                                         <span class=""> {{ $propiedad->cod_alquiler ?? '' }}</span>
                                         @if ($propiedad->estadoVenta?->name === 'EN VENTA' || $propiedad->estadoVenta?->name === 'EN VENTA COMPARTIDA')
                                             <span class="listado_estado_alquilado">VENT</span>
                                         @endif
                                     </td>
-                                @elseif ($sector === 'Venta')
+                                @elseif ($sector === 'Venta' && in_array('cod_venta', $campos))
                                     <td @if ($propiedad->estadoAlquiler?->name === 'EN ALQUILER' || $propiedad->estadoAlquiler?->name === 'ALQUILADA') class="listado_estado_en_ambos" @endif>
                                         <span class="">{{ $propiedad->cod_venta ?? '' }} </span>
                                         @if ($propiedad->estadoAlquiler?->name === 'ALQUILADA')
@@ -268,7 +271,15 @@
                                     </td>
                                 @endif
                                 @if (in_array('fecha alta', $campos) && $sector === 'Venta')
-                                    <td>{{ $propiedad->venta_fecha_alta ?? '' }}</td>
+                                    <td>{{ Carbon\Carbon::parse($propiedad->venta_fecha_alta ?? '')->format('d/m/Y') }}</td>
+                                @endif
+                                 @if (in_array('estado', $campos) && $sector === 'Alquiler')
+                                    <td>{{ $propiedad->estadoAlquiler->name ?? '' }}</td>
+                                @elseif(in_array('estado', $campos) && $sector === 'Venta')
+                                    <td>{{ $propiedad->estadoVenta->name ?? '' }}</td>
+                                @endif
+                                @if (in_array('antiguedad', $campos) && $sector === 'Alquiler')
+                                    <td>{{ in_array($propiedad->antiguedad, ['0 años 0 meses 0 dias', ''], true) ? '-' : $propiedad->antiguedad }}</td>
                                 @endif
                                 @if (in_array('dormitorio', $campos))
                                     <td>{{ $propiedad->cantidad_dormitorios ?? '' }}</td>
@@ -282,11 +293,7 @@
                                     <td>{{ $propiedad->tipoInmueble->inmueble ?? '' }}</td>
                                 @endif
 
-                                @if (in_array('estado', $campos) && $sector === 'Alquiler')
-                                    <td>{{ $propiedad->estadoAlquiler->name ?? '' }}</td>
-                                @elseif(in_array('estado', $campos) && $sector === 'Venta')
-                                    <td>{{ $propiedad->estadoVenta->name ?? '' }}</td>
-                                @endif
+                               
 
                                 @if (in_array('precio', $campos) && $sector === 'Alquiler')
                                     <td style="white-space: nowrap;">

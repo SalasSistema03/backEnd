@@ -30,6 +30,9 @@ use App\Http\Controllers\contable\retenciones\RetencionController;
 use App\Http\Controllers\contable\buscadorComprobante\BuscadorPdfController;
 use App\Models\usuarios_y_permisos\Usuario;
 use App\Http\Controllers\agenda\Exportar_PDF_agenda\Pdf_agenda;
+use App\Http\Controllers\fideicomiso\RegistrosGeneralesController;
+use App\Http\Controllers\fideicomiso\RegistrosMensualesController;
+use App\Http\Controllers\fideicomiso\UnidadesController;
 // --- IMPORTACIONES UNIDAS DE AMBAS RAMAS ---
 use App\Services\At_cl\PropiedadService;
 use App\Services\clientes\UsuarioSectorService;
@@ -265,11 +268,38 @@ Route::prefix('v1')->group(function () {
         Route::get('/getObservacionesContratoNuevo', [ProcesoController::class, 'getObservacionesContratoNuevo']);
         Route::get('/getSelladoPrecargado', [ProcesoContratoService::class, 'getSelladoPrecargado']);
 
-        //Proceso DPTO
         Route::get('/getHistorialInventario', [ProcesoController::class, 'getHistorialInventario']);
         Route::get('/getUsuariosDpto', [ProcesoController::class, 'getUsuariosDpto']);
         Route::get('/getEstadoDpto', [ProcesoController::class, 'getEstadoDpto']);
         Route::post('/ActualizarInventario', [ProcesoController::class, 'ActualizarInventario']);
+        // Fideicomiso
+        Route::prefix('fideicomiso')->group(function () {
+
+            // Unidades
+            Route::get('unidades', [UnidadesController::class, 'getUnidadesController']);
+            Route::get('unidades/{id}', [UnidadesController::class, 'getUnidadPorIdController']);
+            Route::post('unidades', [UnidadesController::class, 'postUnidadController']);
+            Route::put('unidades/{id}', [UnidadesController::class, 'modificarUnidadController']);
+            Route::delete('unidades/{id}', [UnidadesController::class, 'eliminarUnidadController']);
+
+            // Registros Generales
+            Route::get('datos-generales', [RegistrosGeneralesController::class, 'getDatosGeneralesController']);
+            Route::get('datos-generales/{id}', [RegistrosGeneralesController::class, 'getRegistroGeneralPorIdController']);
+            Route::post('datos-generales', [RegistrosGeneralesController::class, 'postRegistroGeneralController']);
+            Route::put('datos-generales/{id}', [RegistrosGeneralesController::class, 'modificarRegistroGeneralController']);
+            Route::delete('datos-generales/{id}', [RegistrosGeneralesController::class, 'eliminarRegistroGeneralController']);
+
+            // Registros Mensuales
+            Route::get('registros-mensuales', [RegistrosMensualesController::class, 'getRegistrosMensualesController']);
+            Route::get('registros-mensuales/{id}', [RegistrosMensualesController::class, 'getRegistroMensualPorIdController']);
+            Route::get('registros-mensuales/unidad/{idUnidad}', [RegistrosMensualesController::class, 'getRegistrosPorUnidadController']);
+            Route::post('registros-mensuales', [RegistrosMensualesController::class, 'postRegistroMensualController']);
+            Route::put('registros-mensuales/{id}', [RegistrosMensualesController::class, 'modificarRegistroMensualController']);
+            Route::delete('registros-mensuales/{id}', [RegistrosMensualesController::class, 'eliminarRegistroMensualController']);
+
+            Route::post('carga-masiva', [RegistrosGeneralesController::class, 'cargaMasivaController'])->name('carga-masiva');
+            Route::post('comprobantes-pdf', [RegistrosMensualesController::class, 'comprobantesPdfController'])->name('comprobantes-pdf');
+        });
     });
 });
 
