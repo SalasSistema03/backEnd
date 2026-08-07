@@ -117,9 +117,6 @@
                              @if (in_array('estado', $campos))
                                 <th>Estado</th>
                             @endif
-                            @if (in_array('antiguedad', $campos))
-                                <th>Antigüedad</th>
-                            @endif
                             @if (in_array('dormitorio', $campos))
                                 <th>Dormitorios</th>
                             @endif
@@ -129,7 +126,7 @@
                             @if (in_array('inmueble', $campos))
                                 <th>Inmueble</th>
                             @endif
-                           
+
                             @if (in_array('precio', $campos))
                                 <th>Precio</th>
                             @endif
@@ -278,9 +275,6 @@
                                 @elseif(in_array('estado', $campos) && $sector === 'Venta')
                                     <td>{{ $propiedad->estadoVenta->name ?? '' }}</td>
                                 @endif
-                                @if (in_array('antiguedad', $campos) && $sector === 'Alquiler')
-                                    <td>{{ in_array($propiedad->antiguedad, ['0 años 0 meses 0 dias', ''], true) ? '-' : $propiedad->antiguedad }}</td>
-                                @endif
                                 @if (in_array('dormitorio', $campos))
                                     <td>{{ $propiedad->cantidad_dormitorios ?? '' }}</td>
                                 @endif
@@ -293,7 +287,7 @@
                                     <td>{{ $propiedad->tipoInmueble->inmueble ?? '' }}</td>
                                 @endif
 
-                               
+
 
                                 @if (in_array('precio', $campos) && $sector === 'Alquiler')
                                     <td style="white-space: nowrap;">
@@ -1018,7 +1012,69 @@
                 </div>
             @endforeach
 
-        @endif
+        @elseif($pertenece === 'tiempoOfrecimiento')
+        <div class="col-md-12">
+                <table class="table table-striped w-100">
+                    <thead class="listado_tabla_titulo">
+                        <tr>
+                           <th>Código Alquiler</th>
+                           <th>Dirección</th>
+                           <th>Piso / Depto</th>
+                           <th>Estado</th>
+                           <th>Antigüedad</th>
+                           <th>Inmueble</th>
+                           <th>Precio</th>
+                           <th>Cartel</th>
+                           <th>Coment. Cartel</th>
+                           <th>Autorización</th>
+                        </tr>
+                    </thead>
+
+                    <tbody class="listado_tabla">
+                        @foreach ($propiedades as $propiedad)
+
+                            <tr>
+                                    <td @if ($propiedad->estadoVenta?->name === 'EN VENTA' || $propiedad->estadoVenta?->name === 'EN VENTA COMPARTIDA') class="listado_estado_en_ambos" @endif>
+                                        <span class=""> {{ $propiedad->cod_alquiler ?? '' }}</span>
+                                        @if ($propiedad->estadoVenta?->name === 'EN VENTA' || $propiedad->estadoVenta?->name === 'EN VENTA COMPARTIDA')
+                                            <span class="listado_estado_alquilado">VENT</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        {{ $propiedad->calle ? $propiedad->calle->name . ' ' . $propiedad->numero_calle : '' }}
+                                    </td>
+                                    <td>
+                                        @if ($propiedad->piso == null || $propiedad->piso == 0)
+                                            {{ $propiedad->departamento ?? '' }}
+                                        @elseif($propiedad->departamento == null)
+                                            {{ $propiedad->piso ?? '' }}
+                                        @else
+                                            {{ $propiedad->piso ?? '' }} / {{ $propiedad->departamento ?? '' }}
+                                        @endif
+                                    </td>
+                                   <td>{{ $propiedad->estadoAlquiler->name ?? '' }}</td>
+                                  <td>{{ in_array($propiedad->antiguedad, ['0 años 0 meses 0 dias', ''], true) ? '-' : $propiedad->antiguedad }}</td>
+
+                                    <td>{{ $propiedad->tipoInmueble->inmueble ?? '' }}</td>
+
+                                    <td style="white-space: nowrap;">
+                                        @if ($propiedad->precio && $propiedad->precio->moneda_alquiler_pesos && $propiedad->precio->moneda_alquiler_pesos != 0)
+                                            $ {{ $propiedad->precio->moneda_alquiler_pesos }}
+                                        @elseif($propiedad->precio && $propiedad->precio->moneda_alquiler_dolar != 0)
+                                            u$s {{ $propiedad->precio->moneda_alquiler_dolar }}
+                                        @endif
+                                    </td>
+                                    <td>{{ $propiedad->cartel ?? '' }}</td>
+                                    <td>{{ $propiedad->comentario_cartel ?? '' }}</td>
+
+                                    <td>{{ $propiedad->autorizacion_alquiler ?? '' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            @endif
     </div>
 
 </body>

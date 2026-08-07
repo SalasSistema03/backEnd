@@ -34,10 +34,11 @@ class ListadoPdfAtcl
         $username = '-';
         $sector = $request->sector;
         $contadorPropiedades = 0;
+        $filtrosService = new FiltrosPdfService;
 
         if ($pertenece === 'listadoPropiedades') {
 
-            $filtrosService = new FiltrosPdfService; // instanciar una sola vez
+
 
             // Usar el filtro unificado (el ordenamiento se aplica dentro, excepto precio)
             $query = $filtrosService->aplicarFiltrosUnificados($request->all());
@@ -95,7 +96,8 @@ class ListadoPdfAtcl
                     : '-';
 
 
-                if ($request->estado_id === 1 || $request->estado_id === 2) {
+                /* if ($request->estado_id === 1 || $request->estado_id === 2) {
+
 
                     $historial = $propiedad->historialEstadosAlquiler;
 
@@ -109,7 +111,7 @@ class ListadoPdfAtcl
                 } else {
 
                     $propiedad->antiguedad = "-";
-                }
+                } */
             }
 
             // Usuario actual
@@ -699,6 +701,104 @@ class ListadoPdfAtcl
             //Log::info('data (informeNovedades combinado)', [$data]);
 
             $html = view('pdfs.atcl.listadoPropiedad', compact('data', 'username', 'pertenece', 'sector', 'fechas'))->render();
+        }
+        if ($pertenece === 'tiempoOfrecimiento') {
+            // Usar el filtro unificado (el ordenamiento se aplica dentro, excepto precio)
+            $query = $filtrosService->aplicarFiltrosUnificados($request->all());
+
+            // Ejecutar la query trayendo también la relación de observaciones y tipoInmueble
+            $propiedades = $query->with(['observacionesPropiedades', 'tipoInmueble', 'historialEstadosAlquiler'])->get();
+
+            // Solo ordenar por precio si es necesario (post-query)
+            if ($request->orden === 'precio_asc' || $request->orden === 'precio_desc') {
+                $propiedades = $filtrosService->ordenarPorPrecio($propiedades, $request->orden, $sector);
+            }
+
+            if ($request->orden === 'autorizacion') {
+                //Log::info('entro autorizacion', [$request->orden]);
+                $propiedades = $filtrosService->ordenarPorAutorizacion($propiedades, $request->orden, $sector);
+            }
+
+            $contadorPropiedades = $propiedades->count();
+
+            // --- Recolectar TODOS los IDs de usuario que necesitamos en una sola pasada ---
+            $modifierIds  = $propiedades->pluck('last_modified_by')->filter();
+            $asesorIds    = $propiedades->pluck('asesor')->filter();
+            $todosLosIds = $modifierIds
+                ->merge($asesorIds)
+                ->unique()
+                ->values();
+
+            // Una sola query para traer todos los usernames
+            $usernamesById = $todosLosIds->isNotEmpty()
+                ? Usuario::whereIn('id', $todosLosIds)->pluck('username', 'id')->all()
+                : [];
+
+            // Una sola pasada por la colección, aplicando todas las transformaciones
+            foreach ($propiedades as $propiedad) {
+                $modId = $propiedad->last_modified_by;
+                $propiedad->username = ($modId && isset($usernamesById[$modId]))
+                    ? $usernamesById[$modId]
+                    : '-';
+
+                $propiedad->captador_int_v = ($propiedad->captador_int_v && isset($usernamesById[$propiedad->captador_int_v]))
+                    ? $usernamesById[$propiedad->captador_int_v]
+                    : '-';
+
+                $propiedad->captador_int_a = ($propiedad->captador_int_a && isset($usernamesById[$propiedad->captador_int_a]))
+                    ? $usernamesById[$propiedad->captador_int_a]
+                    : '-';
+
+                $propiedad->asesor = ($propiedad->asesor && isset($usernamesById[$propiedad->asesor]))
+                    ? $usernamesById[$propiedad->asesor]
+                    : '-';
+
+                $historial = $propiedad->historialEstadosAlquiler;
+
+                if ($historial && in_array($historial->id_estado_alquiler, [1, 2])) {
+                    $propiedad->fecha_antiguedad = Carbon::parse($historial->fecha_alquiler);
+                    $propiedad->antiguedad = $this->formatearAntiguedad($historial->fecha_alquiler);
+                } else {
+                    $propiedad->fecha_antiguedad = Carbon::parse($propiedad->created_at);
+                    $propiedad->antiguedad = $this->formatearAntiguedad($propiedad->created_at);
+                }
+            }
+
+            // --- NUEVO: agrupar por tipo de inmueble y ordenar cada grupo por antigüedad ---
+            $propiedades = $propiedades
+                ->groupBy(function ($propiedad) {
+                    return $propiedad->tipoInmueble->inmueble ?? 'Sin tipo';
+                })
+                ->sortKeys() // opcional: ordena los grupos alfabéticamente (CASA, DEPARTAMENTO, etc.)
+                ->map(function ($grupo) {
+                    // Mayor antigüedad primero = fecha más vieja primero = orden ascendente
+                    return $grupo->sortBy('fecha_antiguedad')->values();
+                })
+                ->flatten(1)
+                ->values();
+
+            $contadorPropiedades = $propiedades->count();
+            $conteoPorTipo = $propiedades
+                ->groupBy(function ($propiedad) {
+                    // El nombre de la relación en el modelo Propiedad es tipoInmueble (en camelCase)
+                    return $propiedad->tipoInmueble->inmueble ?? 'SIN TIPO';
+                })
+                ->map(function ($grupo) {
+                    return $grupo->count();
+                });
+
+            // Si querés un array plano simple: ['DEPARTAMENTO' => 5, 'CASA' => 3, ...]
+            $conteoPorTipoArray = $conteoPorTipo->toArray();
+
+            //Log::info('propiedades', [$propiedades]);
+            $html = view('pdfs.atcl.listadoPropiedad', compact(
+                'propiedades',
+                'username',
+                'pertenece',
+                'sector',
+                'contadorPropiedades',
+                'conteoPorTipoArray'
+            ))->render();
         }
 
         $orientacion = 'landscape';
