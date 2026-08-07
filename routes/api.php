@@ -168,6 +168,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/api/notificaciones/traer-notificaciones', [NotificacionController::class, 'traerNotificaciones']);
         Route::post('/api/notificaciones/marcar-como-leida/{id}', [NotificacionController::class, 'marcarUnaComoLeida']);
         Route::get('/usuariosConAgenda/{sector_id}', [Usuario::class, 'usuariosQueTienenAgenda']);
+        Route::get('/agenda-diaria', [AgendaController::class, 'traerAgendaDiaria']);
 
         //Listado Agenda
         Route::post('/listado-agenda', [Pdf_agenda::class, 'listarAgenda']);

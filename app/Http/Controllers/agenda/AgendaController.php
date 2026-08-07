@@ -155,7 +155,7 @@ class AgendaController extends Controller
 
             //Log::info('Nota creada correctamente');
             // Si se proporciona un criterio, crear el evento en el historial
-            if ($request->criterioSeleccionado != null ) {
+            if ($request->criterioSeleccionado != null) {
                 if ($propiedadV === null) {
                     //Log::error('Propiedad no encontrada');
                     return response()->json([
@@ -201,34 +201,33 @@ class AgendaController extends Controller
                     'success' => true,
                     //'evento' => $evento
                 ]);
-            }elseif ($request->sector == 2 && $request->telefono && $request->propiedad == null){
+            } elseif ($request->sector == 2 && $request->telefono && $request->propiedad == null) {
 
 
                 //Log::info($request->all());
-                $cliente = Clientes::where('telefono',$request->telefono)->first();
-                if(!$cliente){
+                $cliente = Clientes::where('telefono', $request->telefono)->first();
+                if (!$cliente) {
                     return response()->json([
                         'success' => false,
                         'message' => 'No se encontró un cliente con ese teléfono'
                     ], 404);
                 }
                 //necesito tomar el id_criterio_venta mas grande del cliente
-                $criterio_venta = CriterioBusquedaVenta::where('id_cliente',$cliente->id_cliente)
-                    ->orderBy('id_criterio_venta','desc')
+                $criterio_venta = CriterioBusquedaVenta::where('id_cliente', $cliente->id_cliente)
+                    ->orderBy('id_criterio_venta', 'desc')
                     ->first();
 
                 HistorialCriteriosConversacion::create([
                     'id_criterio_venta' => $criterio_venta->id_criterio_venta,
-                    'mensaje' => $request->descripcion ?? 'conversacion generada por agenda', 
+                    'mensaje' => $request->descripcion ?? 'conversacion generada por agenda',
                     'last_modified_by' => $usuario_id,
                     'fecha_hora' => now()
-                ]);  
-
-            }elseif ($request->sector == 2 && $request->telefono && $request->propiedad != null){
+                ]);
+            } elseif ($request->sector == 2 && $request->telefono && $request->propiedad != null) {
                 Log::info($request->all());
-                $cliente_buscado = Clientes::where('telefono',$request->telefono)->first();
-                $criterio_buscado = CriterioBusquedaVenta::where('id_cliente',$cliente_buscado->id_cliente)
-                    ->orderBy('id_criterio_venta','desc')
+                $cliente_buscado = Clientes::where('telefono', $request->telefono)->first();
+                $criterio_buscado = CriterioBusquedaVenta::where('id_cliente', $cliente_buscado->id_cliente)
+                    ->orderBy('id_criterio_venta', 'desc')
                     ->first();
                 HistorialCodMuestra::create([
                     'codigo_muestra' => $request->propiedad['cod_venta'],
@@ -242,7 +241,6 @@ class AgendaController extends Controller
                     'fecha_devolucion' => null,
                     'direccion' => $request->propiedad['calle'] . ' ' . $request->propiedad['numero_calle'],
                 ]);
-
             }
 
             DB::commit(); // Confirmar transacción
@@ -299,7 +297,7 @@ class AgendaController extends Controller
         }
     }
 
-    
+
 
     public function buscarSectores()
     {
@@ -380,5 +378,40 @@ class AgendaController extends Controller
         });
         //Log::info('resultado', ['resultado' => $resultado]);
         return response()->json($resultado);
+    }
+
+    public function traerAgendaDiaria()
+    {
+        $data = [];
+        $usuario_id = auth('api')->id();
+        $fecha = now()->toDateString();
+        //Log::info('fecha', ['fecha' => $fecha]);
+
+        // Obtenemos todos los sectores a los que pertenece el usuario
+        $sectores = Agenda::where('usuario_id', $usuario_id)
+            ->whereNotNull('sector_id')
+            ->pluck('id');
+        //Log::info('sectores', ['sectores' => $sectores]);
+
+        // No necesitas un foreach. Puedes buscar todas las notas que pertenezcan a "cualquiera" de esos sectores usando whereIn.
+        $notas = Notas::whereIn('agenda_id', $sectores)
+            ->where('activo', 1)
+            ->where('fecha', $fecha)
+            // Para traer la relación 'calle' anidada dentro de 'propiedad', debes incluir el foreign key 'id_calle'
+            ->with(['propiedad:id,cod_alquiler,cod_venta,id_calle,numero_calle', 'propiedad.calle',])
+            ->get();
+
+        $data = $notas;
+
+        $notasSemanales = Notas::whereIn('agenda_id', $sectores)
+            ->where('activo', 1)
+            ->where('fecha', '>', $fecha)
+            // Para traer la relación 'calle' anidada dentro de 'propiedad', debes incluir el foreign key 'id_calle'
+            ->with(['propiedad:id,cod_alquiler,cod_venta,id_calle,numero_calle', 'propiedad.calle',])
+            ->get();
+
+
+
+        return response()->json(['diarias' => $data, 'semanales' => $notasSemanales]);
     }
 }
