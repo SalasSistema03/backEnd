@@ -20,6 +20,7 @@ use App\Services\At_cl\EmpresaPropiedadService;
 use App\Services\contable\sellado\PermitirAccesoSelladoService;
 use App\Services\contable\sellado\RegistroSelladoService;
 use App\Models\usuarios_y_permisos\Usuario;
+use App\Models\At_cl\HistorialEstadosAlquiler;
 
 
 
@@ -558,16 +559,16 @@ class PropiedadController
 
             // Manejar actualización de videos
             if ($request->has('videos_nuevos_data')) {
-                Log::info('entro a videos nuevos');
+                //Log::info('entro a videos nuevos');
                 (new PropiedadMediaService())->subirdesdeUpdate($request, $propiedad->id);
             }
             if ($request->has('videos_modificados')) {
-                Log::info('entro a videos modificados');
+                //Log::info('entro a videos modificados');
                 $videos_modificados = $this->cleanArray(json_decode($request->videos_modificados, true));
                 (new PropiedadMediaService())->modificarVideo($videos_modificados);
             }
             if ($request->has('videos_eliminados')) {
-                Log::info('entro a videos eliminados');
+                //Log::info('entro a videos eliminados');
                 $videos_eliminados = $this->cleanArray(json_decode($request->videos_eliminados));
                 (new PropiedadMediaService())->eliminarVideo($videos_eliminados);
             }
@@ -588,16 +589,28 @@ class PropiedadController
             }
 
             // Guardar historial de estados
-            $this->propiedadService->guardarHistorialEstadosSerbive(
-                $propiedad->id,
-                $venta['estado_venta'] ?? null,
-                $alquiler['estado_alquiler'] ?? null,
-                $alquiler['descripcion_estado_alquiler'] ?? null,
-                $venta['descripcion_estado_venta'] ?? null,
-                $alquiler['fecha_baja_temporal_alquiler'] ?? null,
-                $venta['fecha_baja_temporal_venta'] ?? null,
-                $usuario_id
-            );
+          
+            if ($alquiler['fecha_ofrecimiento'] != "") {
+                $historialEstadoAlquiler = new HistorialEstadosAlquiler();
+                $historialEstadoAlquiler->id_propiedad          = $propiedad->id;
+                $historialEstadoAlquiler->id_estado_alquiler    = $alquiler['estado_alquiler'] ?? null;
+                $historialEstadoAlquiler->comentario_alquiler   = $alquiler['descripcion_estado_alquiler'] ?? null;
+                $historialEstadoAlquiler->fecha_alquiler        = $alquiler['fecha_ofrecimiento'] ?? null;
+                $historialEstadoAlquiler->id_usuario            = $usuario_id;
+                $historialEstadoAlquiler->reactiva_fecha_alquiler = $alquiler['fecha_baja_temporal_alquiler'] ?? null;
+                $historialEstadoAlquiler->save();
+            } else {
+                $this->propiedadService->guardarHistorialEstadosSerbive(
+                    $propiedad->id,
+                    $venta['estado_venta'] ?? null,
+                    $alquiler['estado_alquiler'] ?? null,
+                    $alquiler['descripcion_estado_alquiler'] ?? null,
+                    $venta['descripcion_estado_venta'] ?? null,
+                    $alquiler['fecha_baja_temporal_alquiler'] ?? null,
+                    $venta['fecha_baja_temporal_venta'] ?? null,
+                    $usuario_id
+                );
+            }
 
             // Actualizar folios de empresas
             $folios = [
@@ -714,6 +727,7 @@ class PropiedadController
     public function update(Request $request, string $propiedad_id)
     {
         DB::beginTransaction();
+
 
         try {
             $formulario = $request->input('formulario');  // Obtener qué formulario se envió
