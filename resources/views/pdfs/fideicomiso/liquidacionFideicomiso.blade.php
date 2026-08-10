@@ -75,7 +75,7 @@
             
             <div class="d-flex justify-content-between align-items-center mb-1 pb-1 border-bottom">
                 <div>
-                    <img src="{{ public_path('image/logo.png') }}" style="max-height: 25px;">
+                    <img src="{{ public_path('image/Cardinal.png') }}" style="max-height: 25px;">
                 </div>
                 <div class="text-end">
                     <h6 class="mb-0 fw-bold" style="font-size: 0.8rem;">Planilla General de Liquidación</h6>
@@ -87,7 +87,7 @@
                 <thead class="table-dark">
                     <tr>
                         <th>Piso/Unidad</th>
-                        <th class="text-start">Propietario</th>
+                        <!-- <th class="text-start">Propietario</th> -->
                         <th>%</th>
                         @foreach($conceptos as $c)
                             <th class="text-uppercase">{{ $c }}</th>
@@ -106,7 +106,7 @@
                         @endphp
                         <tr class="{{ ($row['id_unidad'] == ($unidadClick['id'] ?? 0)) ? 'table-primary fw-bold' : '' }}">
                             <td>{{ $row['piso'] }} - {{ $row['unidad'] }}</td>
-                            <td class="text-start text-truncate" style="max-width: 75px; overflow: hidden;">{{ $row['propietario'] ?? 'S/N' }}</td>
+                            <!-- <td class="text-start text-truncate" style="max-width: 75px; overflow: hidden;">{{ $row['propietario'] ?? 'S/N' }}</td> -->
                             
                             <td>{{ $row['porcentual'] ?? 0 }}%</td>
                             
@@ -121,7 +121,8 @@
                 
                 <tfoot>
                     <tr class="table-secondary fw-bold">
-                        <td colspan="3" class="text-end">TOTALES GENERALES:</td>
+                        <td colspan="2" class="text-end">TOTALES GENERALES:</td>
+                        <!-- <td colspan="3" class="text-end">TOTALES GENERALES:</td> -->
                         @foreach($conceptos as $c)
                             <td>$ {{ number_format(floatval($registroGeneral[$c] ?? 0), 0, ',', '.') }}</td>
                         @endforeach
@@ -138,14 +139,16 @@
             <div class="cupon-container h-100 bg-light">
                 
                 <div class="text-center mb-2 border-bottom pb-2">
-                    <img src="{{ public_path('image/logo.png') }}" style="max-height: 35px; margin-bottom: 5px;">
-                    <h6 class="fw-bold mb-0">Cupón de Pago Individual</h6>
+                    <img src="{{ public_path('image/Cardinal.png') }}" style="max-height: 35px; margin-bottom: 5px;">
+                    <!-- <h6 class="fw-bold mb-0">Cupón de Pago Individual</h6> -->
+                     <h6 class="fw-bold mb-0">Resumen de Liquidación</h6>
                     <small>Período: {{ $mes }} / {{ $anio }}</small>
                 </div>
 
                 <div class="mb-2" style="font-size: 0.8rem;">
                     <strong>Propietario:</strong> {{ $unidadClick['propietario'] ?? 'S/N' }}<br>
-                    <strong>Unidad:</strong> Piso {{ $unidadClick['piso'] ?? '' }} - Dto {{ $unidadClick['unidad'] ?? '' }}<br>
+                    <!-- <strong>Unidad:</strong> Piso {{ $unidadClick['piso'] ?? '' }} - Dto {{ $unidadClick['unidad'] ?? '' }}<br> -->
+                    <strong>Unidad:</strong> Piso {{ $unidadClick['piso'] ?? '' }} - {{ $unidadClick['unidad'] ?? '' }}<br>
                     <strong>Porcentual:</strong> {{ $unidadClick['porcentual'] ?? 0 }}%
                 </div>
 
@@ -193,10 +196,10 @@
                 </table>
 
                 <div class="mt-4 text-center">
-                    <p class="mb-4 small text-muted" style="font-size: 0.7rem;">Válido como comprobante de pago con firma y sello.</p>
+                    <!-- <p class="mb-4 small text-muted" style="font-size: 0.7rem;">Válido como comprobante de pago con firma y sello.</p>
                     <div style="border-top: 1px solid #000; width: 80%; margin: 0 auto; padding-top: 5px;">
                         <small>Firma / Sello Inmobiliaria</small>
-                    </div>
+                    </div> -->
                 </div>
 
             </div>
