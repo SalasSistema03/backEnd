@@ -759,8 +759,8 @@ class ListadoPdfAtcl
                     $propiedad->fecha_antiguedad = Carbon::parse($historial->fecha_alquiler);
                     $propiedad->antiguedad = $this->formatearAntiguedad($historial->fecha_alquiler);
                 } else {
-                    $propiedad->fecha_antiguedad = Carbon::parse($propiedad->created_at);
-                    $propiedad->antiguedad = $this->formatearAntiguedad($propiedad->created_at);
+                    //$propiedad->fecha_antiguedad = Carbon::parse($propiedad->created_at);
+                    //$propiedad->antiguedad = $this->formatearAntiguedad($propiedad->created_at);
                 }
             }
 

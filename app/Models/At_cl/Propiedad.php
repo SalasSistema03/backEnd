@@ -542,7 +542,8 @@ class Propiedad extends Model
      */
     public function historialEstadosAlquiler()
     {
-        return $this->hasOne(HistorialEstadosAlquiler::class, 'id_propiedad');
+        return $this->hasOne(HistorialEstadosAlquiler::class, 'id_propiedad')
+            ->latestOfMany('id');
     }
 
     /**
