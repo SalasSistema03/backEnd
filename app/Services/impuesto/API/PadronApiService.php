@@ -99,7 +99,7 @@ ORDER BY e.id_empresa, FOLIO;
             }
         }
         //Log::info('esta es la informacion del segundo log despues del foreach del foreach');
-        Log::info($resultado);
+        //Log::info($resultado);
         return $resultado;
     }
 }
