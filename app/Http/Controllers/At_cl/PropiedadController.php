@@ -519,6 +519,7 @@ class PropiedadController
                 'flyer_a'                     => $alquiler['flyer_a'] ?? null,
                 'reel_a'                      => $alquiler['reel_a'] ?? null,
                 'web_a'                       => $alquiler['web_a'] ?? null,
+                'fecha_ofrecimiento'          => $alquiler['fecha_ofrecimiento'] ?? null,
                 // Condición de alquiler
                 'condicion'                   => $condicion_alquiler['condicion'] ?? null,
                 'updated_at'               => now(),
@@ -589,17 +590,6 @@ class PropiedadController
             }
 
             // Guardar historial de estados
-          
-            if ($alquiler['fecha_ofrecimiento'] != "") {
-                $historialEstadoAlquiler = new HistorialEstadosAlquiler();
-                $historialEstadoAlquiler->id_propiedad          = $propiedad->id;
-                $historialEstadoAlquiler->id_estado_alquiler    = $alquiler['estado_alquiler'] ?? null;
-                $historialEstadoAlquiler->comentario_alquiler   = $alquiler['descripcion_estado_alquiler'] ?? null;
-                $historialEstadoAlquiler->fecha_alquiler        = $alquiler['fecha_ofrecimiento'] ?? null;
-                $historialEstadoAlquiler->id_usuario            = $usuario_id;
-                $historialEstadoAlquiler->reactiva_fecha_alquiler = $alquiler['fecha_baja_temporal_alquiler'] ?? null;
-                $historialEstadoAlquiler->save();
-            } else {
                 $this->propiedadService->guardarHistorialEstadosSerbive(
                     $propiedad->id,
                     $venta['estado_venta'] ?? null,
@@ -610,7 +600,7 @@ class PropiedadController
                     $venta['fecha_baja_temporal_venta'] ?? null,
                     $usuario_id
                 );
-            }
+            
 
             // Actualizar folios de empresas
             $folios = [

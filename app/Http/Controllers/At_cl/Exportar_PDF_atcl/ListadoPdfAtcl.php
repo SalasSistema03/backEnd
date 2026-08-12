@@ -753,15 +753,9 @@ class ListadoPdfAtcl
                     ? $usernamesById[$propiedad->asesor]
                     : '-';
 
-                $historial = $propiedad->historialEstadosAlquiler;
-
-                if ($historial && in_array($historial->id_estado_alquiler, [1, 2])) {
-                    $propiedad->fecha_antiguedad = Carbon::parse($historial->fecha_alquiler);
-                    $propiedad->antiguedad = $this->formatearAntiguedad($historial->fecha_alquiler);
-                } else {
-                    //$propiedad->fecha_antiguedad = Carbon::parse($propiedad->created_at);
-                    //$propiedad->antiguedad = $this->formatearAntiguedad($propiedad->created_at);
-                }
+                $historial = $propiedad->fecha_ofrecimiento;
+                    $propiedad->fecha_antiguedad = Carbon::parse($historial);
+                    $propiedad->antiguedad = $this->formatearAntiguedad($historial);
             }
 
             // --- NUEVO: agrupar por tipo de inmueble y ordenar cada grupo por antigüedad ---
