@@ -85,7 +85,6 @@
 
             <hr>
         </div>
-
         @if ($pertenece === 'listadoPropiedades')
             <div class="col-md-12">
                 <table class="table table-striped w-100">
