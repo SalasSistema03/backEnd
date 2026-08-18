@@ -7,6 +7,7 @@ use App\Services\At_cl\AuthenticationService;
 use App\Http\Requests\LoginRequest;
 use Illuminate\Validation\ValidationException;
 use App\Services\usuarios_y_permisos\UsuarioService;
+use Illuminate\Support\Facades\Log;
 
 class UsuariosController extends Controller
 {
@@ -49,6 +50,12 @@ class UsuariosController extends Controller
         return response()->json($asesor);
     }
 
+    public function getAsesorAlquiler()
+    {
+        Log::info('getAsesorAlquiler called');
+        $asesor_alquiler = (new UsuarioService())->getAsesorAlquiler();
+        return response()->json($asesor_alquiler);
+    }
 
     
 }

@@ -32,6 +32,9 @@ class clientes extends Model
         'id_asesor_venta',
         'id_asesor_alquiler',
         'usuario_id',
+        'ingreso_alq',
+        'observaciones_alq',
+        'estado_alq'
     ];
 
 

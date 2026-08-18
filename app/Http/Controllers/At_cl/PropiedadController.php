@@ -834,13 +834,18 @@ class PropiedadController
     {
         //Log::info('Buscando propiedades de venta', $request->all());
         try {
+            $tipo = $request->get('tipo', 'venta');
             $codigo = $request->get('codigo', '');
             $calle = $request->get('calle', '');
             $dormitorios = $request->get('dorm') ? (int)$request->get('dorm') : null;
             $banios = $request->get('baños') ? (int)$request->get('baños') : null;
             $cochera = $request->get('cochera', '');
 
-            $propiedades = $this->propiedadService->buscarPropiedadesVenta($codigo, $calle, $dormitorios, $banios, $cochera);
+            if ($tipo === 'alquiler') {
+                $propiedades = $this->propiedadService->buscarPropiedadesAlquilerCompleto($codigo, $calle, $dormitorios, $banios, $cochera);
+            } else {
+                $propiedades = $this->propiedadService->buscarPropiedadesVenta($codigo, $calle, $dormitorios, $banios, $cochera);
+            }
 
             return response()->json([
                 'success' => true,

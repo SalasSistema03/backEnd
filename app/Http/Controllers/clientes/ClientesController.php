@@ -7,10 +7,12 @@ use App\Http\Controllers\Controller;
 use App\Services\At_cl\PermitirAccesoPropiedadService;
 use App\Services\clientes\ClientesService;
 use App\Services\clientes\CriterioBusquedaVentaService;
+use App\Services\clientes\CriterioBusquedaAlquilerService;
 use App\Services\clientes\TipoInmuebleService;
 use App\Services\clientes\ZonasService;
 use App\Services\clientes\UsuarioSectorService;
 use App\Services\clientes\ConsultaPropVentaService;
+use App\Services\clientes\ConsultaPropAlquilerService;
 use App\Services\clientes\HistorialCodigoConsultaService;
 use App\Services\clientes\Permisos;
 use App\Services\clientes\EnvioMailService;
@@ -30,7 +32,9 @@ class ClientesController extends Controller
     protected $tipoInmuebleService;
     protected $criterioBusquedaService;
     protected $criterioBusquedaVentaService;
+    protected $criterioBusquedaAlquilerService;
     protected $consultaPropiedadVentaService;
+    protected $consultaPropiedadAlquilerService;
     protected $zonaService;
     protected $usuarioSectorService;
     protected $historialCodigoConsultaService;
@@ -44,9 +48,11 @@ class ClientesController extends Controller
         ClientesService $clientes,
         TipoInmuebleService $tipoInmueble,
         CriterioBusquedaVentaService $criterioBusquedaVenta,
+        CriterioBusquedaAlquilerService $criterioBusquedaAlquiler,
         ZonasService $zona,
         UsuarioSectorService $usuarioSectorService,
         ConsultaPropVentaService $consultaPropiedadVentaService,
+        ConsultaPropAlquilerService $consultaPropiedadAlquilerService,
         HistorialCodigoConsultaService $historialCodigoConsultaService,
         Permisos $permisoService,
         EnvioMailService $envioMailService,
@@ -55,9 +61,11 @@ class ClientesController extends Controller
         $this->clienteService = $clientes;
         $this->tipoInmuebleService = $tipoInmueble;
         $this->criterioBusquedaVentaService = $criterioBusquedaVenta;
+        $this->criterioBusquedaAlquilerService = $criterioBusquedaAlquiler;
         $this->zonaService = $zona;
         $this->usuarioSectorService = $usuarioSectorService;
         $this->consultaPropiedadVentaService = $consultaPropiedadVentaService;
+        $this->consultaPropiedadAlquilerService = $consultaPropiedadAlquilerService;
         $this->historialCodigoConsultaService = $historialCodigoConsultaService;
         $this->usuario_id = session('usuario_id'); // Obtener el id del usuario actual desde la sesión
         /* $this->usuario = Usuario::find($this->usuario_id); */
@@ -91,146 +99,286 @@ class ClientesController extends Controller
             $cliente = null;
             $criteriosVentaCreados = [];
             $propiedadesVentaInput = $request->input('propiedades_venta', []);
+            $propiedadesAlquilerInput = $request->input('propiedades_alquiler', []);
+            $usuarioId =   auth('api')->id();
+            Log::info('Esto es informacion de request', $request->all());
             //Log::info('Esto es informacion de propiedadesventainput', $propiedadesVentaInput);
             //Logica relacionada con los recordatorios
             //$this->recordatorioController->storeDesdeClientes($request);
+            //dd('hola');
 
-            DB::connection('mysql5')->transaction(function () use ($request, &$cliente, &$criteriosVentaCreados, $propiedadesVentaInput) {
+            DB::connection('mysql5')->transaction(function () use ($request, &$cliente, &$criteriosVentaCreados, $propiedadesVentaInput, $propiedadesAlquilerInput, $usuarioId) {
                 // 1. GUARDAR EL CLIENTE
                 $clienteData = $request->input('cliente');
                 if ($clienteData['sector_asesor'] === 'venta') {
                     $clienteData['id_asesor_venta'] = $clienteData['id_asesor'] ?? null;
+                } else {
+                    $clienteData['id_asesor_alquiler'] = $clienteData['id_asesor_alquiler'] ?? null;
                 }
+
+
                 //Log::info('antes de guardar cliente');
                 $cliente = $this->clienteService->guardarcliente($clienteData);
-
                 // 2. GUARDAR O SINCRONIZAR CRITERIOS DE VENTA
                 $criteriosVenta = $request->input('criterios_venta', []);
+                $criteriosAlquiler = $request->input('criterios_alquiler', []);
                 //log::info('Criterios de venta: ' . json_encode($criteriosVenta));
+                //log::info('Criterios de alquiler: ' . json_encode($criteriosAlquiler));
+                //dd('hola');
+                if ($clienteData['sector_asesor'] === 'venta') {
+                    // Cliente nuevo: agregar solo criterios nuevos (sin id_criterio_venta)
+                    foreach ($criteriosVenta as $criterio) {
+                        // Si tiene id_criterio_venta, es un criterio existente, lo saltamos
+                        if (isset($criterio['id_criterio_venta'])) {
+                            //Log::info('Omitiendo criterio existente', ['id_criterio_venta' => $criterio['id_criterio_venta']]);
+                            continue;
+                        }
 
-                // Cliente nuevo: agregar solo criterios nuevos (sin id_criterio_venta)
-                foreach ($criteriosVenta as $criterio) {
-                    // Si tiene id_criterio_venta, es un criterio existente, lo saltamos
-                    if (isset($criterio['id_criterio_venta'])) {
-                        Log::info('Omitiendo criterio existente', ['id_criterio_venta' => $criterio['id_criterio_venta']]);
-                        continue;
+                        $criterio['id_cliente'] = $cliente->id_cliente;
+                        $criterio['usuario_id'] = $cliente->usuario_id;
+                        $criterio['fecha_criterio_venta'] = $criterio['fecha_criterio'] ?? now();
+                        $criterioVenta = $this->criterioBusquedaVentaService->guardarcriterioBusquedaVenta($criterio);
+                        // Almacenar el criterio creado con el ID real de la base de datos
+                        if (isset($criterio['id_propiedad'])) {
+                            $criteriosVentaCreados[] = [
+                                'id_criterio_venta' => $criterioVenta->id_criterio_venta,
+                                'id_tipo_inmueble'  => $criterio['id_tipo_inmueble'],
+                                'cant_dormitorios'  => $criterio['cant_dormitorios'],
+                                'id_propiedad'      => $criterio['id_propiedad']
+                            ];
+                        }
                     }
 
-                    $criterio['id_cliente'] = $cliente->id_cliente;
-                    $criterio['usuario_id'] = $cliente->usuario_id;
-                    $criterio['fecha_criterio_venta'] = $criterio['fecha_criterio'] ?? now();
-                    $criterioVenta = $this->criterioBusquedaVentaService->guardarcriterioBusquedaVenta($criterio);
-                    // Almacenar el criterio creado con el ID real de la base de datos
-                    if (isset($criterio['id_propiedad'])) {
-                        $criteriosVentaCreados[] = [
-                            'id_criterio_venta' => $criterioVenta->id_criterio_venta,
-                            'id_tipo_inmueble'  => $criterio['id_tipo_inmueble'],
-                            'cant_dormitorios'  => $criterio['cant_dormitorios'],
-                            'id_propiedad'      => $criterio['id_propiedad']
-                        ];
-                    }
-                }
+
+                    // 4. GUARDAR EL HISTORIAL DE CONSULTAS (DESPUÉS de que todo lo demás está creado)
+
+                    foreach ($propiedadesVentaInput as $propiedad) {
+
+                        if (isset($propiedad['id_con_prop_venta'])) {
+                            // Log::info('Omitiendo propiedad existente', ['id_con_prop_venta' => $propiedad['id_con_prop_venta']]);
+                            continue;
+                        }
+                        $propiedad['id_cliente'] = $cliente->id_cliente;
+                        $propiedad['usuario_id'] = $cliente->usuario_id;
+                        $propiedad['fecha_consulta_propiedad'] = $propiedad['fecha_consulta'] ?? now();
+                        $propiedad['estado_consulta_venta'] = "Activo";
 
 
-                // 4. GUARDAR EL HISTORIAL DE CONSULTAS (DESPUÉS de que todo lo demás está creado)
-                foreach ($propiedadesVentaInput as $propiedad) {
+                        if (!isset($propiedad['id_propiedad'])) continue;
 
-                    if (isset($propiedad['id_con_prop_venta'])) {
-                        // Log::info('Omitiendo propiedad existente', ['id_con_prop_venta' => $propiedad['id_con_prop_venta']]);
-                        continue;
-                    }
-                    $propiedad['id_cliente'] = $cliente->id_cliente;
-                    $propiedad['usuario_id'] = $cliente->usuario_id;
-                    $propiedad['fecha_consulta_propiedad'] = $propiedad['fecha_consulta'] ?? now();
-                    $propiedad['estado_consulta_venta'] = "Activo";
+                        $encontrado = false;
 
+                        //Log::info('antes de entrar al for', $criteriosVentaCreados);
+                        foreach ($criteriosVentaCreados as $criterioCreado) {
 
-                    if (!isset($propiedad['id_propiedad'])) continue;
+                            if ($propiedad['id_tipo_inmueble'] == $criterioCreado['id_tipo_inmueble'] && $propiedad['cant_dormitorios'] == $criterioCreado['cant_dormitorios']) {
 
-                    $encontrado = false;
+                                $propiedad['id_criterio_venta'] = $criterioCreado['id_criterio_venta'];
 
-                    //Log::info('antes de entrar al for', $criteriosVentaCreados);
-                    foreach ($criteriosVentaCreados as $criterioCreado) {
+                                $this->consultaPropiedadVentaService->guardarConsultaPropVenta($propiedad);
 
-                        if ($propiedad['id_tipo_inmueble'] == $criterioCreado['id_tipo_inmueble'] && $propiedad['cant_dormitorios'] == $criterioCreado['cant_dormitorios']) {
+                                $this->historialCodigoConsultaService
+                                    ->guardarHistorialCodigoConsulta($propiedad['id_propiedad'], $criterioCreado['id_criterio_venta']);
 
-                            $propiedad['id_criterio_venta'] = $criterioCreado['id_criterio_venta'];
-
+                                $encontrado = true;
+                                break;
+                            }
+                        }
+                        //Log::info('Salio de criteriosventacrados');
+                        // Solo si ningún criterio coincidió
+                        if (!$encontrado) {
+                            unset($propiedad['id_tipo_inmueble'], $propiedad['cant_dormitorios']);
                             $this->consultaPropiedadVentaService->guardarConsultaPropVenta($propiedad);
-
-                            $this->historialCodigoConsultaService
-                                ->guardarHistorialCodigoConsulta($propiedad['id_propiedad'], $criterioCreado['id_criterio_venta']);
-
-                            $encontrado = true;
-                            break;
-                        }
-                    }
-                    //Log::info('Salio de criteriosventacrados');
-                    // Solo si ningún criterio coincidió
-                    if (!$encontrado) {
-                        unset($propiedad['id_tipo_inmueble'], $propiedad['cant_dormitorios']);
-                        $this->consultaPropiedadVentaService->guardarConsultaPropVenta($propiedad);
-                    }
-                }
-
-
-
-                $usuarioId =   auth('api')->id();
-                //Log::info('sssssssssssssssssssssssss');
-                //Log::info('criteriosVenta', $criteriosVenta);
-                //mensajes
-                try {
-                    // Encontrar el criterioventa con el ID más grande
-                    $criterioVentaMasGrande = null;
-                    $maxId = 0;
-
-                    foreach ($criteriosVentaCreados as $criterio) {
-                        if (isset($criterio['id_criterio_venta']) && $criterio['id_criterio_venta'] > $maxId) {
-                            $maxId = $criterio['id_criterio_venta'];
-                            $criterioVentaMasGrande = $criterio;
                         }
                     }
 
-                    // Si no hay criterios creados, usar el primero del log si existe
-                    if ($criterioVentaMasGrande === null && !empty($criteriosVenta)) {
-                        foreach ($criteriosVenta as $criterio) {
+                    try {
+                        // Encontrar el criterioventa con el ID más grande
+                        $criterioVentaMasGrande = null;
+                        $maxId = 0;
+
+                        foreach ($criteriosVentaCreados as $criterio) {
                             if (isset($criterio['id_criterio_venta']) && $criterio['id_criterio_venta'] > $maxId) {
                                 $maxId = $criterio['id_criterio_venta'];
                                 $criterioVentaMasGrande = $criterio;
                             }
                         }
+
+                        // Si no hay criterios creados, usar el primero del log si existe
+                        if ($criterioVentaMasGrande === null && !empty($criteriosVenta)) {
+                            foreach ($criteriosVenta as $criterio) {
+                                if (isset($criterio['id_criterio_venta']) && $criterio['id_criterio_venta'] > $maxId) {
+                                    $maxId = $criterio['id_criterio_venta'];
+                                    $criterioVentaMasGrande = $criterio;
+                                }
+                            }
+                        }
+
+                        $idCriterioVenta = $criterioVentaMasGrande ? $criterioVentaMasGrande['id_criterio_venta'] : null;
+
+                        $mensaje = [
+                            'descripcion'       => $cliente->nombre . ' ' . $cliente->apellido,
+                            'fecha'             => now()->isoFormat('DD/MM/YYYY'),  // 13/04/2026
+                            'hora'              => now()->isoFormat('HH:mm'),       // 14:53
+                            'activo'            => 1,
+                            'usuarioNotificar'  => $request->input('cliente.id_asesor'),
+                            'cliente_id'        => $cliente->id_cliente,
+                            'id_criterio_venta' => $idCriterioVenta,
+                            'pertenece'         => "asesores",
+                            'folio'             => "-"
+                        ];
+                    } catch (\Exception $e) {
+                        Log::error('Error al crear mensaje', ['error' => $e->getMessage()]);
                     }
 
-                    $idCriterioVenta = $criterioVentaMasGrande ? $criterioVentaMasGrande['id_criterio_venta'] : null;
 
-                    $mensaje = [
-                        'descripcion'       => $cliente->nombre . ' ' . $cliente->apellido,
-                        'fecha'             => now()->isoFormat('DD/MM/YYYY'),  // 13/04/2026
-                        'hora'              => now()->isoFormat('HH:mm'),       // 14:53
-                        'activo'            => 1,
-                        'usuarioNotificar'  => $request->input('cliente.id_asesor'),
-                        'cliente_id'        => $cliente->id_cliente,
-                        'id_criterio_venta' => $idCriterioVenta,
-                        'pertenece'         => "asesores",
-                        'folio'             => "-"
-                    ];
-                } catch (\Exception $e) {
-                    Log::error('Error al crear mensaje', ['error' => $e->getMessage()]);
+
+
+                    $usuario = Usuario::find($usuarioId);
+                    //Log::info('antes de entrar al if de usuaiuo', ['usuarioId' => $usuarioId, 'usuario' => $usuario]);
+                    if ($usuario) {
+
+                        $usuario->notify(new RecordatorioNotificacion($mensaje));
+                    }
+
+
+                    //no borrar este comentado
+                    $this->envioMailService->enviarNuevoMail($criteriosVenta, $cliente->id_cliente, $propiedadesVentaInput, 'venta');
+                } else {
+                    // Cliente nuevo: agregar solo criterios nuevos (sin id_criterio_venta)
+                    foreach ($criteriosAlquiler as $criterio) {
+                        // Si tiene id_criterio_venta, es un criterio existente, lo saltamos
+                        if (isset($criterio['id_criterio_alquiler'])) {
+                            Log::info('Omitiendo criterio existente', ['id_criterio_alquiler' => $criterio['id_criterio_alquiler']]);
+                            continue;
+                        }
+
+                        $criterio['id_cliente'] = $cliente->id_cliente;
+                        $criterio['usuario_id'] = $cliente->usuario_id;
+                        $criterio['fecha_criterio_alquiler'] = $criterio['fecha_criterio'] ?? now();
+                        //$criterioVenta = $this->criterioBusquedaVentaService->guardarcriterioBusquedaVenta($criterio);
+                        $criterioAlquiler = $this->criterioBusquedaAlquilerService->guardarcriterioBusquedaAlquiler($criterio);
+                        //dd('hola');
+                        // Almacenar el criterio creado con el ID real de la base de datos
+                        if (isset($criterio['id_propiedad'])) {
+                            $criteriosAlquilerCreados[] = [
+                                'id_criterio_alquiler' => $criterioAlquiler->id_criterio_alquiler,
+                                'id_tipo_inmueble'  => $criterio['id_tipo_inmueble'],
+                                'cant_dormitorios'  => $criterio['cant_dormitorios'],
+                                'id_propiedad'      => $criterio['id_propiedad']
+                            ];
+                        }
+                    }
+
+                    // 4. GUARDAR EL HISTORIAL DE CONSULTAS (DESPUÉS de que todo lo demás está creado)
+                    //Log::info('propiedadesAlquilerInput', $propiedadesAlquilerInput);
+
+                    if (!empty($propiedadesAlquilerInput)) {
+                        foreach ($propiedadesAlquilerInput as $propiedad) {
+
+                            if (isset($propiedad['id_con_prop_alquiler'])) {
+                                Log::info('Omitiendo propiedad existente', ['id_con_prop_venta' => $propiedad['id_con_prop_venta']]);
+                                continue;
+                            }
+                            $propiedad['id_cliente'] = $cliente->id_cliente;
+                            $propiedad['usuario_id'] = $cliente->usuario_id;
+                            $propiedad['fecha_consulta_propiedad'] = $propiedad['fecha_consulta'] ?? now();
+                            $propiedad['estado_consulta_venta'] = "Activo";
+
+
+
+                            if (!isset($propiedad['id_propiedad'])) continue;
+
+                            $encontrado = false;
+
+                            //Log::info('antes de entrar al for', $criteriosAlquilerCreados);
+
+                            //dd('hola');
+                            foreach ($criteriosAlquilerCreados as $criterioCreado) {
+
+                                if ($propiedad['id_tipo_inmueble'] == $criterioCreado['id_tipo_inmueble'] && $propiedad['cant_dormitorios'] == $criterioCreado['cant_dormitorios']) {
+
+                                    $propiedad['id_criterio_alquiler'] = $criterioCreado['id_criterio_alquiler'];
+
+                                    $this->consultaPropiedadAlquilerService->guardarConsultaPropAlquiler($propiedad);
+
+                                    $this->historialCodigoConsultaService
+                                        ->guardarHistorialCodigoConsulta($propiedad['id_propiedad'], $criterioCreado['id_criterio_alquiler']);
+
+                                    $encontrado = true;
+                                    break;
+                                }
+                            }
+                            //Log::info('Salio de criteriosventacrados');
+                            // Solo si ningún criterio coincidió
+                            if (!$encontrado) {
+                                unset($propiedad['id_tipo_inmueble'], $propiedad['cant_dormitorios']);
+                                $this->consultaPropiedadAlquilerService->guardarConsultaPropAlquiler($propiedad);
+                            }
+                        }
+                    }
+
+
+
+                    try {
+                        // Encontrar el criterioventa con el ID más grande
+                        $criterioAlquilerMasGrande = null;
+                        $maxId = 0;
+
+                        foreach ($criteriosVentaCreados as $criterio) {
+                            if (isset($criterio['id_criterio_alquiler']) && $criterio['id_criterio_alquiler'] > $maxId) {
+                                $maxId = $criterio['id_criterio_alquiler'];
+                                $criterioAlquilerMasGrande = $criterio;
+                            }
+                        }
+
+                        // Si no hay criterios creados, usar el primero del log si existe
+                        if ($criterioAlquilerMasGrande === null && !empty($criteriosAlquiler)) {
+                            foreach ($criteriosAlquiler as $criterio) {
+                                if (isset($criterio['id_criterio_alquiler']) && $criterio['id_criterio_alquiler'] > $maxId) {
+                                    $maxId = $criterio['id_criterio_alquiler'];
+                                    $criterioAlquilerMasGrande = $criterio;
+                                }
+                            }
+                        }
+
+                        $idCriterioAlquiler = $criterioAlquilerMasGrande ? $criterioAlquilerMasGrande['id_criterio_alquiler'] : null;
+
+                        $mensaje = [
+                            'descripcion'       => $cliente->nombre . ' ' . $cliente->apellido,
+                            'fecha'             => now()->isoFormat('DD/MM/YYYY'),  // 13/04/2026
+                            'hora'              => now()->isoFormat('HH:mm'),       // 14:53
+                            'activo'            => 1,
+                            'usuarioNotificar'  => $request->input('cliente.id_asesor'),
+                            'cliente_id'        => $cliente->id_cliente,
+                            'id_criterio_alquiler' => $idCriterioAlquiler,
+                            'pertenece'         => "asesores",
+                            'folio'             => "-"
+                        ];
+                    } catch (\Exception $e) {
+                        Log::error('Error al crear mensaje', ['error' => $e->getMessage()]);
+                    }
+
+
+
+
+                    $usuario = Usuario::find($usuarioId);
+                    //Log::info('antes de entrar al if de usuaiuo', ['usuarioId' => $usuarioId, 'usuario' => $usuario]);
+                    /* if ($usuario) {
+
+                        $usuario->notify(new RecordatorioNotificacion($mensaje));
+                    } */
+
+
+                    //no borrar este comentado
+                    $this->envioMailService->enviarNuevoMail($criteriosAlquiler, $cliente->id_cliente, $propiedadesAlquilerInput, 'alquiler');
                 }
 
 
+                //Log::info('sssssssssssssssssssssssss');
+                //Log::info('criteriosVenta', $criteriosVenta);
+                //mensajes
 
-
-                $usuario = Usuario::find($usuarioId);
-                //Log::info('antes de entrar al if de usuaiuo', ['usuarioId' => $usuarioId, 'usuario' => $usuario]);
-                if ($usuario) {
-
-                    $usuario->notify(new RecordatorioNotificacion($mensaje));
-                }
-
-
-                //no borrar este comentado
-                $this->envioMailService->enviarNuevoMail($criteriosVenta, $cliente->id_cliente, $propiedadesVentaInput);
             });
             return response()->json(['success' => true, 'message' => 'Cliente y criterios guardados correctamente']);
         } catch (QueryException $e) {
@@ -244,6 +392,7 @@ class ClientesController extends Controller
 
     public function clientePorTelefono($telefono = null)
     {
+        //Log::info($telefono);
         if (!$telefono) {
             return response()->json(['error' => 'Teléfono requerido'], 400);
         }
