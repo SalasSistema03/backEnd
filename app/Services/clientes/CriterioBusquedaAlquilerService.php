@@ -7,10 +7,10 @@ use App\Models\cliente\CriterioBusquedaAlquiler;
 
 class CriterioBusquedaAlquilerService
 {
-    public function guardarcriterioBusqueda(array $data)
-    {   
+    public function guardarcriterioBusquedaAlquiler(array $data)
+    {
         try {
-            Log::info($data);
+            //Log::info($data);
             return CriterioBusquedaAlquiler::create($data); // Guarda los datos en la base de datos
         } catch (\Exception $e) {
             // Podés loguear el error si querés: \Log::error($e);

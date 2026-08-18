@@ -28,6 +28,7 @@ class ConsultaPropAlquiler extends Model
         'id_cliente',
         'id_propiedad',
         'usuario_id',
+        'id_criterio_alquiler'
     ];
 
     /**

@@ -258,6 +258,72 @@ class PropiedadService
     }
 
     /**
+     * Busca propiedades de alquiler con los mismos filtros que buscarPropiedadesVenta.
+     * Filtra por cod_alquiler y estados de alquiler activos (1, 2).
+     */
+    public function buscarPropiedadesAlquilerCompleto(string $codigo = '', string $calle = '', int $dormitorios = null, int $banios = null, string $cochera = '')
+    {
+        $query = Propiedad::with(['calle', 'barrio', 'zona', 'tipoInmueble']);
+
+        // Filtro por código (solo, sin combinación)
+        if ($codigo) {
+            $props = $query->where('cod_alquiler', $codigo)->get();
+            return $props->map(function ($prop) {
+                $data = $prop->toArray();
+                $data['calle'] = isset($prop->calle->name)
+                    ? $prop->calle->name . ' ' . $prop->numero_calle
+                    : $prop->numero_calle;
+                $data['barrio'] = $prop->barrio->name ?? null;
+                $data['zona'] = $prop->zona->name ?? null;
+                $data['inmueble'] = $prop->tipoInmueble->inmueble ?? null;
+                $data['id_zona'] = $prop->id_zona;
+                unset($data['id_calle'], $data['id_barrio']);
+                return $data;
+            });
+        }
+
+        // Filtros combinados (calle, dormitorios, baños, cochera)
+        $query->when($calle, function ($q) use ($calle) {
+            $q->whereHas(
+                'calle',
+                fn($query) =>
+                $query->where('name', 'like', "%{$calle}%")
+                    ->orWhere('numero_calle', 'like', "%{$calle}%")
+            );
+        })
+            ->when($dormitorios, function ($q) use ($dormitorios) {
+                $q->where('cantidad_dormitorios', $dormitorios);
+            })
+            ->when($banios, function ($q) use ($banios) {
+                $q->where('banios', $banios);
+            })
+            ->when($cochera, function ($q) use ($cochera) {
+                $q->where('cochera', $cochera);
+            });
+
+        $props = $query->get();
+
+        // Filtrar solo propiedades con cod_alquiler y estados activos (1, 2)
+        $props = $props->filter(function ($prop) {
+            return $prop->cod_alquiler !== null
+                && in_array($prop->id_estado_alquiler, [1, 2]);
+        });
+
+        return $props->map(function ($prop) {
+            $data = $prop->toArray();
+            $data['calle'] = isset($prop->calle->name)
+                ? $prop->calle->name . ' ' . $prop->numero_calle
+                : $prop->numero_calle;
+            $data['barrio'] = $prop->barrio->name ?? null;
+            $data['zona'] = $prop->zona->name ?? null;
+            $data['inmueble'] = $prop->tipoInmueble->inmueble ?? null;
+            $data['id_zona'] = $prop->id_zona;
+            unset($data['id_calle'], $data['id_barrio']);
+            return $data;
+        });
+    }
+
+    /**
      * Obtiene una propiedad por ID sin relaciones.
      *
      * @param int|string $id
