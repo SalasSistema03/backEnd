@@ -1022,14 +1022,15 @@
                             <th>Código Alquiler</th>
                             <th>Dirección</th>
                             <th>Piso / Depto</th>
-                            <th>Estado</th>
+                            <!-- <th>Estado</th> -->
                             <th>Antigüedad</th>
                             <th>Inmueble</th>
                             <th>Precio</th>
                             <th>Cartel</th>
-                            <th>Coment. Cartel</th>
+                           <!--  <th>Coment. Cartel</th> -->
                             <th>Autorización</th>
                             <th>Condicion</th>
+                            <th>Propietario</th>
                             </tr>
                         </thead>
 
@@ -1055,7 +1056,7 @@
                                                 {{ $propiedad->piso ?? '' }} / {{ $propiedad->departamento ?? '' }}
                                             @endif
                                         </td>
-                                    <td>{{ $propiedad->estadoAlquiler->name ?? '' }}</td>
+                                   <!--  <td>{{ $propiedad->estadoAlquiler->name ?? '' }}</td> -->
                                     <td>{{ in_array($propiedad->antiguedad, ['0 años 0 meses 0 dias', ''], true) ? '-' : $propiedad->antiguedad }}</td>
 
                                         <td>{{ $propiedad->tipoInmueble->inmueble ?? '' }}</td>
@@ -1068,10 +1069,17 @@
                                             @endif
                                         </td>
                                         <td>{{ $propiedad->cartel ?? '' }}</td>
-                                        <td>{{ $propiedad->comentario_cartel ?? '' }}</td>
+                                        <!-- <td>{{ $propiedad->comentario_cartel ?? '' }}</td> -->
 
                                         <td>{{ $propiedad->autorizacion_alquiler ?? '' }}</td>
-                                        <td>{{ $propiedad->condicion ?? ''}}</td>
+                                        <td style="text-align: left;">
+                                           {{ strtoupper($propiedad->condicion ?? '') }}
+                                        </td>
+                                        <td>
+    @foreach ($propiedad->propietarios as $propietario)
+        {{ $propietario->nombre }} {{ $propietario->apellido }}@if (!$loop->last), @endif
+    @endforeach
+</td>
                                 </tr>
                             @endforeach
                         </tbody>

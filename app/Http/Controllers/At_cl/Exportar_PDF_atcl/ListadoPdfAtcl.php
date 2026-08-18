@@ -708,7 +708,7 @@ class ListadoPdfAtcl
             $query = $filtrosService->aplicarFiltrosUnificados($request->all());
 
             // Ejecutar la query trayendo también la relación de observaciones y tipoInmueble
-            $propiedades = $query->with(['observacionesPropiedades', 'tipoInmueble', 'historialEstadosAlquiler'])->get();
+            $propiedades = $query->with(['observacionesPropiedades', 'tipoInmueble', 'historialEstadosAlquiler','propietarios'])->get();
 
             // Solo ordenar por precio si es necesario (post-query)
             if ($request->orden === 'precio_asc' || $request->orden === 'precio_desc') {
