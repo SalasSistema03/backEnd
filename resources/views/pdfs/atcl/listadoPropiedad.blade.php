@@ -113,6 +113,7 @@
                             @if (in_array('fecha alta', $campos) && $sector === 'Venta')
                                 <th>Fecha Alta</th>
                             @endif
+                            
                              @if (in_array('estado', $campos))
                                 <th>Estado</th>
                             @endif
@@ -269,11 +270,13 @@
                                 @if (in_array('fecha alta', $campos) && $sector === 'Venta')
                                     <td>{{ Carbon\Carbon::parse($propiedad->venta_fecha_alta ?? '')->format('d/m/Y') }}</td>
                                 @endif
+                                
                                  @if (in_array('estado', $campos) && $sector === 'Alquiler')
                                     <td>{{ $propiedad->estadoAlquiler->name ?? '' }}</td>
                                 @elseif(in_array('estado', $campos) && $sector === 'Venta')
                                     <td>{{ $propiedad->estadoVenta->name ?? '' }}</td>
                                 @endif
+                                
                                 @if (in_array('dormitorio', $campos))
                                     <td>{{ $propiedad->cantidad_dormitorios ?? '' }}</td>
                                 @endif
@@ -1026,6 +1029,7 @@
                             <th>Cartel</th>
                             <th>Coment. Cartel</th>
                             <th>Autorización</th>
+                            <th>Condicion</th>
                             </tr>
                         </thead>
 
@@ -1067,6 +1071,7 @@
                                         <td>{{ $propiedad->comentario_cartel ?? '' }}</td>
 
                                         <td>{{ $propiedad->autorizacion_alquiler ?? '' }}</td>
+                                        <td>{{ $propiedad->condicion ?? ''}}</td>
                                 </tr>
                             @endforeach
                         </tbody>
