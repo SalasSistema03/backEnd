@@ -39,6 +39,8 @@ use App\Services\clientes\UsuarioSectorService;
 use App\Http\Controllers\proceso\ProcesoController;
 use App\Http\Controllers\impuesto\Expensas\ExpensasController;
 use App\Services\contrato\ProcesoContratoService;
+use Illuminate\Support\Facades\Log;
+
 
 
 Route::prefix('v1')->group(function () {
@@ -82,6 +84,7 @@ Route::prefix('v1')->group(function () {
             Route::get('estado-venta', [EstadoVentaController::class, 'getEstadoVenta']);
             Route::get('captador-interno', [UsuariosController::class, 'getCaptadorInterno']);
             Route::get('asesor', [UsuariosController::class, 'getAsesor']);
+
             Route::get('estado-alquiler', [EstadoAlquilerController::class, 'getEstadoAlquiler']);
             Route::post('propiedad/guardar/{id}', [PropiedadController::class, 'guardarPropiedad']);
             Route::get('padron/buscar', [PadronService::class, 'BuscarPadron']);
@@ -151,6 +154,7 @@ Route::prefix('v1')->group(function () {
 
         //Asesores
         Route::get('/asesores', [AsesoresController::class, 'Asesores']);
+        Route::get('/asesoresAlq', [AsesoresController::class, 'AsesoresAlq']);
         Route::put('/clientes/modificar-criterio', [AsesoresController::class, 'modificarCriterio']);
         Route::put('/clientes/modificar-datos-personales', [AsesoresController::class, 'modificarDatosPersonales']);
         Route::post('/historialCodOfrecimiento', [AsesoresController::class, 'guardarHistorialCodOfrecimiento']);

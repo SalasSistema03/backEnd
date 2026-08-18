@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\clientes;
 
 use Illuminate\Http\Request;
@@ -39,6 +40,86 @@ class AsesoresController
                 ->table('clientes as c')
                 ->leftJoin('criterio_busqueda_venta as cbv', 'c.id_cliente', '=', 'cbv.id_cliente')
                 ->where('c.id_asesor_venta', $id_usuario)
+                ->selectRaw('c.id_cliente')
+                ->groupBy('c.id_cliente')
+
+
+                ->orderByRaw('
+                                CASE
+                                    WHEN MAX(CASE WHEN cbv.estado_criterio_venta = "Activo" THEN 1 ELSE 0 END) = 1 THEN 1
+                                    WHEN MAX(CASE WHEN cbv.estado_criterio_venta = "Finalizado" THEN 1 ELSE 0 END) = 1 THEN 2
+                                    ELSE 3
+                                END
+                            ')
+                ->orderByRaw('
+                                MIN(
+                                    CASE
+                                        WHEN cbv.estado_criterio_venta = "Activo" THEN
+                                            CASE
+                                                WHEN cbv.id_categoria IS NULL THEN 1
+                                                WHEN cbv.id_categoria = "Potable" THEN 2
+                                                WHEN cbv.id_categoria = "Medio" THEN 3
+                                                WHEN cbv.id_categoria = "No Potable" THEN 4
+                                                ELSE 5
+                                            END
+                                    END
+                                )
+                            ')
+                ->orderByRaw('
+                                MAX(
+                                    CASE
+                                        WHEN cbv.estado_criterio_venta = "Activo" THEN cbv.fecha_criterio_venta
+                                        WHEN cbv.estado_criterio_venta = "Finalizado" THEN cbv.fecha_criterio_venta
+                                        ELSE cbv.fecha_criterio_venta
+                                    END
+                                ) DESC
+                            ')
+                ->pluck('id_cliente');
+
+
+
+            $clientes = \App\Models\cliente\clientes::with([
+                'criteriosOrdenados.zona',
+                'criteriosOrdenados.tipoInmueble',
+                'criteriosOrdenados.historialMuestras',
+                'criteriosOrdenados.historialOfrecimientos',
+                'criteriosOrdenados.historialConsultas',
+                'criteriosOrdenados.historialConversaciones',
+            ])
+                ->whereIn('id_cliente', $clientesOrdenados)
+                ->get()
+                ->sortBy(function ($cliente) use ($clientesOrdenados) {
+                    return $clientesOrdenados->search($cliente->id_cliente);
+                })
+                ->values();
+
+
+
+            if ($clientes->isEmpty()) {
+                return response()->json([
+                    'error' => 'No se encontraron clientes'
+                ], 404);
+            }
+
+            return response()->json([
+                'clientes' => $clientes
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function AsesoresAlq()
+    {
+        $id_usuario = auth('api')->id();
+
+        try {
+            $clientesOrdenados = DB::connection('mysql5')
+                ->table('clientes as c')
+                ->leftJoin('criterio_busqueda_venta as cbv', 'c.id_cliente', '=', 'cbv.id_cliente')
+                ->where('c.id_asesor_alquiler', $id_usuario)
                 ->selectRaw('c.id_cliente')
                 ->groupBy('c.id_cliente')
 
@@ -267,10 +348,10 @@ class AsesoresController
         try {
             //obtenemos el cliente
             $cliente = Clientes::findOrFail($request->id_cliente);
-              $idUsuario = auth('api')->id();
+            $idUsuario = auth('api')->id();
 
             $pertenece_inmobiliaria = 'N';
-            if($request->nombre_de_inmobiliaria !== null){
+            if ($request->nombre_de_inmobiliaria !== null) {
                 $pertenece_inmobiliaria = 'S';
             }
 
@@ -280,10 +361,20 @@ class AsesoresController
                 'telefono' => $request->telefono,
                 'observaciones' => $request->observaciones,
                 'pertenece_a_inmobiliaria' => $pertenece_inmobiliaria,
-                'nombre_de_inmobiliaria' => $request->nombre_de_inmobiliaria,
-                'usuario_id' => $idUsuario,
-
+                'nombre_de_inmobiliaria' => $request->nombre_de_inmobiliaria ?? '',
+                'usuario_id' => $idUsuario
             ]);
+            if ($request->observaciones_alq != null) {
+                $cliente->update([
+                    'observaciones_alq' => $request->observaciones_alq,
+                ]);
+            }
+            if ($request->estado_cliente != null) {
+                $cliente->update([
+                    'estado_alq' => $request->estado_cliente,
+                ]);
+            }
+
 
             DB::commit();
 
