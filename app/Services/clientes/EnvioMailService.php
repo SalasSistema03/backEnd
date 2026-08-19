@@ -265,17 +265,18 @@ class EnvioMailService
             $mail->send();
 
             // ============================================================
-            // ENVÍO DE SMS (SOLO PARA ALQUILER) – Adaptado como en Python
+            // ENVÍO DE SMS (SOLO PARA ALQUILER)
             // ============================================================
-            // COMENTADO TEMPORALMENTE - Descomentar el jueves
-            /*
             if ($sector === 'alquiler') {
                 $telefonoSms = $asesor?->telf_laboral;
                 if (!empty($telefonoSms)) {
-                    // 1. Limpiar número: solo dígitos y '+', SIN agregar prefijo
-                    $telefonoSms = preg_replace('/[^0-9+]/', '', $telefonoSms);
+                    // 1. Limpiar número: solo dígitos (sacamos todo lo que no sea número)
+                    $telefonoSms = preg_replace('/[^0-9]/', '', $telefonoSms);
 
-                    // 2. Construir mensaje en UNA SOLA LÍNEA (espacios, sin \n)
+                    // 2. Agregar prefijo +54
+                    $telefonoSms = '+54' . $telefonoSms;
+
+                    // 3. Construir mensaje en UNA SOLA LÍNEA (espacios, sin \n)
                     $partes = [];
                     $partes[] = "Cliente: " . ($cliente?->nombre ?? '');
                     $partes[] = "Ingreso: " . date('d/m/Y H:i');
@@ -288,7 +289,7 @@ class EnvioMailService
                         $obs = $cliente->observaciones;
                     }
                     if (!empty($obs)) {
-                        $partes[] = "Obs: " . $obs;
+                        $partes[] = "Observaciones: " . $obs;
                     }
 
                     if (!empty($criteriosVenta)) {
@@ -299,8 +300,8 @@ class EnvioMailService
                         $dorm = $criterio['cant_dormitorios'] ?? '0';
                         $cochera = $criterio['cochera'] ?? 'NO';
                         $zonaNombre = $zona?->name ?? '';
-                        $partes[] = "T: $tipo  D: $dorm";
-                        $partes[] = "C: $cochera  Z: $zonaNombre";
+                        $partes[] = "Inmueble: $tipo  Dorm: $dorm";
+                        $partes[] = "Cochera: $cochera  Zona: $zonaNombre";
                     }
 
                     if (!empty($propiedades) && is_array($propiedades)) {
@@ -309,13 +310,13 @@ class EnvioMailService
                         $calle = Calle::find($casa?->id_calle ?? null);
                         $codigo = $sector === 'alquiler' ? ($casa?->cod_alquiler ?? '') : ($casa?->cod_venta ?? '');
                         $direccion = ($calle?->name ?? '') . ' ' . ($casa?->numero_calle ?? '');
-                        $partes[] = "Prop: $codigo - $direccion";
+                        $partes[] = "Propiedad: $codigo - $direccion";
                     }
 
                     // UNIR CON ESPACIOS (exactamente como Python)
                     $contenidoSms = implode(' ', $partes);
 
-                    // 3. Eliminar acentos y caracteres especiales
+                    // 4. Eliminar acentos y caracteres especiales
                     $unwanted_array = array(
                         'Š' => 'S',
                         'š' => 's',
@@ -385,13 +386,13 @@ class EnvioMailService
                     );
                     $contenidoSms = strtr($contenidoSms, $unwanted_array);
 
-                    // 4. Normalizar espacios (eliminar saltos de línea, tabs, múltiples espacios)
+                    // 5. Normalizar espacios (eliminar saltos de línea, tabs, múltiples espacios)
                     $contenidoSms = preg_replace('/\s+/', ' ', $contenidoSms);
                     $contenidoSms = trim($contenidoSms);
 
                     FacadesLog::info("📱 Enviando SMS a $telefonoSms: " . $contenidoSms);
 
-                    // 5. UNA SOLA PETICIÓN (sin duplicados)
+                    // 6. UNA SOLA PETICIÓN (sin duplicados)
                     try {
                         $response = \Illuminate\Support\Facades\Http::withBasicAuth('admin', 'admin')
                             ->timeout(15)
@@ -415,7 +416,6 @@ class EnvioMailService
                     FacadesLog::warning('No se pudo enviar SMS: el asesor no tiene telf_laboral.');
                 }
             }
-            */
 
             return true;
         } catch (Exception $e) {
