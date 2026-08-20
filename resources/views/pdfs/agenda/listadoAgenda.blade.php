@@ -51,14 +51,14 @@
                     @if ($sectorNombre === 'Ventas' || $sectorNombre === 'Alquiler')
                         <th>Cliente</th>
                         <th>Telefono</th>
-                        <th>Cod Propiedad</th>
-                        <th>Direccion Prop</th>
+                        <th>Codigo</th>
+                        <th>Direccion</th>
                     @endif
                     @if ($estado === 'Inactivo')
-                        <th>Eliminado por</th>
+                        <th>Eliminó</th>
                         <th>Motivo</th>
                     @endif
-                    <th>Agendado por</th>
+                    <th>Agendó</th>
 
 
                 </tr>
@@ -160,9 +160,9 @@
                                 @if ($sectorNombre == 'Alquiler')
                                     <td class="listado_agenda_texto_una_linea p-1 text-center">
                                         {{ $item['propiedad']['cod_alquiler'] ?? '' }}</td>
-                                @elseif($sectorNombre == 'Venta')
+                                @elseif($sectorNombre == 'Ventas')
                                     <td class="listado_agenda_texto_una_linea p-1 text-center">
-                                        {{ $item['propiedad']['cod_venta'] ?? '' }}</td>
+                                      {{ $item['propiedad']['cod_venta'] ?? '' }}</td>
                                 @endif
                                 <td class="listado_agenda_texto_una_linea p-1 text-center">
                                     {{ $item['propiedad']['calle']['name'] ?? '' }}
