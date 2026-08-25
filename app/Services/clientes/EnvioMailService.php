@@ -208,7 +208,7 @@ class EnvioMailService
     }
 
 
-    public function enviarNuevoMail($criteriosVenta = [], $clienteId, $propiedades = [], $sector = 'venta'): bool
+    /* public function enviarNuevoMail($criteriosVenta = [], $clienteId, $propiedades = [], $sector = 'venta'): bool
     {
         // Log seguro del payload
         try {
@@ -240,11 +240,28 @@ class EnvioMailService
             $contenido = $this->prepararContenidoEmail($criteriosVenta, $clienteId, $propiedades, $identificador, $sector);
             $datoCliente = clientes::find($clienteId);
             $idAsesor = $sector === 'alquiler' ? $datoCliente?->id_asesor_alquiler : $datoCliente?->id_asesor_venta;
-            $asesor = Usuario::find($idAsesor ?? null);
+            $asesor = Usuario::find($idAsesor ?? null); */
 
-            // Validar email del asesor
-            $emailTo = $this->sanitizeEmail($asesor?->email_interno ?? null);
-            if (!$emailTo || !filter_var($emailTo, FILTER_VALIDATE_EMAIL)) {
+    // Validar email del asesor
+    /* if($idAsesor === 4){
+                $mail->isSMTP();
+                $mail->Host       = 'mail.salasinmobiliaria.com.ar';
+                $mail->SMTPAuth   = true;
+                $mail->Username   = 'ventas@salasinmobiliaria.com.ar';   // ← ¡esto está mal!
+                $mail->Password   = 'lascasas99';                // ← ¡esto está mal!
+                //$mail->Port       = 25;
+                $mail->Port       = 587;
+                //$mail->SMTPSecure = false;
+                $mail->SMTPSecure = 'tls';
+                $mail->SMTPAutoTLS = false;
+                $mail->setFrom('consultas@salas.com', 'Consulta');
+                $emailTo = $this->sanitizeEmail($asesor?->email_externo ?? null);
+            }else{  */
+
+    /*  $emailTo = $this->sanitizeEmail($asesor?->email_interno ?? null); */
+    /*  }  */
+
+    /* if (!$emailTo || !filter_var($emailTo, FILTER_VALIDATE_EMAIL)) {
                 FacadesLog::error('Email de asesor inválido al enviar nuevo mail', [
                     'cliente_id' => $clienteId,
                     'asesor_id' => $asesor?->id ?? null,
@@ -422,9 +439,259 @@ class EnvioMailService
             error_log('Error enviando email: ' . $e->getMessage());
             throw $e;
         }
+    } */
+
+
+
+    public function enviarNuevoMail($criteriosVenta = [], $clienteId, $propiedades = [], $sector = 'venta'): bool
+    {
+        // Log seguro del payload
+        try {
+            FacadesLog::info('Payload enviarNuevoMail: ' . json_encode([
+                'criteriosVenta' => $criteriosVenta,
+                'clienteId' => $clienteId,
+                'propiedades' => $propiedades,
+            ]));
+        } catch (\Throwable $e) {
+            FacadesLog::warning('No se pudo loguear el payload de enviarNuevoMail: ' . $e->getMessage());
+        }
+
+        $mail = new PHPMailer(true);
+        $identificador = 1;
+
+        try {
+            $mail->isSMTP();
+
+            // Obtener datos del cliente y asesor
+            $datoCliente = clientes::find($clienteId);
+            $idAsesor = $sector === 'alquiler' ? $datoCliente?->id_asesor_alquiler : $datoCliente?->id_asesor_venta;
+            $asesor = Usuario::find($idAsesor ?? null);
+
+            // Configuración SMTP según el asesor
+            if ($idAsesor === 4) {
+                // Servidor externo
+                $mail->Host       = 'mail.salasinmobiliaria.com.ar';
+                $mail->SMTPAuth   = true;
+                $mail->Username   = 'ventas@salasinmobiliaria.com.ar';
+                $mail->Password   = 'lascasas99';
+                $mail->Port       = 587;
+                $mail->SMTPSecure = 'tls';
+                $mail->SMTPAutoTLS = false;
+                $mail->setFrom('ventas@salasinmobiliaria.com.ar', 'Ventas Salas');
+                $emailTo = $this->sanitizeEmail($asesor?->email_externo ?? null);
+
+    // Desactivar verificación del certificado SSL
+    $mail->SMTPOptions = array(
+        'ssl' => array(
+            'verify_peer' => false,
+            'verify_peer_name' => false,
+            'allow_self_signed' => true
+        )
+    );
+            } else {
+                // Servidor interno (por defecto)
+                $mail->Host       = '10.10.10.128';
+                $mail->SMTPAuth   = true;
+                $mail->Username   = 'consultas@salas.com';
+                $mail->Password   = 'GALEON';
+                $mail->Port       = 25;
+                $mail->SMTPSecure = false;
+                $mail->SMTPAutoTLS = false;
+                $mail->setFrom('consultas@salas.com', 'Consulta');
+
+                $emailTo = $this->sanitizeEmail($asesor?->email_interno ?? null);
+            }
+
+            // Validar email del asesor
+            if (!$emailTo || !filter_var($emailTo, FILTER_VALIDATE_EMAIL)) {
+                FacadesLog::error('Email de asesor inválido al enviar nuevo mail', [
+                    'cliente_id' => $clienteId,
+                    'asesor_id' => $asesor?->id ?? null,
+                    'email_bruto' => $asesor?->email_interno ?? $asesor?->email_externo ?? null,
+                    'email_saneado' => $emailTo,
+                ]);
+                throw new Exception('Destinatario inválido: email de asesor no válido');
+            }
+            $mail->addAddress($emailTo);
+            FacadesLog::info('Email destinatario validado', ['to' => $emailTo]);
+
+            // Preparar contenido del email
+            $contenido = $this->prepararContenidoEmail($criteriosVenta, $clienteId, $propiedades, $identificador, $sector);
+
+            // Enviar email
+            $cliente = clientes::find($clienteId);
+            $mail->isHTML(true);
+            $mail->Subject = "Consulta del Cliente " . ($cliente?->nombre ?? 'Sin Datos');
+            $mail->Body    = nl2br(htmlentities($contenido, ENT_QUOTES, 'UTF-8'));
+            $mail->AltBody = "Se han registrado nuevos criterios de búsqueda para el cliente ID: " . ($cliente?->id_cliente ?? 'Sin Datos');
+            $mail->send();
+
+            // ============================================================
+            // ENVÍO DE SMS (SOLO PARA ALQUILER)
+            // ============================================================
+            if ($sector === 'alquiler') {
+                $telefonoSms = $asesor?->telf_laboral;
+                if (!empty($telefonoSms)) {
+                    // 1. Limpiar número: solo dígitos
+                    $telefonoSms = preg_replace('/[^0-9]/', '', $telefonoSms);
+
+                    // 2. Agregar prefijo +54
+                    $telefonoSms = '+54' . $telefonoSms;
+
+                    // 3. Construir mensaje en UNA SOLA LÍNEA
+                    $partes = [];
+                    $partes[] = "Cliente: " . ($cliente?->nombre ?? '');
+                    $partes[] = "Ingreso: " . date('d/m/Y H:i');
+                    $partes[] = "Tel: " . ($cliente?->telefono ?? '');
+
+                    $obs = '';
+                    if (!empty($cliente?->observaciones_alq)) {
+                        $obs = $cliente->observaciones_alq;
+                    } elseif (!empty($cliente?->observaciones)) {
+                        $obs = $cliente->observaciones;
+                    }
+                    if (!empty($obs)) {
+                        $partes[] = "Observaciones: " . $obs;
+                    }
+
+                    if (!empty($criteriosVenta)) {
+                        $criterio = $criteriosVenta[0];
+                        $tipoInmueble = Tipo_inmueble::find($criterio['id_tipo_inmueble'] ?? null);
+                        $zona = Zona::find($criterio['id_zona'] ?? null);
+                        $tipo = $tipoInmueble?->inmueble ?? '';
+                        $dorm = $criterio['cant_dormitorios'] ?? '0';
+                        $cochera = $criterio['cochera'] ?? 'NO';
+                        $zonaNombre = $zona?->name ?? '';
+                        $partes[] = "Inmueble: $tipo  Dorm: $dorm";
+                        $partes[] = "Cochera: $cochera  Zona: $zonaNombre";
+                    }
+
+                    if (!empty($propiedades) && is_array($propiedades)) {
+                        $prop = $propiedades[0];
+                        $casa = Propiedad::find($prop['id_propiedad'] ?? null);
+                        $calle = Calle::find($casa?->id_calle ?? null);
+                        $codigo = $sector === 'alquiler' ? ($casa?->cod_alquiler ?? '') : ($casa?->cod_venta ?? '');
+                        $direccion = ($calle?->name ?? '') . ' ' . ($casa?->numero_calle ?? '');
+                        $partes[] = "Propiedad: $codigo - $direccion";
+                    }
+
+                    // Unir con espacios
+                    $contenidoSms = implode(' ', $partes);
+
+                    // 4. Eliminar acentos y caracteres especiales
+                    $unwanted_array = array(
+                        'Š' => 'S',
+                        'š' => 's',
+                        'Ž' => 'Z',
+                        'ž' => 'z',
+                        'À' => 'A',
+                        'Á' => 'A',
+                        'Â' => 'A',
+                        'Ã' => 'A',
+                        'Ä' => 'A',
+                        'Å' => 'A',
+                        'Æ' => 'A',
+                        'Ç' => 'C',
+                        'È' => 'E',
+                        'É' => 'E',
+                        'Ê' => 'E',
+                        'Ë' => 'E',
+                        'Ì' => 'I',
+                        'Í' => 'I',
+                        'Î' => 'I',
+                        'Ï' => 'I',
+                        'Ñ' => 'N',
+                        'Ò' => 'O',
+                        'Ó' => 'O',
+                        'Ô' => 'O',
+                        'Õ' => 'O',
+                        'Ö' => 'O',
+                        'Ø' => 'O',
+                        'Ù' => 'U',
+                        'Ú' => 'U',
+                        'Û' => 'U',
+                        'Ü' => 'U',
+                        'Ý' => 'Y',
+                        'Þ' => 'B',
+                        'ß' => 'Ss',
+                        'à' => 'a',
+                        'á' => 'a',
+                        'â' => 'a',
+                        'ã' => 'a',
+                        'ä' => 'a',
+                        'å' => 'a',
+                        'æ' => 'a',
+                        'ç' => 'c',
+                        'è' => 'e',
+                        'é' => 'e',
+                        'ê' => 'e',
+                        'ë' => 'e',
+                        'ì' => 'i',
+                        'í' => 'i',
+                        'î' => 'i',
+                        'ï' => 'i',
+                        'ð' => 'o',
+                        'ñ' => 'n',
+                        'ò' => 'o',
+                        'ó' => 'o',
+                        'ô' => 'o',
+                        'õ' => 'o',
+                        'ö' => 'o',
+                        'ø' => 'o',
+                        'ù' => 'u',
+                        'ú' => 'u',
+                        'û' => 'u',
+                        'ý' => 'y',
+                        'þ' => 'b',
+                        'ÿ' => 'y',
+                        'º' => ''
+                    );
+                    $contenidoSms = strtr($contenidoSms, $unwanted_array);
+
+                    // 5. Normalizar espacios
+                    $contenidoSms = preg_replace('/\s+/', ' ', $contenidoSms);
+                    $contenidoSms = trim($contenidoSms);
+
+                    FacadesLog::info("📱 Enviando SMS a $telefonoSms: " . $contenidoSms);
+
+                    // 6. Enviar SMS
+                    try {
+                        $response = \Illuminate\Support\Facades\Http::withBasicAuth('admin', 'admin')
+                            ->timeout(15)
+                            ->asForm()
+                            ->post('http://10.10.10.252/goform/WIAMsgSend', [
+                                'CurrentPort' => '255',
+                                'Addressee'   => $telefonoSms,
+                                'MsgInfo'     => $contenidoSms
+                            ]);
+
+                        $body = $response->body();
+                        if ($response->successful() && strpos($body, 'Send failed!') === false) {
+                            FacadesLog::info("✅ SMS enviado a $telefonoSms. Resp: " . $body);
+                        } else {
+                            FacadesLog::error("❌ Fallo SMS a $telefonoSms. Status: " . $response->status() . " Resp: " . $body);
+                        }
+                    } catch (\Exception $e) {
+                        FacadesLog::error('⚠️ Error de conexión SMS a ' . $telefonoSms . ': ' . $e->getMessage());
+                    }
+                } else {
+                    FacadesLog::warning('No se pudo enviar SMS: el asesor no tiene telf_laboral.');
+                }
+            }
+
+            return true;
+        } catch (Exception $e) {
+          FacadesLog::error('Error enviando email: ' . $e->getMessage(), [
+        'trace' => $e->getTraceAsString(),
+        'cliente_id' => $clienteId,
+        'asesor_id' => $idAsesor,
+        'email_to' => $emailTo ?? null,
+    ]);
+    // También lo mandamos al error_log de PHP por si acaso
+    error_log('Error enviando email: ' . $e->getMessage());
+    throw $e; // o podrías devolver false si prefieres no interrumpir
+        }
     }
-
-
 
     /**
      * Sanea emails removiendo espacios invisibles (NBSP, etc.) y trim.

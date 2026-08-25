@@ -22,8 +22,10 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use App\Http\Controllers\agenda\RecordatorioController;
+use App\Models\cliente\CriterioBusquedaVenta;
 use App\Models\usuarios_y_permisos\Usuario;
 use App\Notifications\RecordatorioNotificacion;
+use Carbon\Carbon;
 
 class ClientesController extends Controller
 {
@@ -101,7 +103,7 @@ class ClientesController extends Controller
             $propiedadesVentaInput = $request->input('propiedades_venta', []);
             $propiedadesAlquilerInput = $request->input('propiedades_alquiler', []);
             $usuarioId =   auth('api')->id();
-            Log::info('Esto es informacion de request', $request->all());
+            //Log::info('Esto es informacion de request', $request->all());
             //Log::info('Esto es informacion de propiedadesventainput', $propiedadesVentaInput);
             //Logica relacionada con los recordatorios
             //$this->recordatorioController->storeDesdeClientes($request);
@@ -576,5 +578,21 @@ class ClientesController extends Controller
                 'message' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function getCantidadClientes(){
+          $conteoPorAsesor = DB::connection('mysql5')
+                ->table('criterio_busqueda_venta as cv')
+        ->join('clientes as c', 'c.id_cliente', '=', 'cv.id_cliente')
+        ->whereDate('cv.fecha_criterio_venta',Carbon::today())
+        ->select(
+            'c.id_asesor_venta',
+            DB::raw('COUNT(*) as cantidad')
+        )
+        ->whereNotNull('c.id_asesor_venta')
+        ->groupBy('c.id_asesor_venta')
+        ->get();
+        //Log::info($conteoPorAsesor);  
+        return $conteoPorAsesor;
     }
 }

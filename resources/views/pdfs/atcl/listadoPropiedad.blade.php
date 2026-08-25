@@ -107,7 +107,7 @@
                             @if (in_array('p_d', $campos))
                                 <th>Piso / Depto</th>
                             @endif
-                            @if (in_array('propietario', $campos) && $sector === 'Venta')
+                            @if (in_array('propietario', $campos))
                                 <th>Propietario</th>
                             @endif
                             @if (in_array('fecha alta', $campos) && $sector === 'Venta')
@@ -257,7 +257,7 @@
                                     </td>
                                 @endif
 
-                                @if (in_array('propietario', $campos) && $sector === 'Venta')
+                                @if (in_array('propietario', $campos) )
                                     <td>
                                         @foreach ($propiedad->propietarios as $propietario)
                                             {{ $propietario->nombre }} {{ $propietario->apellido }}

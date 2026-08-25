@@ -151,6 +151,7 @@ Route::prefix('v1')->group(function () {
         Route::get('cliente/{telefono?}', [ClientesController::class, 'clientePorTelefono']);
         Route::get('/tieneAcceso/{usuarioId}/{botonNombre}', [SelladoController::class, 'tieneAccesoUsuario']);
         Route::get('/verificaPermisoAsesor/{botonNombre}', [Permisos::class, 'verificarAccesoBotones_Elementos']);
+        Route::get('/cantidadClientesPorAsesor',[clientesController::class,'getCantidadClientes']);
 
         //Asesores
         Route::get('/asesores', [AsesoresController::class, 'Asesores']);
@@ -277,6 +278,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/getUsuariosDpto', [ProcesoController::class, 'getUsuariosDpto']);
         Route::get('/getEstadoDpto', [ProcesoController::class, 'getEstadoDpto']);
         Route::post('/ActualizarInventario', [ProcesoController::class, 'ActualizarInventario']);
+        Route::get('/getComentariosInventario',[ProcesoController::class, 'getComentarios']);
         // Fideicomiso
         Route::prefix('fideicomiso')->group(function () {
 

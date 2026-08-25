@@ -82,26 +82,34 @@ class ProcesoDptoTecnicoService
         return $estados;
     }
 
-    public function actualizarInventario(Request $request)
+    public function actualizarInventario(Request $request, $usuarioId)
     {
         //Log::info([$request->all()]);
         $data = Historial_estado_dpto::find($request->inventario_id);
         if ($data) {
-            $data->update([
-                'verificado_por' => $request->verificado_por,
-                'fecha_inventario' => \Carbon\Carbon::parse($request->fecha_inventario)->setTimeFrom(now()),
-                'id_estado' => $request->estado_id,
-                'observaciones' => $request->observaciones,
+            $data->create([
+                'id_estado'             => $request->estado_id,
+                'observaciones'         => $request->observaciones,
+                'fecha_inventario'      => \Carbon\Carbon::parse($request->fecha_inventario)->setTimeFrom(now()),
+                'fecha_carga'           => now(),
+                'quien_cargo'           => $usuarioId,
+                'id_proceso_propiedad'  => $request->id_proceso_propiedad,
+                'verificado_por'        => $request->verificado_por,
             ]);
 
             return response()->json([
                 'message' => 'Inventario actualizado exitosamente.',
                 'data' => $data,
             ], 200);
-        }
-
+        } 
+       
         return response()->json([
             'message' => 'Inventario no encontrado.',
         ], 404);
+    }
+
+    public function getComentarioInventario($id_inventario){
+        $data = Historial_estado_dpto::where('id_proceso_propuedad', $id_inventario);
+        return $data;
     }
 }

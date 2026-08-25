@@ -241,13 +241,28 @@ class ProcesoController extends Controller
     public function ActualizarInventario(Request $request)
     {
         try {
-            //$usuarioId = auth('api')->id();
+            $usuarioId = auth('api')->id();
 
-            $proceso = (new procesoDptoTecnicoService())->actualizarInventario($request);
+            $proceso = (new procesoDptoTecnicoService())->actualizarInventario($request, $usuarioId);
 
             return response()->json(['success' => true, 'data' => $proceso]);
         } catch (\Exception $e) {
             Log::error('Error ActualizarInventario: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function getComentarios(Request $request){
+    //Log::info($request);    
+    //dd('hola');
+        try {
+           
+
+            $proceso = (new procesoDptoTecnicoService())->getComentarioInventario($request->id);
+
+            return response()->json(['success' => true, 'data' => $proceso]);
+        } catch (\Exception $e) {
+            Log::error('Error al traer Comentarios: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }

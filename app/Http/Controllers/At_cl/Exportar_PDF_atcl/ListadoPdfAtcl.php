@@ -38,14 +38,13 @@ class ListadoPdfAtcl
 
         if ($pertenece === 'listadoPropiedades') {
 
-
-
             // Usar el filtro unificado (el ordenamiento se aplica dentro, excepto precio)
             $query = $filtrosService->aplicarFiltrosUnificados($request->all());
 
             // Ejecutar la query trayendo también la relación de observaciones y tipoInmueble
             $propiedades = $query->with(['observacionesPropiedades', 'tipoInmueble', 'historialEstadosAlquiler'])->get();
-
+//Log::info($propiedades);
+            //dd($propiedades);
             // Solo ordenar por precio si es necesario (post-query)
             if ($request->orden === 'precio_asc' || $request->orden === 'precio_desc') {
                 $propiedades = $filtrosService->ordenarPorPrecio($propiedades, $request->orden, $sector);
