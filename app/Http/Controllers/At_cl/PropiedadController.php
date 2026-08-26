@@ -308,8 +308,11 @@ class PropiedadController
                 'banios' => $propiedad->banios,
                 'cochera' => $propiedad->cochera,
                 'mascota' => $propiedad->mascota,
-                'precio_alquiler' => $propiedad->precioActual?->moneda_alquiler_pesos ?? $propiedad->precioActual?->moneda_alquiler_dolar,
-                'precio_venta' => $propiedad->precioActual?->moneda_venta_dolar ?? $propiedad->precioActual?->moneda_venta_pesos,
+                /* 'moneda_precio' => $propiedad->precioActual?->moneda, */
+                'precio_alquiler_pesos' => $propiedad->precioActual?->moneda_alquiler_pesos ?? null,
+                'precio_alquiler_dolar' => $propiedad->precioActual?->moneda_alquiler_dolar ?? null,
+                'precio_venta_dolar' => $propiedad->precioActual?->moneda_venta_dolar ?? null,
+                'precio_venta_pesos' => $propiedad->precioActual?->moneda_venta_pesos ?? null,
                 'estado_alquiler' => $propiedad->estadoAlquiler?->name,
                 'estado_venta' => $propiedad->estadoVenta?->name,
                 'piso' => $propiedad->piso,
