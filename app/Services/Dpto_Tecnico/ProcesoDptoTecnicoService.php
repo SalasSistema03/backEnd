@@ -101,15 +101,15 @@ class ProcesoDptoTecnicoService
                 'message' => 'Inventario actualizado exitosamente.',
                 'data' => $data,
             ], 200);
-        } 
-       
+        }
+
         return response()->json([
             'message' => 'Inventario no encontrado.',
         ], 404);
     }
 
-    public function getComentarioInventario($id_inventario){
-        $data = Historial_estado_dpto::where('id_proceso_propuedad', $id_inventario);
-        return $data;
+    public function getComentarioInventario($id_inventario)
+    {
+        return Historial_estado_dpto::where('id_proceso_propiedad', $id_inventario)->with('verificadoPor:id,username', 'estado')->get();
     }
 }
