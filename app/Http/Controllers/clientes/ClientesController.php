@@ -22,6 +22,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use App\Http\Controllers\agenda\RecordatorioController;
+use App\Models\cliente\ConsultaPropAlquiler;
+use App\Models\cliente\CriterioBusquedaAlquiler;
 use App\Models\cliente\CriterioBusquedaVenta;
 use App\Models\usuarios_y_permisos\Usuario;
 use App\Notifications\RecordatorioNotificacion;
@@ -580,19 +582,68 @@ class ClientesController extends Controller
         }
     }
 
-    public function getCantidadClientes(){
-          $conteoPorAsesor = DB::connection('mysql5')
-                ->table('criterio_busqueda_venta as cv')
-        ->join('clientes as c', 'c.id_cliente', '=', 'cv.id_cliente')
-        ->whereDate('cv.fecha_criterio_venta',Carbon::today())
-        ->select(
-            'c.id_asesor_venta',
-            DB::raw('COUNT(*) as cantidad')
-        )
-        ->whereNotNull('c.id_asesor_venta')
-        ->groupBy('c.id_asesor_venta')
-        ->get();
-        //Log::info($conteoPorAsesor);  
+    public function getCantidadClientes()
+    {
+        $conteoPorAsesor = DB::connection('mysql5')
+            ->table('criterio_busqueda_venta as cv')
+            ->join('clientes as c', 'c.id_cliente', '=', 'cv.id_cliente')
+            ->whereDate('cv.fecha_criterio_venta', Carbon::today())
+            ->select(
+                'c.id_asesor_venta',
+                DB::raw('COUNT(*) as cantidad')
+            )
+            ->whereNotNull('c.id_asesor_venta')
+            ->groupBy('c.id_asesor_venta')
+            ->get();
+        //Log::info($conteoPorAsesor);
         return $conteoPorAsesor;
+    }
+
+    public function traerClientesAsignados()
+    {
+        $hoy = Carbon::today();
+        $usuarioId = 36;
+        // 1. Obtener consultas de propiedades de hoy
+        $consultas = ConsultaPropAlquiler::where('usuario_id', $usuarioId)
+            ->where('fecha_consulta_propiedad', '>=', $hoy)
+            ->with([
+                'cliente',
+                'cliente.asesor_alquiler.usuario'
+            ])
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => 'consulta_' . $item->id_con_prop_alquiler,
+                    'id_cliente' => $item->id_cliente,
+                    'tipo' => 'propiedad',
+                    'fecha' => $item->fecha_consulta_propiedad,
+                    'fecha_consulta_propiedad' => $item->fecha_consulta_propiedad, // Para mantener compatibilidad con tu frontend
+                    'cliente' => $item->cliente
+                ];
+            });
+        // 2. Obtener criterios de búsqueda de hoy
+        $criterios = CriterioBusquedaAlquiler::where('usuario_id', $usuarioId)
+            ->where('fecha_criterio_alquiler', '>=', $hoy)
+            ->with([
+                'cliente',
+                'cliente.asesor_alquiler.usuario'
+            ])
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => 'criterio_' . $item->id_criterio,
+                    'id_cliente' => $item->id_cliente,
+                    'tipo' => 'criterio',
+                    'fecha' => $item->fecha_criterio_alquiler,
+                    'fecha_consulta_propiedad' => $item->fecha_criterio_alquiler, // Para mantener compatibilidad con tu frontend
+                    'cliente' => $item->cliente
+                ];
+            });
+        // 3. Unir ambas listas, ordenar por fecha descendente y si deseas evitar clientes duplicados usar unique('id_cliente')
+        $resultado = $consultas->concat($criterios)
+            ->unique('id_cliente') // Si solo quieres mostrar 1 fila por cliente asignado
+            ->sortByDesc('fecha')
+            ->values();
+        return response()->json($resultado);
     }
 }

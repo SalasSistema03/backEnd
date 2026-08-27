@@ -480,14 +480,14 @@ class EnvioMailService
                 $mail->setFrom('ventas@salasinmobiliaria.com.ar', 'Ventas Salas');
                 $emailTo = $this->sanitizeEmail($asesor?->email_externo ?? null);
 
-    // Desactivar verificación del certificado SSL
-    $mail->SMTPOptions = array(
-        'ssl' => array(
-            'verify_peer' => false,
-            'verify_peer_name' => false,
-            'allow_self_signed' => true
-        )
-    );
+                // Desactivar verificación del certificado SSL
+                $mail->SMTPOptions = array(
+                    'ssl' => array(
+                        'verify_peer' => false,
+                        'verify_peer_name' => false,
+                        'allow_self_signed' => true
+                    )
+                );
             } else {
                 // Servidor interno (por defecto)
                 $mail->Host       = '10.10.10.128';
@@ -576,8 +576,9 @@ class EnvioMailService
                     }
 
                     // Unir con espacios
-                    $contenidoSms = implode(' ', $partes);
+                    //$contenidoSms = implode(' ', $partes);
 
+                    $contenidoSms = implode("\n", $partes);
                     // 4. Eliminar acentos y caracteres especiales
                     $unwanted_array = array(
                         'Š' => 'S',
@@ -649,7 +650,10 @@ class EnvioMailService
                     $contenidoSms = strtr($contenidoSms, $unwanted_array);
 
                     // 5. Normalizar espacios
-                    $contenidoSms = preg_replace('/\s+/', ' ', $contenidoSms);
+                    /* $contenidoSms = preg_replace('/\s+/', ' ', $contenidoSms);
+                    $contenidoSms = trim($contenidoSms); */
+                    $contenidoSms = preg_replace('/[ \t]+/', ' ', $contenidoSms);
+                    $contenidoSms = preg_replace('/\n+/', "\n", $contenidoSms);
                     $contenidoSms = trim($contenidoSms);
 
                     FacadesLog::info("📱 Enviando SMS a $telefonoSms: " . $contenidoSms);
@@ -681,15 +685,15 @@ class EnvioMailService
 
             return true;
         } catch (Exception $e) {
-          FacadesLog::error('Error enviando email: ' . $e->getMessage(), [
-        'trace' => $e->getTraceAsString(),
-        'cliente_id' => $clienteId,
-        'asesor_id' => $idAsesor,
-        'email_to' => $emailTo ?? null,
-    ]);
-    // También lo mandamos al error_log de PHP por si acaso
-    error_log('Error enviando email: ' . $e->getMessage());
-    throw $e; // o podrías devolver false si prefieres no interrumpir
+            FacadesLog::error('Error enviando email: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'cliente_id' => $clienteId,
+                'asesor_id' => $idAsesor,
+                'email_to' => $emailTo ?? null,
+            ]);
+            // También lo mandamos al error_log de PHP por si acaso
+            error_log('Error enviando email: ' . $e->getMessage());
+            throw $e; // o podrías devolver false si prefieres no interrumpir
         }
     }
 

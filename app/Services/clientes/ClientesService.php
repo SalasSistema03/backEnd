@@ -20,7 +20,7 @@ class ClientesService
     public function guardarcliente(array $data)
     {
         // Sin try/catch aquí
-        // Log::info('Guardando cliente', ['data' => $data]);
+        //Log::info('Guardando cliente', ['data' => $data]);
         //dd('hola');
         $cliente = ModelsClientes::where('telefono', $data['telefono'])->first();
 
