@@ -84,8 +84,9 @@ class ProcesoDptoTecnicoService
 
     public function actualizarInventario(Request $request, $usuarioId)
     {
-        //Log::info([$request->all()]);
+        Log::info([$request->all()]);
         $data = Historial_estado_dpto::find($request->inventario_id);
+
         if ($data) {
             $data->create([
                 'id_estado'             => $request->estado_id,
