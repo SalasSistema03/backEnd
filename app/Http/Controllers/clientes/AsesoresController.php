@@ -12,6 +12,7 @@ use App\Services\At_cl\PermitirAccesoPropiedadService;
 use App\Models\cliente\HistorialCodOfrecimiento;
 use App\Models\cliente\HistorialCodigoConsulta;
 use App\Services\At_cl\PropiedadService;
+use Illuminate\Support\Facades\Log;
 
 
 class AsesoresController
@@ -116,75 +117,70 @@ class AsesoresController
         $id_usuario = auth('api')->id();
 
         try {
-            $clientesOrdenados = DB::connection('mysql5')
-                ->table('clientes as c')
-                ->leftJoin('criterio_busqueda_venta as cbv', 'c.id_cliente', '=', 'cbv.id_cliente')
-                ->where('c.id_asesor_alquiler', $id_usuario)
-                ->selectRaw('c.id_cliente')
-                ->groupBy('c.id_cliente')
 
+            $clientes = Clientes::where('id_asesor_alquiler', $id_usuario)
+    ->with([
+        'consulta_prop_alquiler' => function ($q) {
+            $q->with([
+                'propiedad:id,id_inmueble,id_zona,cantidad_dormitorios,cod_alquiler,cochera',
+                'propiedad.zona:id,name',
+                'propiedad.tipoInmueble:id,inmueble',
+            ]);
+        },
+        'criterio_busqueda_alquiler' => function ($q) {
+            $q->with([
+                'zona:id,name',
+                'tipoInmueble:id,inmueble',
+                'cliente:id_cliente,nombre,observaciones_alq',
+            ]);
+        }
+    ])
+    ->get();
 
-                ->orderByRaw('
-                                CASE
-                                    WHEN MAX(CASE WHEN cbv.estado_criterio_venta = "Activo" THEN 1 ELSE 0 END) = 1 THEN 1
-                                    WHEN MAX(CASE WHEN cbv.estado_criterio_venta = "Finalizado" THEN 1 ELSE 0 END) = 1 THEN 2
-                                    ELSE 3
-                                END
-                            ')
-                ->orderByRaw('
-                                MIN(
-                                    CASE
-                                        WHEN cbv.estado_criterio_venta = "Activo" THEN
-                                            CASE
-                                                WHEN cbv.id_categoria IS NULL THEN 1
-                                                WHEN cbv.id_categoria = "Potable" THEN 2
-                                                WHEN cbv.id_categoria = "Medio" THEN 3
-                                                WHEN cbv.id_categoria = "No Potable" THEN 4
-                                                ELSE 5
-                                            END
-                                    END
-                                )
-                            ')
-                ->orderByRaw('
-                                MAX(
-                                    CASE
-                                        WHEN cbv.estado_criterio_venta = "Activo" THEN cbv.fecha_criterio_venta
-                                        WHEN cbv.estado_criterio_venta = "Finalizado" THEN cbv.fecha_criterio_venta
-                                        ELSE cbv.fecha_criterio_venta
-                                    END
-                                ) DESC
-                            ')
-                ->pluck('id_cliente');
+            $clientes->each(function ($cliente) {
 
+                // Última fecha de consulta de propiedad
+                $ultimaConsulta = $cliente->consulta_prop_alquiler
+                    ->max('fecha_consulta_propiedad');
 
+                // Última fecha de criterio
+                $ultimoCriterio = $cliente->criterio_busqueda_alquiler
+                    ->max('fecha_criterio_alquiler');
 
-            $clientes = \App\Models\cliente\clientes::with([
-                'criteriosOrdenados.zona',
-                'criteriosOrdenados.tipoInmueble',
-                'criteriosOrdenados.historialMuestras',
-                'criteriosOrdenados.historialOfrecimientos',
-                'criteriosOrdenados.historialConsultas',
-                'criteriosOrdenados.historialConversaciones',
-            ])
-                ->whereIn('id_cliente', $clientesOrdenados)
-                ->get()
-                ->sortBy(function ($cliente) use ($clientesOrdenados) {
-                    return $clientesOrdenados->search($cliente->id_cliente);
-                })
-                ->values();
+                // Fecha más grande entre ambas
+                $fechaMaxima = max(
+                    $ultimaConsulta ?? '',
+                    $ultimoCriterio ?? ''
+                );
 
+                // Dejar solamente las consultas que tengan la fecha máxima
+                $cliente->setRelation(
+                    'consulta_prop_alquiler',
+                    $cliente->consulta_prop_alquiler
+                        ->filter(function ($consulta) use ($fechaMaxima) {
+                            return $consulta->fecha_consulta_propiedad === $fechaMaxima;
+                        })
+                        ->values()
+                );
 
+                // Dejar solamente los criterios que tengan la fecha máxima
+                $cliente->setRelation(
+                    'criterio_busqueda_alquiler',
+                    $cliente->criterio_busqueda_alquiler
+                        ->filter(function ($criterio) use ($fechaMaxima) {
+                            return $criterio->fecha_criterio_alquiler === $fechaMaxima;
+                        })
+                        ->values()
+                );
+            });
 
-            if ($clientes->isEmpty()) {
-                return response()->json([
-                    'error' => 'No se encontraron clientes'
-                ], 404);
-            }
+            Log::info('clientes', [$clientes]);
 
             return response()->json([
                 'clientes' => $clientes
             ]);
         } catch (\Exception $e) {
+
             return response()->json([
                 'error' => 'Error: ' . $e->getMessage()
             ], 500);
