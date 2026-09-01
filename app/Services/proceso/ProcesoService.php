@@ -277,6 +277,7 @@ class ProcesoService
 
     public function guardarEstado(array $data, $usuarioId)
     {
+        //Log::info([$data]);
         return DB::transaction(function () use ($data, $usuarioId) {
 
             $historial = Historial_estado_reserva::create([
