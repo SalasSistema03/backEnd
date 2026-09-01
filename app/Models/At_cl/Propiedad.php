@@ -4,14 +4,12 @@ namespace App\Models\At_cl;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
 use App\Models\At_cl\Foto;
 use App\Models\At_cl\Empresas;
-use App\Models\cliente\Usuario_sector;
 use App\Models\usuarios_y_permisos\Usuario;
 use App\Models\sys\Propiedades_sys;
 use App\Models\sys\Contratos_detalle_sys;
-use Illuminate\Support\Facades\Log;
+
 
 class Propiedad extends Model
 {
@@ -106,6 +104,8 @@ class Propiedad extends Model
         'reel_a',
         'web_a',
         'captador_int_a',
+        'latitud',
+        'longitud',
         'fecha_ofrecimiento'
     ];
 

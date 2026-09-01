@@ -30,6 +30,7 @@ use App\Http\Controllers\contable\retenciones\RetencionController;
 use App\Http\Controllers\contable\buscadorComprobante\BuscadorPdfController;
 use App\Models\usuarios_y_permisos\Usuario;
 use App\Http\Controllers\agenda\Exportar_PDF_agenda\Pdf_agenda;
+use App\Http\Controllers\At_cl\MapaPropiedadController;
 use App\Http\Controllers\fideicomiso\RegistrosGeneralesController;
 use App\Http\Controllers\fideicomiso\RegistrosMensualesController;
 use App\Http\Controllers\fideicomiso\UnidadesController;
@@ -38,6 +39,8 @@ use App\Services\At_cl\PropiedadService;
 use App\Services\clientes\UsuarioSectorService;
 use App\Http\Controllers\proceso\ProcesoController;
 use App\Http\Controllers\impuesto\Expensas\ExpensasController;
+use App\Models\At_cl\Zona;
+use App\Models\At_cl\Tipo_inmueble;
 use App\Services\contrato\ProcesoContratoService;
 use Illuminate\Support\Facades\Log;
 
@@ -113,6 +116,7 @@ Route::prefix('v1')->group(function () {
         Route::get('tipos-inmueble', [Tipo_inmuebleController::class, 'getTiposInmueble']);
         Route::get('zonas', [ZonaController::class, 'getZonas']);
         Route::get('provincias', [ProvinciaController::class, 'getProvincias']);
+        Route::get('localidades', [PropiedadController::class, 'getLocalidades']);
         Route::get('estado-general', [EstadoGeneralController::class, 'getEstadoGeneral']);
         Route::get('estado-venta', [EstadoVentaController::class, 'getEstadoVenta']);
         Route::get('captador-interno', [UsuariosController::class, 'getCaptadorInterno']);
@@ -123,6 +127,12 @@ Route::prefix('v1')->group(function () {
         Route::get('padron/buscar', [PadronService::class, 'BuscarPadron']);
         Route::post('padron/cargar', [PadronController::class, 'CargarPadron']);
         Route::post('/broches/pdf/fichaPropiedad', [PropiedadController::class, 'fichaPropiedad']);
+
+        // Ruta para validar si la propiedad ya existe al momento de cargarla
+        Route::post('propiedad/validar-ubicacion', [PropiedadController::class, 'validarUbicacionDuplicada']);
+
+        // Ruta para verificar si una dirección ya tiene coordenadas
+        Route::post('propiedad/verificar-coordenadas', [PropiedadController::class, 'verificarCoordenadas']);
 
         // Turnos (URL: api/v1/turnos/...)
         Route::get('sectoresturno', [TurnoController::class, 'getSectores']);
@@ -275,6 +285,19 @@ Route::prefix('v1')->group(function () {
         Route::get('/getObservacionesContratoNuevo', [ProcesoController::class, 'getObservacionesContratoNuevo']);
         Route::get('/getSelladoPrecargado', [ProcesoContratoService::class, 'getSelladoPrecargado']);
 
+
+        //Mapa de propiedades
+        Route::get('/mapa-propiedades', [MapaPropiedadController::class, 'obtenerUbicaciones']);
+
+        // NUEVA RUTA: Para cargar los selects del formulario en Vue
+        Route::get('/mapa/catalogos-filtros', function () {
+            return response()->json([
+                'success' => true,
+                // Traemos solo ID y Nombre para no saturar la red
+                'zonas' => Zona::select('id', 'name')->orderBy('name')->get(),
+                'tipos_inmueble' => Tipo_inmueble::select('id', 'inmueble')->orderBy('inmueble')->get()
+            ]);
+        });
         Route::get('/getHistorialInventario', [ProcesoController::class, 'getHistorialInventario']);
         Route::get('/getUsuariosDpto', [ProcesoController::class, 'getUsuariosDpto']);
         Route::get('/getEstadoDpto', [ProcesoController::class, 'getEstadoDpto']);
@@ -310,6 +333,7 @@ Route::prefix('v1')->group(function () {
         });
     });
 });
+
 
 
 // Ruta de redirección por defecto si falla el token

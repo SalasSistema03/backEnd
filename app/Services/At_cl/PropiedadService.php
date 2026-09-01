@@ -430,6 +430,7 @@ class PropiedadService
                 'id_inmueble' => $datos['inmueble_id'],
                 'id_zona' => $datos['zona_id'],
                 'id_provincia' => $datos['provincia_id'],
+                'id_localidad' => $datos['localidad_id'],
                 'llave' => $datos['llave'],
                 'comentario_llave' => $datos['comentario_llave'],
                 'cartel' => $datos['cartel'],
@@ -476,6 +477,8 @@ class PropiedadService
                 'flyer_a' => $datos['alquiler']['flyer_a'] ?? null,
                 'reel_a' => $datos['alquiler']['reel_a'] ?? null,
                 'web_a' => $datos['alquiler']['web_a'] ?? null,
+                'latitud' => $datos['latitud'] ?? null,   // <--- NUEVO
+                'longitud' => $datos['longitud'] ?? null, // <--- NUEVO
 
             ]);
 
