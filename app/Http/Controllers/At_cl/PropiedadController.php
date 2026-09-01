@@ -20,6 +20,7 @@ use App\Services\At_cl\EmpresaPropiedadService;
 use App\Services\contable\sellado\PermitirAccesoSelladoService;
 use App\Services\contable\sellado\RegistroSelladoService;
 use App\Models\usuarios_y_permisos\Usuario;
+use App\Models\At_cl\Localidad;
 
 
 
@@ -171,7 +172,7 @@ class PropiedadController
 
         try {
             DB::beginTransaction();
-
+            log::info('Payload recibido para guardar:', $request->all());
             // Preparar datos para el servicio
             $datos = [
                 'calle_id' => $request->calle_id,
@@ -181,6 +182,7 @@ class PropiedadController
                 'dto' => $request->dto,
                 'inmueble_id' => $request->inmueble_id,
                 'zona_id' => $request->zona_id,
+                'localidad_id' => $request->localidad_id,
                 'provincia_id' => $request->provincia_id,
                 'llave' => $request->llave,
                 'comentario_llave' => $request->observaciones_llaves,
@@ -191,6 +193,8 @@ class PropiedadController
                 'venta' => $venta,
                 'alquiler' => $alquiler,
                 'condicionAlquiler' => $condicionAlquiler,
+                'latitud' => $request->latitud,   // <--- NUEVO
+                'longitud' => $request->longitud,
             ];
 
             // Crear la propiedad usando el servicio
@@ -910,5 +914,125 @@ class PropiedadController
                 ->setOption('footerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Salas Inmobiliaria</span><span style="text-align:center;">' . $username . '</span>  <span style="text-align:right;" class="date"></span></div>')
                 ->pdf();
         }, "ficha_propiedad.pdf");
+    }
+
+
+
+
+
+
+    public function validarUbicacionDuplicada(Request $request)
+    
+    {
+         Log::info('Payload recibido:', $request->all());
+        try {
+            $id_calle = $request->calle_id;
+            $numero = (int) $request->numero_calle;
+            $departamento = $request->departamento;
+
+            // Recibimos los nuevos parámetros
+            $id_provincia = $request->id_provincia;
+            $id_localidad = $request->id_localidad;
+
+            // 1. Buscar Coincidencias EXACTAS
+            $queryExacta = Propiedad::with(['calle'])
+                ->where('id_calle', $id_calle)
+                ->where('numero_calle', $numero)
+                ->where('id_provincia', $id_provincia)
+                ->where('id_localidad', $id_localidad);
+
+            if (!empty($departamento)) {
+                $queryExacta->where('departamento', $departamento);
+            } else {
+                $queryExacta->where(function ($q) {
+                    $q->whereNull('departamento')->orWhere('departamento', '');
+                });
+            }
+
+            $exactMatch = $queryExacta->get();
+
+            if ($exactMatch->isNotEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'status' => 'exact_match',
+                    'mensaje' => 'Se encontraron propiedades exactamente en esta ubicación.',
+                    'data' => $exactMatch
+                ], 200);
+            }
+
+            // 2. Buscar Coincidencias SIMILARES (+/- 10 números)
+            $rangoMin = $numero - 10;
+            $rangoMax = $numero + 10;
+
+            $similares = Propiedad::with(['calle'])
+                ->where('id_calle', $id_calle)
+                ->where('id_provincia', $id_provincia) // Filtra también por provincia
+                ->where('id_localidad', $id_localidad) // Filtra también por localidad
+                ->whereBetween('numero_calle', [$rangoMin, $rangoMax])
+                ->get();
+
+            if ($similares->isNotEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'status' => 'similar_match',
+                    'mensaje' => 'Se encontraron propiedades cercanas a esta ubicación.',
+                    'data' => $similares
+                ], 200);
+            }
+
+            // 3. Vía libre
+            return response()->json([
+                'success' => true,
+                'status' => 'clear',
+                'data' => []
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al validar la ubicación: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    public function verificarCoordenadas(Request $request)
+    {
+        $id_calle = $request->calle_id;
+        $numero = (int) $request->numero_calle;
+
+        // Buscamos la primera propiedad en esa dirección que tenga coordenadas
+        $propiedad = Propiedad::where('id_calle', $id_calle)
+            ->where('numero_calle', $numero)
+            ->whereNotNull('latitud')
+            ->whereNotNull('longitud')
+            ->first();
+
+        if ($propiedad) {
+            return response()->json([
+                'success' => true,
+                'coordenadas' => [
+                    'lat' => $propiedad->latitud,
+                    'lng' => $propiedad->longitud
+                ]
+            ]);
+        }
+
+        return response()->json(['success' => true, 'coordenadas' => null]);
+    }
+
+
+    public function getLocalidades(){
+        try {
+            $localidades = Localidad::all();
+            return response()->json([
+                'success' => true,
+                'data' => $localidades
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener localidades: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }
