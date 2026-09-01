@@ -23,6 +23,7 @@ class CargaAguaService
             //Obtenemos todos los registros de la tabla carga
             $listaCargaCompleta = (new CargaImpuestoService())->obtenerRegistros('agua')->get();
 
+            //separamos el codigo de barras
             $cod_separado = (new ExtraerCodBarraAgua())->separarCodigoBarras($codigoBarras);
             $fecha_1 = Carbon::parse($cod_separado['fecha_vencimiento_1']);
             $fecha_2 = Carbon::parse($cod_separado['fecha_vencimiento_2']);

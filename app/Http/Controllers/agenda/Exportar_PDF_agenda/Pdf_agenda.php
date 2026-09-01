@@ -15,6 +15,7 @@ class Pdf_agenda
 {
     public function listarAgenda(Request $request)
     {
+        // Log::info('Generando PDF de Agenda con los siguientes parámetros: ', $request->all());
         try {
             // Eager Loading: Traemos las relaciones de cliente y propiedad de una sola vez para evitar N+1 queries.
             // Asumo que en el modelo Notas tenés las relaciones 'cliente' y 'propiedad'.
@@ -52,7 +53,7 @@ class Pdf_agenda
             // CASO 1: LISTADO AGENDA
             // =======================================================
             if ($pertenece == 'listadoAgenda') {
-                
+
                 if ($request->filled('usuario') && $request->usuario !== 'null') {
                     $query->where('usuario_id', $request->usuario);
                 }
@@ -72,10 +73,10 @@ class Pdf_agenda
                     $dato->nombre_usuario = $usuarios->get($dato->usuario_id, '-');
                     $dato->nombre_quien_borro = $usuarios->get($dato->quien_borro, '-');
                     $dato->nombre_creado_por = $usuarios->get($dato->creado_por, '-');
-                    
+
                     // Como ya usamos with(), no hace falta el find() si usás $dato->cliente en la vista.
                     // Pero por compatibilidad con tu Blade, lo guardamos en las variables que usabas:
-                    $dato->datos_cliente = $dato->cliente; 
+                    $dato->datos_cliente = $dato->cliente;
                     $dato->datos_propiedad = $dato->propiedad;
                 }
 
@@ -87,25 +88,31 @@ class Pdf_agenda
                     $usuarioNombre = $datos->first()->nombre_usuario ?: '-';
                 }
 
+                //Log::info($datos);
                 $html = view('pdfs.agenda.listadoAgenda', compact('datos', 'rangoFechas', 'sectorNombre', 'estado', 'usuarioNombre', 'pertenece'))->render();
 
-            // =======================================================
-            // CASO 2: AGENDA MUESTRA
-            // =======================================================
+                // =======================================================
+                // CASO 2: AGENDA MUESTRA
+                // =======================================================
             } elseif ($pertenece == 'AgendaMuestra') {
-                
+
                 $query->whereNotNull('cliente_id');
-                $datos = $query->orderBy('usuario_id', 'asc')->get();
+                //$datos = $query->orderBy('usuario_id', 'asc')->get();
+                $datos = $query
+                    ->orderBy('usuario_id', 'asc')
+                    ->orderBy('fecha', 'asc')
+                    ->orderBy('hora_inicio', 'asc')
+                    ->get();
 
                 $usuarioIds = $datos->pluck('usuario_id')->merge($datos->pluck('creado_por'))->filter()->unique();
                 $usuarios = Usuario::whereIn('id', $usuarioIds)->pluck('username', 'id');
 
                 $conteoUsuarios = $datos->groupBy('usuario_id')->map(function ($items, $usuarioId) use ($usuarios) {
-                        return [
-                            'username' => $usuarios->get($usuarioId, 'Desconocido'),
-                            'cantidad' => $items->count(),
-                        ];
-                    })->sortByDesc('cantidad')->values();
+                    return [
+                        'username' => $usuarios->get($usuarioId, 'Desconocido'),
+                        'cantidad' => $items->count(),
+                    ];
+                })->sortByDesc('cantidad')->values();
 
                 $conteoFormateado = $conteoUsuarios->map(function ($item) {
                     return $item['username'] . '-' . $item['cantidad'];
@@ -117,15 +124,23 @@ class Pdf_agenda
                     $dato->nombre_creado_por = $usuarios->get($dato->creado_por, '');
                 }
 
+                //Log::info($datos);
                 $html = view('pdfs.agenda.listadoAgenda', compact(
-                    'datos', 'pertenece', 'rangoFechas', 'sectorNombre', 'estado', 'sector', 'conteoUsuarios', 'conteoFormateado'
+                    'datos',
+                    'pertenece',
+                    'rangoFechas',
+                    'sectorNombre',
+                    'estado',
+                    'sector',
+                    'conteoUsuarios',
+                    'conteoFormateado'
                 ))->render();
             }
 
-       // =======================================================
+            // =======================================================
             // GENERACIÓN DEL PDF (CON SNAPPY)
             // =======================================================
-      $pdf = SnappyPdf::loadHTML($html)
+            $pdf = SnappyPdf::loadHTML($html)
                 ->setOption('page-size', 'A4')
                 ->setOption('orientation', 'landscape')
                 ->setOption('margin-top', 10)
@@ -143,8 +158,7 @@ class Pdf_agenda
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'inline; filename="listado_agenda.pdf"'
             ]);
-
-        }catch (\Exception $e) {
+        } catch (\Exception $e) {
             Log::error('Error al generar PDF de Agenda: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',

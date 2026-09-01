@@ -14,11 +14,12 @@
         "laravel/framework": "^11.31",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.9",
+        "maatwebsite/excel": "3.1.64",
         "maennchen/zipstream-php": "^3.1",
         "phpmailer/phpmailer": "^6.10",
         "setasign/fpdf": "^1.8",
         "setasign/fpdi": "^2.6",
-        "spatie/browsershot": "^5.3",
+        "spatie/browsershot": "^5.4",
         "tymon/jwt-auth": "^2.2"
     },
     "require-dev": {

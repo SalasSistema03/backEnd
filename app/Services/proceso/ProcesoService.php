@@ -15,16 +15,25 @@ use Illuminate\Support\Facades\Log;
 use App\Models\At_cl\Empresas_propiedades;
 use App\Models\cliente\Usuario_sector;
 use App\Notifications\RecordatorioNotificacion;
+use App\Models\proceso\Historial_estado_dpto;
 
 class ProcesoService
 {
+
+
+    // Estados de reserva
+    const ESTADO_RESERVA_FINALIZADA = 3;
+    const ESTADO_RESERVA_CAIDA = 4;
+
+    // Estados relacionados
+    const ESTADO_CONTRATO_INGRESO_SECTOR = 7;
+    const ESTADO_DPTO_INICIAL = 1;
+
     /**
      * Subir una nueva reserva
      */
     public function subirReserva(array $data, $usuarioId)
     {
-        //Log::info('Datos recibidos: ' . json_encode($data));
-        //dd($data);
         try {
             $comprobantePath = null;
 
@@ -181,10 +190,9 @@ class ProcesoService
     /**
      * Guardar nuevo estado de reserva
      */
-    public function guardarEstado(array $data, $usuarioId)
+    /*    public function guardarEstado(array $data, $usuarioId)
     {
-        Log::info($data);
-        // Crear nuevo historial
+        // Crear nuevo historial de reserva
         $historial = Historial_estado_reserva::create([
             'id_estado' => $data['estado'],
             'observaciones' => $data['detalle'] ?? null,
@@ -192,41 +200,63 @@ class ProcesoService
             'quien_cargo' => $usuarioId,
             'id_proceso_propiedad' => $data['idProcesoPropiedad']
         ]);
+
         $proceso = Proceso_propiedad::find($data['idProcesoPropiedad']);
         $folio = Empresas_propiedades::where('propiedad_id', $proceso->id_propiedad)->first();
         $notificar = Usuario_sector::where('contrato_nuevo', 'S')->get();
+        $notificarDpto = Usuario_sector::where('dpto', 'S')->get();
 
 
         //Armamos la parte de notificacion si el estado pasa reserva finalizada
         $mensajeBase = [
-            'descripcion'       => "Nuevo ingreso, Folio: " . $folio->folio ?? "-",
+            'descripcion'       => 'Nuevo ingreso, Folio: ' . ($folio?->folio ?? '-'),
             'fecha'             => now()->isoFormat('DD/MM/YYYY'),
             'hora'              => now()->isoFormat('HH:mm'),
             'activo'            => 1,
             'cliente_id'        => null,
             'id_criterio_venta' => null,
-            'pertenece'         => "contratoNuevo",
-            'folio'             => $folio->folio ?? "-"
+            'pertenece'         => 'contratoNuevo',
+            'folio'             => $folio?->folio ?? '-',
         ];
 
-        // Si es estado 3, actualizar fecha de firma
+        // Si es estado 3 === reserva finalizada
         if ($data['estado'] == 3) {
+            //se crean nuevos historiales para contrato
             $historial_estado_contrato = Historial_estado_contrato::create([
                 'id_estado' => 7,
                 'id_proceso_propiedad' => $data['idProcesoPropiedad'],
+                'observaciones' => 'Ingresa al sector Contratos Nuevos',
+                'quien_cargo' => $usuarioId,
+                'fecha_carga' => now()
             ]);
+            //actualizamo el historial con la fecha firma de finalizacion
             $historial->update(['fecha_firma' => now()]);
 
+            //notificamos a los usuario
             foreach ($notificar as $us) {
-                $usuario = Usuario::find($us->id_usuario); // ajustá el nombre del campo FK real
+                $usuario = Usuario::find($us->id_usuario);
                 if ($usuario) {
                     $mensaje = array_merge($mensajeBase, ['usuarioNotificar' => $usuario->id]);
                     $usuario->notify(new RecordatorioNotificacion($mensaje));
                 }
             }
+
+            foreach ($notificarDpto as $us) {
+                $usuario = Usuario::find($us->id_usuario);
+                if ($usuario) {
+                    $mensaje = array_merge($mensajeBase, ['usuarioNotificar' => $usuario->id]);
+                    $usuario->notify(new RecordatorioNotificacion($mensaje));
+                }
+            }
+
+            //se crean nuevos historiales para departamento tecnico
+            $inventario_dpto = Historial_estado_dpto::create([
+                'id_estado' => 1,
+
+            ]);
         }
 
-        // Si es estado 4 (finalizado), restaurar estado de propiedad
+        // Si es estado 4 (caida), restaurar estado de propiedad
         if ($data['estado'] == 4) {
             $this->restaurarEstadoPropiedad($data['idProcesoPropiedad'], $usuarioId);
         }
@@ -235,11 +265,128 @@ class ProcesoService
         Proceso_propiedad::where('id', $data['idProcesoPropiedad'])
             ->update([
                 'id_historial_estado_reserva' => $historial->id,
-                'id_historial_estado_contrato' => $historial_estado_contrato->id ?? null
+                'id_historial_estado_contrato' => $historial_estado_contrato->id ?? null,
+                'id_historial_estado_dpto' => $inventario_dpto->id ?? null,
             ]);
 
         return $historial;
+    } */
+
+
+
+
+    public function guardarEstado(array $data, $usuarioId)
+    {
+        return DB::transaction(function () use ($data, $usuarioId) {
+
+            $historial = Historial_estado_reserva::create([
+                'id_estado'             => $data['estado'],
+                'observaciones'         => $data['detalle'] ?? null,
+                'fecha_carga'           => now(),
+                'quien_cargo'           => $usuarioId,
+                'id_proceso_propiedad'  => $data['idProcesoPropiedad'],
+            ]);
+
+            $proceso = Proceso_propiedad::find($data['idProcesoPropiedad']);
+            $folio = Empresas_propiedades::where('propiedad_id', $proceso->id_propiedad)->first();
+
+            $historialContrato = null;
+            $historialDpto = null;
+
+            if ($data['estado'] == self::ESTADO_RESERVA_FINALIZADA) {
+                [$historialContrato, $historialDpto] = $this->procesarReservaFinalizada(
+                    $data['idProcesoPropiedad'],
+                    $usuarioId,
+                    $folio
+                );
+                $historial->update(['fecha_firma' => now()]);
+            }
+
+            if ($data['estado'] == self::ESTADO_RESERVA_CAIDA) {
+                $this->restaurarEstadoPropiedad($data['idProcesoPropiedad'], $usuarioId);
+            }
+
+            Proceso_propiedad::where('id', $data['idProcesoPropiedad'])
+                ->update([
+                    'id_historial_estado_reserva'  => $historial->id,
+                    'id_historial_estado_contrato' => $historialContrato?->id,
+                    'id_historial_estado_dpto'     => $historialDpto?->id,
+                ]);
+
+            return $historial;
+        });
     }
+
+    private function procesarReservaFinalizada(int $idProcesoPropiedad, $usuarioId, $folio): array
+    {
+        $historialContrato = Historial_estado_contrato::create([
+            'id_estado'             => self::ESTADO_CONTRATO_INGRESO_SECTOR,
+            'id_proceso_propiedad'  => $idProcesoPropiedad,
+            'observaciones'         => 'Ingresa al sector Contratos Nuevos',
+            'quien_cargo'           => $usuarioId,
+            'fecha_carga'           => now(),
+        ]);
+
+        $historialDpto = Historial_estado_dpto::create([
+            'id_estado'             => self::ESTADO_DPTO_INICIAL,
+            'id_proceso_propiedad'  => $idProcesoPropiedad,
+            'observaciones'         => 'Ingresa al sector Departamento Técnico',
+            'quien_cargo'           => $usuarioId,
+            'fecha_carga'           => now(),
+        ]);
+
+        $mensajeBase = [
+            'descripcion'       => 'Nuevo ingreso, Folio: ' . ($folio?->folio ?? '-'),
+            'fecha'             => now()->isoFormat('DD/MM/YYYY'),
+            'hora'              => now()->isoFormat('HH:mm'),
+            'activo'            => 1,
+            'cliente_id'        => null,
+            'id_criterio_venta' => null,
+            'folio'             => $folio?->folio ?? '-',
+        ];
+
+        $this->notificarSector('contrato_nuevo', 'S', 'contratoNuevo', $mensajeBase);
+        $this->notificarSector('dpto', 'S', 'departamentoTecnico', $mensajeBase);
+
+        return [$historialContrato, $historialDpto];
+    }
+
+    private function notificarSector(string $columna, string $valor, string $pertenece, array $mensajeBase): void
+    {
+        $idsUsuarios = Usuario_sector::where($columna, $valor)->pluck('id_usuario');
+
+        $usuarios = Usuario::whereIn('id', $idsUsuarios)->get();
+
+        foreach ($usuarios as $usuario) {
+            $mensaje = array_merge($mensajeBase, [
+                'usuarioNotificar' => $usuario->id,
+                'pertenece'        => $pertenece,
+            ]);
+            $usuario->notify(new RecordatorioNotificacion($mensaje));
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     /**
      * Restaurar estado inicial de la propiedad

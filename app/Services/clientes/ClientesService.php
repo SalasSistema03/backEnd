@@ -21,7 +21,9 @@ class ClientesService
     {
         // Sin try/catch aquí
         //Log::info('Guardando cliente', ['data' => $data]);
+        //dd('hola');
         $cliente = ModelsClientes::where('telefono', $data['telefono'])->first();
+
         if ($cliente) {
             //Log::info('Cliente ya existe', ['telefono' => $data['telefono']]);
             $cliente->update($data);
@@ -37,13 +39,19 @@ class ClientesService
 
         return ModelsClientes::with([
             'consulta_prop_venta.propiedad.calle',
+
             'criterio_busqueda_venta.tipoInmueble',
             'criterio_busqueda_venta.zona',
+
+            'criterio_busqueda_alquiler',
+            'consulta_prop_alquiler',
+
+            'criterio_busqueda_alquiler.tipoInmueble',
+            'criterio_busqueda_alquiler.zona',
             'asesor',
             'asesor.usuario',
 
-        ])->where('telefono', $telefono)->first()  ;
-
+        ])->where('telefono', $telefono)->first();
     }
 
     public function actualizarCliente(array $request, $id)
@@ -62,8 +70,4 @@ class ClientesService
 
         return $cliente;
     }
-
-
-
-
 }

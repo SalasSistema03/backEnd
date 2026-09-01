@@ -105,7 +105,8 @@ class Propiedad extends Model
         'web_a',
         'captador_int_a',
         'latitud',
-        'longitud'
+        'longitud',
+        'fecha_ofrecimiento'
     ];
 
 
@@ -313,6 +314,8 @@ class Propiedad extends Model
                 $query->whereNotNull('cod_venta');
             } elseif ($filtros['busqueda'] == 2) {
                 $query->whereNotNull('cod_alquiler');
+            } else if ($filtros['busqueda'] == 3) {
+                $query->has('folios');
             }
         } else {
             // Si busqueda es nulo/vacío, trae las que tienen al menos un código
@@ -329,6 +332,10 @@ class Propiedad extends Model
                     $query->where('cod_venta', $filtros['codigo']);
                 } elseif ($filtros['busqueda'] == 2) {
                     $query->where('cod_alquiler', $filtros['codigo']);
+                } elseif ($filtros['busqueda'] == 3) {
+                    $query->whereHas('folios', function ($q) use ($filtros) {
+                        $q->where('folio', $filtros['codigo']);
+                    });
                 }
             } else {
                 $query->where(function ($q) use ($filtros) {
@@ -341,7 +348,7 @@ class Propiedad extends Model
         // Calle
         if (!empty($filtros['calle_id'])) {
             $query->where('id_calle', $filtros['calle_id'])
-             ->orderBy('numero_calle', 'asc');;
+                ->orderBy('numero_calle', 'asc');;
         }
 
         // Tipos de inmueble
@@ -536,7 +543,8 @@ class Propiedad extends Model
      */
     public function historialEstadosAlquiler()
     {
-        return $this->hasOne(HistorialEstadosAlquiler::class, 'id_propiedad');
+        return $this->hasOne(HistorialEstadosAlquiler::class, 'id_propiedad')
+            ->latestOfMany('id');
     }
 
     /**
@@ -557,7 +565,7 @@ class Propiedad extends Model
         if ($sector == 'Ventas') {
             $propiedad = Propiedad::where('cod_venta', 'like', '%' . $codigo_calle . '%')
                 //->where('id_estado_venta', '=', 1 || 2 || 5)
-                ->whereIn('id_estado_venta',[1,2,5])
+                ->whereIn('id_estado_venta', [1, 2, 5])
                 ->get();
 
             // Si no encuentra por código, busca por nombre de calle
@@ -565,7 +573,7 @@ class Propiedad extends Model
                 $propiedad = Propiedad::whereHas('calle', function ($query) use ($codigo_calle) {
                     $query->where('name', 'like', '%' . $codigo_calle . '%')
                         ->where('cod_venta', '!=', null)
-                        ->whereIn('id_estado_venta',[1,2,5]);
+                        ->whereIn('id_estado_venta', [1, 2, 5]);
                 })
                     ->get();
             }

@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\clientes;
 
 use Illuminate\Http\Request;
@@ -11,6 +12,7 @@ use App\Services\At_cl\PermitirAccesoPropiedadService;
 use App\Models\cliente\HistorialCodOfrecimiento;
 use App\Models\cliente\HistorialCodigoConsulta;
 use App\Services\At_cl\PropiedadService;
+use Illuminate\Support\Facades\Log;
 
 
 class AsesoresController
@@ -104,6 +106,81 @@ class AsesoresController
                 'clientes' => $clientes
             ]);
         } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function AsesoresAlq()
+    {
+        $id_usuario = auth('api')->id();
+
+        try {
+
+            $clientes = Clientes::where('id_asesor_alquiler', $id_usuario)
+    ->with([
+        'consulta_prop_alquiler' => function ($q) {
+            $q->with([
+                'propiedad:id,id_inmueble,id_zona,cantidad_dormitorios,cod_alquiler,cochera',
+                'propiedad.zona:id,name',
+                'propiedad.tipoInmueble:id,inmueble',
+            ]);
+        },
+        'criterio_busqueda_alquiler' => function ($q) {
+            $q->with([
+                'zona:id,name',
+                'tipoInmueble:id,inmueble',
+                'cliente:id_cliente,nombre,observaciones_alq',
+            ]);
+        }
+    ])
+    ->get();
+
+            $clientes->each(function ($cliente) {
+
+                // Última fecha de consulta de propiedad
+                $ultimaConsulta = $cliente->consulta_prop_alquiler
+                    ->max('fecha_consulta_propiedad');
+
+                // Última fecha de criterio
+                $ultimoCriterio = $cliente->criterio_busqueda_alquiler
+                    ->max('fecha_criterio_alquiler');
+
+                // Fecha más grande entre ambas
+                $fechaMaxima = max(
+                    $ultimaConsulta ?? '',
+                    $ultimoCriterio ?? ''
+                );
+
+                // Dejar solamente las consultas que tengan la fecha máxima
+                $cliente->setRelation(
+                    'consulta_prop_alquiler',
+                    $cliente->consulta_prop_alquiler
+                        ->filter(function ($consulta) use ($fechaMaxima) {
+                            return $consulta->fecha_consulta_propiedad === $fechaMaxima;
+                        })
+                        ->values()
+                );
+
+                // Dejar solamente los criterios que tengan la fecha máxima
+                $cliente->setRelation(
+                    'criterio_busqueda_alquiler',
+                    $cliente->criterio_busqueda_alquiler
+                        ->filter(function ($criterio) use ($fechaMaxima) {
+                            return $criterio->fecha_criterio_alquiler === $fechaMaxima;
+                        })
+                        ->values()
+                );
+            });
+
+            Log::info('clientes', [$clientes]);
+
+            return response()->json([
+                'clientes' => $clientes
+            ]);
+        } catch (\Exception $e) {
+
             return response()->json([
                 'error' => 'Error: ' . $e->getMessage()
             ], 500);
@@ -267,10 +344,10 @@ class AsesoresController
         try {
             //obtenemos el cliente
             $cliente = Clientes::findOrFail($request->id_cliente);
-              $idUsuario = auth('api')->id();
+            $idUsuario = auth('api')->id();
 
             $pertenece_inmobiliaria = 'N';
-            if($request->nombre_de_inmobiliaria !== null){
+            if ($request->nombre_de_inmobiliaria !== null) {
                 $pertenece_inmobiliaria = 'S';
             }
 
@@ -280,10 +357,20 @@ class AsesoresController
                 'telefono' => $request->telefono,
                 'observaciones' => $request->observaciones,
                 'pertenece_a_inmobiliaria' => $pertenece_inmobiliaria,
-                'nombre_de_inmobiliaria' => $request->nombre_de_inmobiliaria,
-                'usuario_id' => $idUsuario,
-
+                'nombre_de_inmobiliaria' => $request->nombre_de_inmobiliaria ?? '',
+                'usuario_id' => $idUsuario
             ]);
+            if ($request->observaciones_alq != null) {
+                $cliente->update([
+                    'observaciones_alq' => $request->observaciones_alq,
+                ]);
+            }
+            if ($request->estado_cliente != null) {
+                $cliente->update([
+                    'estado_alq' => $request->estado_cliente,
+                ]);
+            }
+
 
             DB::commit();
 

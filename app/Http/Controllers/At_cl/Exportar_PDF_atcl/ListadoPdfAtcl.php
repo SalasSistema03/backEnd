@@ -19,6 +19,7 @@ use App\Models\cliente\CriterioBusquedaVenta;
 use App\Models\cliente\Clientes;
 use App\Models\At_cl\Tipo_inmueble;
 use App\Services\At_cl\Exportar_PDF_atcl\PdfVentaService;
+use Illuminate\Support\Carbon;
 
 class ListadoPdfAtcl
 {
@@ -28,69 +29,121 @@ class ListadoPdfAtcl
     public function listadoPropiedad(Request $request)
     {
         $informacionMostrar = $request->informacionMostrar;
+        //Log::info('request', [$request->all()]);
         $pertenece = $request->pertenece;
         $username = '-';
         $sector = $request->sector;
         $contadorPropiedades = 0;
+        $filtrosService = new FiltrosPdfService;
 
         if ($pertenece === 'listadoPropiedades') {
 
             // Usar el filtro unificado (el ordenamiento se aplica dentro, excepto precio)
-            $query = (new FiltrosPdfService)->aplicarFiltrosUnificados($request->all());
+            $query = $filtrosService->aplicarFiltrosUnificados($request->all());
 
-            // Ejecutar la query traendo también la relación de observaciones
-            $propiedades = $query->with('observacionesPropiedades')->get();
-
+            // Ejecutar la query trayendo también la relación de observaciones y tipoInmueble
+            $propiedades = $query->with(['observacionesPropiedades', 'tipoInmueble', 'historialEstadosAlquiler'])->get();
+//Log::info($propiedades);
+            //dd($propiedades);
             // Solo ordenar por precio si es necesario (post-query)
             if ($request->orden === 'precio_asc' || $request->orden === 'precio_desc') {
-                $propiedades = (new FiltrosPdfService)->ordenarPorPrecio($propiedades, $request->orden, $sector);
+                $propiedades = $filtrosService->ordenarPorPrecio($propiedades, $request->orden, $sector);
             }
 
             if ($request->orden === 'autorizacion') {
-                Log::info('entroa aurizacion', [$request->orden]);
-                $propiedades = (new FiltrosPdfService)->ordenarPorAutorizacion($propiedades, $request->orden, $sector);
+                //Log::info('entro autorizacion', [$request->orden]);
+                $propiedades = $filtrosService->ordenarPorAutorizacion($propiedades, $request->orden, $sector);
             }
 
-            // Obtener usernames
-            $modifierIds = $propiedades->pluck('last_modified_by')->filter()->unique()->values();
-            $usernamesById = $modifierIds->isNotEmpty()
-                ? Usuario::whereIn('id', $modifierIds)->pluck('username', 'id')->all()
+            $contadorPropiedades = $propiedades->count();
+
+            // --- Recolectar TODOS los IDs de usuario que necesitamos en una sola pasada ---
+            $modifierIds  = $propiedades->pluck('last_modified_by')->filter();
+            $captadorVIds = $propiedades->pluck('captador_int_v')->filter();
+            $captadorAIds = $propiedades->pluck('captador_int_a')->filter();
+            $asesorIds    = $propiedades->pluck('asesor')->filter();
+
+            $todosLosIds = $modifierIds
+                ->merge($captadorVIds)
+                ->merge($captadorAIds)
+                ->merge($asesorIds)
+                ->unique()
+                ->values();
+
+            // Una sola query para traer todos los usernames
+            $usernamesById = $todosLosIds->isNotEmpty()
+                ? Usuario::whereIn('id', $todosLosIds)->pluck('username', 'id')->all()
                 : [];
 
+            // Una sola pasada por la colección, aplicando todas las transformaciones
             foreach ($propiedades as $propiedad) {
-                $contadorPropiedades++;
                 $modId = $propiedad->last_modified_by;
                 $propiedad->username = ($modId && isset($usernamesById[$modId]))
                     ? $usernamesById[$modId]
                     : '-';
+
+                $propiedad->captador_int_v = ($propiedad->captador_int_v && isset($usernamesById[$propiedad->captador_int_v]))
+                    ? $usernamesById[$propiedad->captador_int_v]
+                    : '-';
+
+                $propiedad->captador_int_a = ($propiedad->captador_int_a && isset($usernamesById[$propiedad->captador_int_a]))
+                    ? $usernamesById[$propiedad->captador_int_a]
+                    : '-';
+
+                $propiedad->asesor = ($propiedad->asesor && isset($usernamesById[$propiedad->asesor]))
+                    ? $usernamesById[$propiedad->asesor]
+                    : '-';
+
+
+                 if ($request->estado_id === 1 || $request->estado_id === 2) {
+
+
+                    $historial = $propiedad->historialEstadosAlquiler;
+
+                    if ($historial && in_array($historial->id_estado_alquiler, [1, 2])) {
+                        $propiedad->fecha_antiguedad = Carbon::parse($historial->fecha_alquiler);
+                        $propiedad->antiguedad = $this->formatearAntiguedad($historial->fecha_alquiler);
+                        
+                    } else {
+                        $propiedad->fecha_antiguedad = Carbon::parse($propiedad->created_at);
+                        $propiedad->antiguedad = $this->formatearAntiguedad($propiedad->created_at);
+                    }
+                } else {
+
+                    $propiedad->antiguedad = "-";
+                } 
             }
 
-            //Modificar captador_int_v
-            foreach ($propiedades as $propiedad) {
-                $usernameCaptador = $propiedad->captador_int_v ? Usuario::find($propiedad->captador_int_v)->username : '-';
-                $propiedad->captador_int_v = $usernameCaptador;
-
-                $usernameCaptador_a = $propiedad->captador_int_a ? Usuario::find($propiedad->captador_int_a)->username : '-';
-                $propiedad->captador_int_a = $usernameCaptador_a;
-            }
-            //Log::info('propiedades', [$propiedades]);
-
-
-
-            //Modificar asesor
-            foreach ($propiedades as $propiedad) {
-                $usernameAsesor = $propiedad->asesor ? Usuario::find($propiedad->asesor)->username : '-';
-                $propiedad->asesor = $usernameAsesor;
-            }
             // Usuario actual
             $usuario_id = auth('api')->id();
             $authUser = $usuario_id ? Usuario::find($usuario_id) : null;
             $username = $authUser->username ?? '-';
 
-            Log::info('propiedades', [$propiedades]);
+            // Log::info($propiedades);
+            $conteoPorTipo = $propiedades
+                ->groupBy(function ($propiedad) {
+                    // El nombre de la relación en el modelo Propiedad es tipoInmueble (en camelCase)
+                    return $propiedad->tipoInmueble->inmueble ?? 'SIN TIPO';
+                })
+                ->map(function ($grupo) {
+                    return $grupo->count();
+                });
+
+            // Si querés un array plano simple: ['DEPARTAMENTO' => 5, 'CASA' => 3, ...]
+            $conteoPorTipoArray = $conteoPorTipo->toArray();
+
+            //Log::info($conteoPorTipoArray);
 
             // Generar HTML
-            $html = view('pdfs.atcl.listadoPropiedad', compact('propiedades', 'username', 'informacionMostrar', 'pertenece', 'sector', 'contadorPropiedades'))->render();
+            $html = view('pdfs.atcl.listadoPropiedad', compact(
+                'propiedades',
+                'username',
+                'informacionMostrar',
+                'pertenece',
+                'sector',
+                'contadorPropiedades',
+                'conteoPorTipoArray'
+            ))->render();
         }
         if ($pertenece === 'estadoPropietario') {
             /*  $contadorPropietarios = 0; */
@@ -98,6 +151,7 @@ class ListadoPdfAtcl
             $propietario = $request->propietario;
             //sLog::info('propietario', [$propietario]);
             $campoCodigo = ($sector === 'Alquiler') ? 'cod_alquiler' : 'cod_venta';
+            Log::info($campoCodigo);
 
             if ($propietario !== null) {
                 $propiedades = Propiedades_padron::where('padron_id', $propietario)
@@ -109,7 +163,9 @@ class ListadoPdfAtcl
                         'propiedad.calle',
                         'propiedad.folios.empresa',
                         'propiedad.tipoInmueble',
-                        'propiedad.precio'
+                        'propiedad.precio',
+                        'propiedad.estadoAlquiler',
+                        'propiedad.estadoVenta',
                     ])
                     ->get()
                     ->map(function ($pp) {
@@ -117,15 +173,10 @@ class ListadoPdfAtcl
                     })
                     ->filter(function ($propiedad) use ($campoCodigo) {
                         return $propiedad && !is_null($propiedad->$campoCodigo);
-                    })
-                    ->sortBy(function ($propiedad) {
-                        return $propiedad->calle->name ?? '';
                     });
-
-                foreach ($propiedades as $propiedad) {
-                    $contadorPropiedades++;
-                }
             } else {
+                //Log::info('request', [$request->all()]);
+
                 $propiedades = Propiedad::whereNotNull($campoCodigo)
                     ->with([
                         'fotos',
@@ -137,15 +188,42 @@ class ListadoPdfAtcl
                         'precio',
                         'folios.empresa',
                         'propietarios',
+                        'estadoAlquiler',
+                        'estadoVenta',
                     ])
-                    ->get()
-                    ->sortBy(function ($propiedad) {
-                        return $propiedad->calle->name ?? '';
-                    });
+                    ->get();
+            }
 
-                foreach ($propiedades as $propiedad) {
-                    $contadorPropiedades++;
-                }
+            // Aplicar ordenamiento
+            $orden = $request->orden;
+            if ($orden === 'precio_asc' || $orden === 'precio_desc') {
+                $filtrosService = new FiltrosPdfService;
+                $propiedades = $filtrosService->ordenarPorPrecio($propiedades, $orden, $sector);
+            } elseif ($orden === 'estado') {
+                $propiedades = $propiedades->sortBy(function ($propiedad) use ($sector) {
+                    return ($sector === 'Alquiler') ? ($propiedad->estadoAlquiler->name ?? '') : ($propiedad->estadoVenta->name ?? '');
+                });
+            } elseif ($orden === 'tipo') {
+                $propiedades = $propiedades->sortBy(function ($propiedad) {
+                    return $propiedad->tipoInmueble->name ?? '';
+                });
+            } elseif ($orden === 'zona') {
+                $propiedades = $propiedades->sortBy(function ($propiedad) {
+                    return $propiedad->zona->name ?? '';
+                });
+            } /* elseif ($orden === 'codigo') {
+                $propiedades = $propiedades->sortBy(function ($propiedad) use ($campoCodigo) {
+                    return $propiedad->$campoCodigo ?? 0;
+                });
+            } */ else {
+                // Por defecto o si orden === 'calle'
+                $propiedades = $propiedades->sortBy(function ($propiedad) {
+                    return $propiedad->calle->name ?? '';
+                });
+            }
+
+            foreach ($propiedades as $propiedad) {
+                $contadorPropiedades++;
             }
 
             //Log::info('eeee', [$propiedades]);
@@ -289,55 +367,257 @@ class ListadoPdfAtcl
             $html = view('pdfs.atcl.listadoPropiedad', compact('criterios_vendedor', 'username', 'pertenece', 'sector'))->render();
         }
         if ($pertenece === 'consultasIngresadas') {
-            $data = CriterioBusquedaVenta::query()
-                ->where('estado_criterio_venta', 'Activo')
-                ->with(['tipoInmueble', 'zona', 'cliente.asesor.usuario', 'historialConsultas']);
 
-            $fechaDesde = $request->desde;
-            $fechaHasta = $request->hasta;
+            if ($request->consulta === 'Consultas Nuevas') {
+                $data = CriterioBusquedaVenta::query()
+                    ->with(['tipoInmueble', 'zona', 'cliente.asesor.usuario', 'historialConsultas']);
 
-            if (!empty($fechaDesde) && !empty($fechaHasta)) {
+                $fechaDesde = $request->desde;
+                $fechaHasta = $request->hasta;
 
-                $data->whereBetween('fecha_criterio_venta', [$fechaDesde, $fechaHasta]);
-            } elseif (!empty($fechaDesde)) {
+                if (!empty($fechaDesde) && !empty($fechaHasta)) {
 
-                $data->where('fecha_criterio_venta', '>=', $fechaDesde);
-            } elseif (!empty($fechaHasta)) {
+                    $data->whereBetween('fecha_criterio_venta', [$fechaDesde, $fechaHasta]);
+                } elseif (!empty($fechaDesde)) {
 
-                $data->where('fecha_criterio_venta', '<=', $fechaHasta);
+                    $data->where('fecha_criterio_venta', '>=', $fechaDesde);
+                } elseif (!empty($fechaHasta)) {
+
+                    $data->where('fecha_criterio_venta', '<=', $fechaHasta);
+                }
+
+                $data = $data->orderBy('id_categoria', 'desc')->get();
+
+                // 1. Sacamos los id_cliente que aparecen en el resultado ya filtrado por fecha
+                $idsClientes = $data->pluck('id_cliente')->unique();
+
+                // 2. Buscamos, para esos clientes, cual es su PRIMER id_criterio_venta en TODA la tabla
+                //    (sin importar fecha ni estado_criterio_venta)
+                $primeraConsultaPorCliente = CriterioBusquedaVenta::whereIn('id_cliente', $idsClientes)
+                    ->selectRaw('id_cliente, MIN(id_criterio_venta) as primer_id')
+                    ->groupBy('id_cliente')
+                    ->pluck('primer_id', 'id_cliente');
+
+                // 3. Set de ids que quedaron dentro del rango filtrado (para chequear pertenencia rapido)
+                $idsDentroDelRango = $data->pluck('id_criterio_venta')->flip();
+
+                // 4. Si la primera consulta GLOBAL del cliente no esta dentro del rango filtrado,
+                //    significa que lo que aparece aca es una reconsulta de algo anterior -> se excluye por completo
+                $data = $data->filter(function ($criterio) use ($primeraConsultaPorCliente, $idsDentroDelRango) {
+                    $primerId = $primeraConsultaPorCliente[$criterio->id_cliente] ?? null;
+
+                    return $primerId !== null && $idsDentroDelRango->has($primerId);
+                })->values();
+
+                // 5. De los que quedaron (primera consulta real dentro del rango), si el cliente
+                //    reconsulto mas de una vez DENTRO del mismo rango, nos quedamos con el id_criterio_venta mas grande
+                $data = $data->sortByDesc('id_criterio_venta')
+                    ->unique('id_cliente')
+                    ->sortByDesc('id_categoria')
+                    ->values();
+
+                //por ultimo las ordenamos por fecha de menor a mayor
+                $data = $data->sortBy('fecha_criterio_venta')->values();
+
+                // 1. Contamos el total de criterios directamente usando el método count() de la colección
+                $total_criterios = $data->count();
+
+                // 2. Agrupamos y contamos cuántos criterios tiene cada asesor
+                $conteoAsesores = [];
+
+                // Agrupamos la colección por el username del asesor de forma segura
+                $agrupadosPorAsesor = $data->groupBy(function ($criterio) {
+                    return $criterio->cliente->asesor->usuario->username ?? 'Sin Asesor';
+                });
+
+                foreach ($agrupadosPorAsesor as $username => $criterios) {
+                    $conteoAsesores[$username] = $criterios->count();
+                }
+                //Log::info($data);
+
+                // 3. Agrupamos y contamos cuántos criterios tiene cada tipo de ingreso (Whatsapp, Sitio web, etc)
+                $total_tipo_ingreso = [];
+                /* no distinguir entre mayuculas y minisculas */
+                $agrupadosPorIngreso = $data->groupBy(function ($criterio) {
+                    return strtolower($criterio->cliente?->ingreso ?? 'Sin Especificar');
+                });
+
+                foreach ($agrupadosPorIngreso as $ingreso => $criterios) {
+                    $total_tipo_ingreso[$ingreso] = $criterios->count();
+                }
+            } elseif ($request->consulta === 'Generales') {
+
+                $data = CriterioBusquedaVenta::query()
+                    //->where('estado_criterio_venta', 'Activo')
+                    ->with(['tipoInmueble', 'zona', 'cliente.asesor.usuario', 'historialConsultas']);
+
+                $fechaDesde = $request->desde;
+                $fechaHasta = $request->hasta;
+
+                if (!empty($fechaDesde) && !empty($fechaHasta)) {
+
+                    $data->whereBetween('fecha_criterio_venta', [$fechaDesde, $fechaHasta]);
+                } elseif (!empty($fechaDesde)) {
+
+                    $data->where('fecha_criterio_venta', '>=', $fechaDesde);
+                } elseif (!empty($fechaHasta)) {
+
+                    $data->where('fecha_criterio_venta', '<=', $fechaHasta);
+                }
+
+                $data = $data->orderBy('id_categoria', 'desc')->get();
+
+                // 1. Sacamos los id_cliente que aparecen en el resultado ya filtrado por fecha
+                $idsClientes = $data->pluck('id_cliente')->unique();
+
+                // 2. Buscamos, para esos clientes, cual es su PRIMER id_criterio_venta en TODA la tabla
+                //    (sin importar fecha ni estado_criterio_venta)
+                $primeraConsultaPorCliente = CriterioBusquedaVenta::whereIn('id_cliente', $idsClientes)
+                    ->selectRaw('id_cliente, MIN(id_criterio_venta) as primer_id')
+                    ->groupBy('id_cliente')
+                    ->pluck('primer_id', 'id_cliente');
+
+                // 3. Set de ids que quedaron dentro del rango filtrado (para chequear pertenencia rapido)
+                $idsDentroDelRango = $data->pluck('id_criterio_venta')->flip();
+
+                // 4. Si el cliente reconsulto mas de una vez DENTRO del mismo rango, nos quedamos
+                //    con el id_criterio_venta mas grande (la mas reciente)
+                $data = $data->sortByDesc('id_criterio_venta')
+                    ->unique('id_cliente')
+                    ->sortByDesc('id_categoria')
+                    ->values();
+
+                // 5. Marcamos cada registro como "R" (reconsulta) si su primera consulta GLOBAL
+                //    del cliente no esta dentro del rango filtrado; sino queda null (consulta nueva del periodo)
+                $data = $data->map(function ($criterio) use ($primeraConsultaPorCliente, $idsDentroDelRango) {
+                    $primerId = $primeraConsultaPorCliente[$criterio->id_cliente] ?? null;
+
+                    $criterio->tipo_consulta = ($primerId !== null && !$idsDentroDelRango->has($primerId))
+                        ? 'R'
+                        : null;
+
+                    return $criterio;
+                });
+
+                //por ultimo las ordenamos por fecha de menor a mayor
+                $data = $data->sortBy('fecha_criterio_venta')->values();
+
+                // 1. Contamos el total de criterios directamente usando el método count() de la colección
+                $total_criterios = $data->count();
+
+                // 2. Agrupamos y contamos cuántos criterios tiene cada asesor
+                $conteoAsesores = [];
+
+                // Agrupamos la colección por el username del asesor de forma segura
+                $agrupadosPorAsesor = $data->groupBy(function ($criterio) {
+                    return $criterio->cliente->asesor->usuario->username ?? 'Sin Asesor';
+                });
+
+                foreach ($agrupadosPorAsesor as $username => $criterios) {
+                    $conteoAsesores[$username] = $criterios->count();
+                }
+                // Log::info($data);
+
+                // 3. Agrupamos y contamos cuántos criterios tiene cada tipo de ingreso (Whatsapp, Sitio web, etc)
+                $total_tipo_ingreso = [];
+                /* no distinguir entre mayuculas y minisculas */
+                $agrupadosPorIngreso = $data->groupBy(function ($criterio) {
+                    return strtolower($criterio->cliente?->ingreso ?? 'Sin Especificar');
+                });
+
+                foreach ($agrupadosPorIngreso as $ingreso => $criterios) {
+                    $total_tipo_ingreso[$ingreso] = $criterios->count();
+                }
+            } elseif ($request->consulta === 'Reconsultas') {
+
+                $data = CriterioBusquedaVenta::query()
+                    //->where('estado_criterio_venta', 'Activo')
+                    ->with(['tipoInmueble', 'zona', 'cliente.asesor.usuario', 'historialConsultas']);
+
+                $fechaDesde = $request->desde;
+                $fechaHasta = $request->hasta;
+
+                if (!empty($fechaDesde) && !empty($fechaHasta)) {
+
+                    $data->whereBetween('fecha_criterio_venta', [$fechaDesde, $fechaHasta]);
+                } elseif (!empty($fechaDesde)) {
+
+                    $data->where('fecha_criterio_venta', '>=', $fechaDesde);
+                } elseif (!empty($fechaHasta)) {
+
+                    $data->where('fecha_criterio_venta', '<=', $fechaHasta);
+                }
+
+                $data = $data->orderBy('id_categoria', 'desc')->get();
+
+                // 1. Sacamos los id_cliente que aparecen en el resultado ya filtrado por fecha
+                $idsClientes = $data->pluck('id_cliente')->unique();
+
+                // 2. Buscamos, para esos clientes, cual es su PRIMER id_criterio_venta en TODA la tabla
+                //    (sin importar fecha ni estado_criterio_venta)
+                $primeraConsultaPorCliente = CriterioBusquedaVenta::whereIn('id_cliente', $idsClientes)
+                    ->selectRaw('id_cliente, MIN(id_criterio_venta) as primer_id')
+                    ->groupBy('id_cliente')
+                    ->pluck('primer_id', 'id_cliente');
+
+                // 3. Set de ids que quedaron dentro del rango filtrado (para chequear pertenencia rapido)
+                $idsDentroDelRango = $data->pluck('id_criterio_venta')->flip();
+
+                // 4. Si el cliente reconsulto mas de una vez DENTRO del mismo rango, nos quedamos
+                //    con el id_criterio_venta mas grande (la mas reciente)
+                $data = $data->sortByDesc('id_criterio_venta')
+                    ->unique('id_cliente')
+                    ->sortByDesc('id_categoria')
+                    ->values();
+
+                // 5. Marcamos cada registro como "R" (reconsulta) si su primera consulta GLOBAL
+                //    del cliente no esta dentro del rango filtrado; sino queda null (consulta nueva del periodo)
+                $data = $data->map(function ($criterio) use ($primeraConsultaPorCliente, $idsDentroDelRango) {
+                    $primerId = $primeraConsultaPorCliente[$criterio->id_cliente] ?? null;
+
+                    $criterio->tipo_consulta = ($primerId !== null && !$idsDentroDelRango->has($primerId))
+                        ? 'R'
+                        : null;
+
+                    return $criterio;
+                });
+
+                // 6. Nos quedamos SOLO con las reconsultas (descartamos las consultas nuevas del periodo)
+                $data = $data->filter(function ($criterio) {
+                    return $criterio->tipo_consulta === 'R';
+                })->values();
+
+                //por ultimo las ordenamos por fecha de menor a mayor
+                $data = $data->sortBy('fecha_criterio_venta')->values();
+
+                // 1. Contamos el total de criterios directamente usando el método count() de la colección
+                $total_criterios = $data->count();
+
+                // 2. Agrupamos y contamos cuántos criterios tiene cada asesor
+                $conteoAsesores = [];
+
+                // Agrupamos la colección por el username del asesor de forma segura
+                $agrupadosPorAsesor = $data->groupBy(function ($criterio) {
+                    return $criterio->cliente->asesor->usuario->username ?? 'Sin Asesor';
+                });
+
+                foreach ($agrupadosPorAsesor as $username => $criterios) {
+                    $conteoAsesores[$username] = $criterios->count();
+                }
+
+                // 3. Agrupamos y contamos cuántos criterios tiene cada tipo de ingreso (Whatsapp, Sitio web, etc)
+                $total_tipo_ingreso = [];
+                /* no distinguir entre mayuculas y minisculas */
+                $agrupadosPorIngreso = $data->groupBy(function ($criterio) {
+                    return strtolower($criterio->cliente?->ingreso ?? 'Sin Especificar');
+                });
+
+                foreach ($agrupadosPorIngreso as $ingreso => $criterios) {
+                    $total_tipo_ingreso[$ingreso] = $criterios->count();
+                }
             }
 
-            $data = $data->orderBy('id_categoria', 'desc')->get();
-
-
-            // 1. Contamos el total de criterios directamente usando el método count() de la colección
-            $total_criterios = $data->count();
-
-            // 2. Agrupamos y contamos cuántos criterios tiene cada asesor
-            $conteoAsesores = [];
-
-            // Agrupamos la colección por el username del asesor de forma segura
-            $agrupadosPorAsesor = $data->groupBy(function ($criterio) {
-                return $criterio->cliente->asesor->usuario->username ?? 'Sin Asesor';
-            });
-
-            foreach ($agrupadosPorAsesor as $username => $criterios) {
-                $conteoAsesores[$username] = $criterios->count();
-            }
-            //Log::info($data);
-
-            // 3. Agrupamos y contamos cuántos criterios tiene cada tipo de ingreso (Whatsapp, Sitio web, etc)
-            $total_tipo_ingreso = [];
-            /* no distinguir entre mayuculas y minisculas */
-            $agrupadosPorIngreso = $data->groupBy(function ($criterio) {
-                return strtolower($criterio->cliente?->ingreso ?? 'Sin Especificar');
-            });
-
-            foreach ($agrupadosPorIngreso as $ingreso => $criterios) {
-                $total_tipo_ingreso[$ingreso] = $criterios->count();
-            }
-
-            $html = view('pdfs.atcl.listadoPropiedad', compact('data', 'username', 'pertenece', 'sector', 'total_criterios', 'conteoAsesores', 'total_tipo_ingreso'))->render();
+            $html = view('pdfs.atcl.listadoPropiedad', compact('data', 'username', 'pertenece', 'sector', 'total_criterios', 'conteoAsesores', 'total_tipo_ingreso', 'fechaDesde', 'fechaHasta'))->render();
         }
         if ($pertenece === 'conversaciones') {
             //  Log::info($request->all());
@@ -422,10 +702,117 @@ class ListadoPdfAtcl
 
             $html = view('pdfs.atcl.listadoPropiedad', compact('data', 'username', 'pertenece', 'sector', 'fechas'))->render();
         }
+        if ($pertenece === 'tiempoOfrecimiento') {
+            // Usar el filtro unificado (el ordenamiento se aplica dentro, excepto precio)
+            $query = $filtrosService->aplicarFiltrosUnificados($request->all());
+
+            // Ejecutar la query trayendo también la relación de observaciones y tipoInmueble
+            $propiedades = $query->with(['observacionesPropiedades', 'tipoInmueble', 'historialEstadosAlquiler','propietarios'])->get();
+
+            // Solo ordenar por precio si es necesario (post-query)
+            if ($request->orden === 'precio_asc' || $request->orden === 'precio_desc') {
+                $propiedades = $filtrosService->ordenarPorPrecio($propiedades, $request->orden, $sector);
+            }
+
+            if ($request->orden === 'autorizacion') {
+                //Log::info('entro autorizacion', [$request->orden]);
+                $propiedades = $filtrosService->ordenarPorAutorizacion($propiedades, $request->orden, $sector);
+            }
+
+            $contadorPropiedades = $propiedades->count();
+
+            // --- Recolectar TODOS los IDs de usuario que necesitamos en una sola pasada ---
+            $modifierIds  = $propiedades->pluck('last_modified_by')->filter();
+            $asesorIds    = $propiedades->pluck('asesor')->filter();
+            $todosLosIds = $modifierIds
+                ->merge($asesorIds)
+                ->unique()
+                ->values();
+
+            // Una sola query para traer todos los usernames
+            $usernamesById = $todosLosIds->isNotEmpty()
+                ? Usuario::whereIn('id', $todosLosIds)->pluck('username', 'id')->all()
+                : [];
+
+            // Una sola pasada por la colección, aplicando todas las transformaciones
+            foreach ($propiedades as $propiedad) {
+                $modId = $propiedad->last_modified_by;
+                $propiedad->username = ($modId && isset($usernamesById[$modId]))
+                    ? $usernamesById[$modId]
+                    : '-';
+
+                $propiedad->captador_int_v = ($propiedad->captador_int_v && isset($usernamesById[$propiedad->captador_int_v]))
+                    ? $usernamesById[$propiedad->captador_int_v]
+                    : '-';
+
+                $propiedad->captador_int_a = ($propiedad->captador_int_a && isset($usernamesById[$propiedad->captador_int_a]))
+                    ? $usernamesById[$propiedad->captador_int_a]
+                    : '-';
+
+                $propiedad->asesor = ($propiedad->asesor && isset($usernamesById[$propiedad->asesor]))
+                    ? $usernamesById[$propiedad->asesor]
+                    : '-';
+
+                 /* $historial = $propiedad->fecha_ofrecimiento;
+                    $propiedad->fecha_antiguedad = Carbon::parse($historial);
+                    $propiedad->antiguedad = $this->formatearAntiguedad($historial);  */
+                    $historial = $propiedad->historialEstadosAlquiler;
+
+                    if ($historial && !empty($historial->fecha_alquiler)) {
+                        $propiedad->fecha_antiguedad = Carbon::parse($historial->fecha_alquiler);
+                        $propiedad->antiguedad = $this->formatearAntiguedad($historial->fecha_alquiler);
+                    } else {
+                        $propiedad->fecha_antiguedad = Carbon::parse($propiedad->created_at);
+                        $propiedad->antiguedad = $this->formatearAntiguedad($propiedad->created_at);
+                    }
+            }
+
+            // --- NUEVO: agrupar por tipo de inmueble y ordenar cada grupo por antigüedad ---
+            $propiedades = $propiedades
+                ->groupBy(function ($propiedad) {
+                    return $propiedad->tipoInmueble->inmueble ?? 'Sin tipo';
+                })
+                ->sortKeys() // opcional: ordena los grupos alfabéticamente (CASA, DEPARTAMENTO, etc.)
+                ->map(function ($grupo) {
+                    // Mayor antigüedad primero = fecha más vieja primero = orden ascendente
+                    return $grupo->sortBy('fecha_antiguedad')->values();
+                })
+                ->flatten(1)
+                ->values();
+
+            $contadorPropiedades = $propiedades->count();
+            $conteoPorTipo = $propiedades
+                ->groupBy(function ($propiedad) {
+                    // El nombre de la relación en el modelo Propiedad es tipoInmueble (en camelCase)
+                    return $propiedad->tipoInmueble->inmueble ?? 'SIN TIPO';
+                })
+                ->map(function ($grupo) {
+                    return $grupo->count();
+                });
+
+            // Si querés un array plano simple: ['DEPARTAMENTO' => 5, 'CASA' => 3, ...]
+            $conteoPorTipoArray = $conteoPorTipo->toArray();
+
+            //Log::info('propiedades', [$propiedades]);
+            $html = view('pdfs.atcl.listadoPropiedad', compact(
+                'propiedades',
+                'username',
+                'pertenece',
+                'sector',
+                'contadorPropiedades',
+                'conteoPorTipoArray'
+            ))->render();
+        }
 
         $orientacion = 'landscape';
         if ($pertenece === 'ofrecimientoVenta' || $pertenece === 'conversaciones' || $pertenece === 'informeNovedades') {
             $orientacion = 'portrait';
+        }
+        //Se coloca esta condicion porque sino username del final se sobreescribe con otro nombre de usuario
+        if ($pertenece === 'consultasIngresadas') {
+            $usuario_id = auth('api')->id();
+            $authUser = $usuario_id ? Usuario::find($usuario_id) : null;
+            $username = $authUser->username ?? '-';
         }
 
 
@@ -438,10 +825,35 @@ class ListadoPdfAtcl
                 ->showBackground()
                 ->emulateMedia('print')
                 ->setOption('displayHeaderFooter', true)
-                ->setOption('headerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Ficha de Propiedad</span><span style="text-align:right;">Página <span class="pageNumber"></span> de <span class="totalPages"></span></span></div>')
+                ->setOption('headerTemplate', '
+                <div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;">
+                <span style="text-align:left;">Ficha de Propiedad</span><span style="text-align:right;">Página <span class="pageNumber"></span> de <span class="totalPages"></span></span></div>')
                 ->$orientacion()
-                ->setOption('footerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Salas Inmobiliaria</span><span style="text-align:center;">' . $username . '</span>  <span style="text-align:right;" class="date"></span></div>')
+                ->setOption('footerTemplate', '
+                <div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;">
+                <span style="text-align:left;">Salas Inmobiliaria</span><span style="text-align:center;">' . $username . '</span>  <span style="text-align:right;" class="date"></span></div>')
                 ->pdf();
         }, 'ficha_propiedad.pdf');
+    }
+
+    private function formatearAntiguedad($fecha): string
+    {
+        $diff = Carbon::parse($fecha)->diff(now());
+
+        $partes = [];
+
+        if ($diff->y > 0) {
+            $partes[] = $diff->y . ' año' . ($diff->y > 1 ? 's' : '');
+        }
+
+        if ($diff->m > 0) {
+            $partes[] = $diff->m . ' mes' . ($diff->m > 1 ? 'es' : '');
+        }
+
+        if ($diff->d > 0) {
+            $partes[] = $diff->d . ' día' . ($diff->d > 1 ? 's' : '');
+        }
+
+        return implode(' ', $partes) ?: '0 días';
     }
 }

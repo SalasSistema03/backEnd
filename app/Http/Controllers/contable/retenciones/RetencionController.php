@@ -10,6 +10,8 @@ use App\Services\contable\retenciones\RetencionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Response;
+use App\Exports\RetencionesCuitExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class RetencionController extends Controller
 {
@@ -324,7 +326,7 @@ class RetencionController extends Controller
         ]);
     }
 
-    public function exportarRetencionesFaltantesTXTController(Request $request)
+    /* public function exportarRetencionesFaltantesTXTController(Request $request)
     {
         $registros = $request->input('registros', []);
 
@@ -350,5 +352,18 @@ class RetencionController extends Controller
             'Content-Type' => 'text/plain',
             'Content-Disposition' => "attachment; filename={$nombreArchivo}",
         ]);
+    } */
+
+    public function exportarRetencionesFaltantesTXTController(Request $request)
+    {
+        $registros = $request->input('registros', []);
+
+        $cuit = $registros[0]['cuit_retencion'] ?? 'desconocido';
+        $nombreArchivo = "retenciones_cuit_{$cuit}.xlsx";
+
+        return Excel::download(
+            new RetencionesCuitExport($registros,$nombreArchivo),
+            $nombreArchivo
+        );
     }
 }

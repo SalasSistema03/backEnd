@@ -334,6 +334,7 @@ class PadronImpuestoService
         // ── Índices para búsqueda rápida ──────────────────────────────────────
         //toma todos los datos de padronExistente y lo transforma en claves ej:123-1752484
         $existentePorFolioPartida = collect($padronExistente)->mapWithKeys(function ($item) {
+            //Log::info([$item->folio . '-' . ltrim($item->partida, '0') => $item]);
             return [$item->folio . '-' . ltrim($item->partida, '0') => $item];
         });
         

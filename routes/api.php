@@ -31,6 +31,9 @@ use App\Http\Controllers\contable\buscadorComprobante\BuscadorPdfController;
 use App\Models\usuarios_y_permisos\Usuario;
 use App\Http\Controllers\agenda\Exportar_PDF_agenda\Pdf_agenda;
 use App\Http\Controllers\At_cl\MapaPropiedadController;
+use App\Http\Controllers\fideicomiso\RegistrosGeneralesController;
+use App\Http\Controllers\fideicomiso\RegistrosMensualesController;
+use App\Http\Controllers\fideicomiso\UnidadesController;
 // --- IMPORTACIONES UNIDAS DE AMBAS RAMAS ---
 use App\Services\At_cl\PropiedadService;
 use App\Services\clientes\UsuarioSectorService;
@@ -39,6 +42,8 @@ use App\Http\Controllers\impuesto\Expensas\ExpensasController;
 use App\Models\At_cl\Zona;
 use App\Models\At_cl\Tipo_inmueble;
 use App\Services\contrato\ProcesoContratoService;
+use Illuminate\Support\Facades\Log;
+
 
 
 Route::prefix('v1')->group(function () {
@@ -82,6 +87,7 @@ Route::prefix('v1')->group(function () {
             Route::get('estado-venta', [EstadoVentaController::class, 'getEstadoVenta']);
             Route::get('captador-interno', [UsuariosController::class, 'getCaptadorInterno']);
             Route::get('asesor', [UsuariosController::class, 'getAsesor']);
+
             Route::get('estado-alquiler', [EstadoAlquilerController::class, 'getEstadoAlquiler']);
             Route::post('propiedad/guardar/{id}', [PropiedadController::class, 'guardarPropiedad']);
             Route::get('padron/buscar', [PadronService::class, 'BuscarPadron']);
@@ -155,9 +161,12 @@ Route::prefix('v1')->group(function () {
         Route::get('cliente/{telefono?}', [ClientesController::class, 'clientePorTelefono']);
         Route::get('/tieneAcceso/{usuarioId}/{botonNombre}', [SelladoController::class, 'tieneAccesoUsuario']);
         Route::get('/verificaPermisoAsesor/{botonNombre}', [Permisos::class, 'verificarAccesoBotones_Elementos']);
+        Route::get('/cantidadClientesPorAsesor', [clientesController::class, 'getCantidadClientes']);
+        Route::get('/traerClientesAsignados', [clientesController::class, 'traerClientesAsignados']);
 
         //Asesores
         Route::get('/asesores', [AsesoresController::class, 'Asesores']);
+        Route::get('/asesoresAlq', [AsesoresController::class, 'AsesoresAlq']);
         Route::put('/clientes/modificar-criterio', [AsesoresController::class, 'modificarCriterio']);
         Route::put('/clientes/modificar-datos-personales', [AsesoresController::class, 'modificarDatosPersonales']);
         Route::post('/historialCodOfrecimiento', [AsesoresController::class, 'guardarHistorialCodOfrecimiento']);
@@ -175,6 +184,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/api/notificaciones/traer-notificaciones', [NotificacionController::class, 'traerNotificaciones']);
         Route::post('/api/notificaciones/marcar-como-leida/{id}', [NotificacionController::class, 'marcarUnaComoLeida']);
         Route::get('/usuariosConAgenda/{sector_id}', [Usuario::class, 'usuariosQueTienenAgenda']);
+        Route::get('/agenda-diaria', [AgendaController::class, 'traerAgendaDiaria']);
 
         //Listado Agenda
         Route::post('/listado-agenda', [Pdf_agenda::class, 'listarAgenda']);
@@ -219,7 +229,7 @@ Route::prefix('v1')->group(function () {
         Route::put('retenciones/modificarRegistro/{id}', [RetencionController::class, 'modgiciarRegistroRetencionController']);
         Route::get('/retenciones/suma-quincena', [RetencionController::class, 'obtenerSumasMensualesController']);
         Route::get('/retenciones/exportar-retenciones', [RetencionController::class, 'exportarRetencionesTXTController']);
-        Route::get('/retenciones/exportar_retenciones_cuit', [RetencionController::class, 'exportarRetencionesFaltantesTXTController']);
+        Route::post('/retenciones/exportar_retenciones_cuit', [RetencionController::class, 'exportarRetencionesFaltantesTXTController']);
 
 
         // CONTABLE - BUSCADOR PDF (URL: api/v1/buscador-pdf)
@@ -288,8 +298,42 @@ Route::prefix('v1')->group(function () {
                 'tipos_inmueble' => Tipo_inmueble::select('id', 'inmueble')->orderBy('inmueble')->get()
             ]);
         });
+        Route::get('/getHistorialInventario', [ProcesoController::class, 'getHistorialInventario']);
+        Route::get('/getUsuariosDpto', [ProcesoController::class, 'getUsuariosDpto']);
+        Route::get('/getEstadoDpto', [ProcesoController::class, 'getEstadoDpto']);
+        Route::post('/ActualizarInventario', [ProcesoController::class, 'ActualizarInventario']);
+        Route::get('/getComentariosInventario', [ProcesoController::class, 'getComentarios']);
+        // Fideicomiso
+        Route::prefix('fideicomiso')->group(function () {
+
+            // Unidades
+            Route::get('unidades', [UnidadesController::class, 'getUnidadesController']);
+            Route::get('unidades/{id}', [UnidadesController::class, 'getUnidadPorIdController']);
+            Route::post('unidades', [UnidadesController::class, 'postUnidadController']);
+            Route::put('unidades/{id}', [UnidadesController::class, 'modificarUnidadController']);
+            Route::delete('unidades/{id}', [UnidadesController::class, 'eliminarUnidadController']);
+
+            // Registros Generales
+            Route::get('datos-generales', [RegistrosGeneralesController::class, 'getDatosGeneralesController']);
+            Route::get('datos-generales/{id}', [RegistrosGeneralesController::class, 'getRegistroGeneralPorIdController']);
+            Route::post('datos-generales', [RegistrosGeneralesController::class, 'postRegistroGeneralController']);
+            Route::put('datos-generales/{id}', [RegistrosGeneralesController::class, 'modificarRegistroGeneralController']);
+            Route::delete('datos-generales/{id}', [RegistrosGeneralesController::class, 'eliminarRegistroGeneralController']);
+
+            // Registros Mensuales
+            Route::get('registros-mensuales', [RegistrosMensualesController::class, 'getRegistrosMensualesController']);
+            Route::get('registros-mensuales/{id}', [RegistrosMensualesController::class, 'getRegistroMensualPorIdController']);
+            Route::get('registros-mensuales/unidad/{idUnidad}', [RegistrosMensualesController::class, 'getRegistrosPorUnidadController']);
+            Route::post('registros-mensuales', [RegistrosMensualesController::class, 'postRegistroMensualController']);
+            Route::put('registros-mensuales/{id}', [RegistrosMensualesController::class, 'modificarRegistroMensualController']);
+            Route::delete('registros-mensuales/{id}', [RegistrosMensualesController::class, 'eliminarRegistroMensualController']);
+
+            Route::post('carga-masiva', [RegistrosGeneralesController::class, 'cargaMasivaController'])->name('carga-masiva');
+            Route::post('comprobantes-pdf', [RegistrosMensualesController::class, 'comprobantesPdfController'])->name('comprobantes-pdf');
+        });
     });
 });
+
 
 
 // Ruta de redirección por defecto si falla el token

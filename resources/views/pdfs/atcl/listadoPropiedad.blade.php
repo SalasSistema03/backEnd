@@ -1,3 +1,4 @@
+
 <html lang="es">
 
 <head>
@@ -6,9 +7,7 @@
 
     <style>
         /*asi tiene que quedar siempre {!! file_get_contents(public_path('css/pdfStyles.css')) !!} */
-            {
-            ! ! file_get_contents(public_path('css/pdfStyles.css')) ! !
-        }
+            {!! file_get_contents(public_path('css/pdfStyles.css')) !!}
     </style>
 </head>
 
@@ -39,6 +38,8 @@
                 @if ($pertenece === 'consultasIngresadas')
                     <span class="listado_texto_titulo">Total Consultas: {{ $total_criterios ?? '-' }} </span>
                     <br>
+                    <span class="listado_texto_titulo ">Desde: {{ Carbon\Carbon::parse($fechaDesde)->format('d/m/Y') ?? '-' }} &nbsp;&nbsp;&nbsp;&nbsp; Hasta: {{ Carbon\Carbon::parse($fechaHasta)->format('d/m/Y') ?? '-' }} </span>
+                    <br>
                     @foreach ($conteoAsesores as $nombre => $cantidad)
                         <span class="listado_texto_titulo">{{ $nombre }}: {{ $cantidad }}</span>
                     @endforeach
@@ -64,7 +65,12 @@
                 @endif
 
                 @isset($contadorPropiedades)
-                    Total de Propiedades: {{ $contadorPropiedades }}
+                    <div>Total de Propiedades: {{ $contadorPropiedades }}</div>
+                @endisset
+                @isset($conteoPorTipoArray)
+                    @foreach ($conteoPorTipoArray as $tipo => $cantidad)
+                        <span class="listado_texto_titulo">{{ $tipo }}: {{ $cantidad }}</span>
+                    @endforeach
                 @endisset
                 @isset($consultaTotal)
                     <span class="listado_texto_titulo">Consultas: {{ $consultaTotal }}</span>
@@ -79,15 +85,14 @@
 
             <hr>
         </div>
-
         @if ($pertenece === 'listadoPropiedades')
             <div class="col-md-12">
                 <table class="table table-striped w-100">
                     <thead class="listado_tabla_titulo">
                         <tr>
-                            @if ($sector === 'Alquiler')
+                            @if ($sector === 'Alquiler' && in_array('cod_alquiler', $campos))
                                 <th>Código Alquiler</th>
-                            @elseif ($sector === 'Venta')
+                            @elseif ($sector === 'Venta' && in_array('cod_venta', $campos))
                                 <th>Código Venta</th>
                             @endif
                             @if (in_array('folio', $campos))
@@ -102,11 +107,15 @@
                             @if (in_array('p_d', $campos))
                                 <th>Piso / Depto</th>
                             @endif
-                            @if (in_array('propietario', $campos) && $sector === 'Venta')
+                            @if (in_array('propietario', $campos))
                                 <th>Propietario</th>
                             @endif
                             @if (in_array('fecha alta', $campos) && $sector === 'Venta')
                                 <th>Fecha Alta</th>
+                            @endif
+                            
+                             @if (in_array('estado', $campos))
+                                <th>Estado</th>
                             @endif
                             @if (in_array('dormitorio', $campos))
                                 <th>Dormitorios</th>
@@ -117,9 +126,7 @@
                             @if (in_array('inmueble', $campos))
                                 <th>Inmueble</th>
                             @endif
-                            @if (in_array('estado', $campos))
-                                <th>Estado</th>
-                            @endif
+
                             @if (in_array('precio', $campos))
                                 <th>Precio</th>
                             @endif
@@ -134,6 +141,9 @@
                             @endif
                             @if (in_array('cartel', $campos))
                                 <th>Cartel</th>
+                            @endif
+                            @if (in_array('comentarioCartel', $campos))
+                                <th>Coment. Cartel</th>
                             @endif
                             @if (in_array('autorizacion', $campos) && $sector === 'Venta')
                                 <th>Autorización</th>
@@ -174,7 +184,7 @@
                             @if (in_array('usuario', $campos))
                                 <th>Usuario</th>
                             @endif
-                            @if (in_array('novedades', $campos) && $sector === 'Venta')
+                            @if (in_array('novedades', $campos) )
                                 <th>Novedades</th>
                             @endif
                         </tr>
@@ -185,14 +195,14 @@
 
                             <tr>
 
-                                @if ($sector === 'Alquiler')
+                                @if ($sector === 'Alquiler' && in_array('cod_alquiler', $campos))
                                     <td @if ($propiedad->estadoVenta?->name === 'EN VENTA' || $propiedad->estadoVenta?->name === 'EN VENTA COMPARTIDA') class="listado_estado_en_ambos" @endif>
                                         <span class=""> {{ $propiedad->cod_alquiler ?? '' }}</span>
                                         @if ($propiedad->estadoVenta?->name === 'EN VENTA' || $propiedad->estadoVenta?->name === 'EN VENTA COMPARTIDA')
                                             <span class="listado_estado_alquilado">VENT</span>
                                         @endif
                                     </td>
-                                @elseif ($sector === 'Venta')
+                                @elseif ($sector === 'Venta' && in_array('cod_venta', $campos))
                                     <td @if ($propiedad->estadoAlquiler?->name === 'EN ALQUILER' || $propiedad->estadoAlquiler?->name === 'ALQUILADA') class="listado_estado_en_ambos" @endif>
                                         <span class="">{{ $propiedad->cod_venta ?? '' }} </span>
                                         @if ($propiedad->estadoAlquiler?->name === 'ALQUILADA')
@@ -220,7 +230,7 @@
                                                 <br>
                                             @endif
                                         @empty
-                                            114
+                                            -
                                         @endforelse
                                     </td>
                                 @endif
@@ -247,7 +257,7 @@
                                     </td>
                                 @endif
 
-                                @if (in_array('propietario', $campos) && $sector === 'Venta')
+                                @if (in_array('propietario', $campos) )
                                     <td>
                                         @foreach ($propiedad->propietarios as $propietario)
                                             {{ $propietario->nombre }} {{ $propietario->apellido }}
@@ -258,8 +268,15 @@
                                     </td>
                                 @endif
                                 @if (in_array('fecha alta', $campos) && $sector === 'Venta')
-                                    <td>{{ $propiedad->venta_fecha_alta ?? '' }}</td>
+                                    <td>{{ Carbon\Carbon::parse($propiedad->venta_fecha_alta ?? '')->format('d/m/Y') }}</td>
                                 @endif
+                                
+                                 @if (in_array('estado', $campos) && $sector === 'Alquiler')
+                                    <td>{{ $propiedad->estadoAlquiler->name ?? '' }}</td>
+                                @elseif(in_array('estado', $campos) && $sector === 'Venta')
+                                    <td>{{ $propiedad->estadoVenta->name ?? '' }}</td>
+                                @endif
+                                
                                 @if (in_array('dormitorio', $campos))
                                     <td>{{ $propiedad->cantidad_dormitorios ?? '' }}</td>
                                 @endif
@@ -272,11 +289,7 @@
                                     <td>{{ $propiedad->tipoInmueble->inmueble ?? '' }}</td>
                                 @endif
 
-                                @if (in_array('estado', $campos) && $sector === 'Alquiler')
-                                    <td>{{ $propiedad->estadoAlquiler->name ?? '' }}</td>
-                                @elseif(in_array('estado', $campos) && $sector === 'Venta')
-                                    <td>{{ $propiedad->estadoVenta->name ?? '' }}</td>
-                                @endif
+
 
                                 @if (in_array('precio', $campos) && $sector === 'Alquiler')
                                     <td style="white-space: nowrap;">
@@ -313,6 +326,9 @@
                                 @endif
                                 @if (in_array('cartel', $campos))
                                     <td>{{ $propiedad->cartel ?? '' }}</td>
+                                @endif
+                                 @if (in_array('comentarioCartel', $campos))
+                                    <td>{{ $propiedad->comentario_cartel ?? '' }}</td>
                                 @endif
 
                                 @if (in_array('autorizacion', $campos) && $sector === 'Venta')
@@ -424,6 +440,16 @@
                                     </td>
                                 @endif
 
+                                @if(in_array('novedades', $campos) && $sector === 'Alquiler')
+                                    <td style="text-align: left;">
+                                        @foreach ($propiedad->observacionesPropiedades as $obs)
+                                            @if ($obs->tipo_ofera === 'A')
+                                                {{ preg_replace('/[\r\n]+/', ' - ', trim($obs->notes)) }}
+                                            @endif
+                                        @endforeach
+                                    </td>
+                                @endif
+
                             </tr>
                         @endforeach
                     </tbody>
@@ -440,6 +466,7 @@
                             <th>Direccion</th>
                             <th>Piso / Depto</th>
                             <th>Zona</th>
+                            <th>Estado</th>
                             <th>Dormitorios</th>
                             <th>Cochera</th>
                             <th>Inmueble</th>
@@ -455,17 +482,25 @@
                         @foreach ($propiedades as $propiedad)
                             <!--  {{ $propiedad->propietarios }} -->
                             <tr>
-                                <td>{{ $propiedad->cod_alquiler }}</td>
+                                @if ($sector === 'Alquiler')
+                                    <td>{{ $propiedad->cod_alquiler }}</td>
+                                @else
+                                    <td>{{ $propiedad->cod_venta }}</td>
+                                @endif
                                 <td>
                                     @foreach ($propiedad->folios as $folio)
-                                        {{ $folio->folio }}
                                         @if ($folio->empresa->nombre === 'Atilio')
-                                            CENT /
+                                            {{ $folio->folio }}
                                         @elseif($folio->empresa->nombre === 'Dolly')
-                                            CAN /
+                                            CAN {{ $folio->folio }}
                                         @elseif($folio->empresa->nombre === 'Flor')
-                                            TRIB
+                                            TRIB {{ $folio->folio }}
                                         @else
+                                            {{ $folio->folio }}
+                                        @endif
+
+                                        @if (!$loop->last)
+                                            -
                                         @endif
                                     @endforeach
                                 </td>
@@ -490,6 +525,15 @@
                                 <td>
                                     {{ $propiedad->zona->name ?? '' }}
                                 </td>
+                                @if ($sector === 'Alquiler')
+                                    <td>
+                                        {{ $propiedad->estadoAlquiler->name ?? ''}}
+                                    </td>
+                                @elseif($sector === 'Venta')
+                                    <td>
+                                        {{ $propiedad->estadoVenta->name ?? ''}}
+                                    </td>
+                                @endif
                                 <td>
                                     {{ $propiedad->cantidad_dormitorios ?? '' }}
                                 </td>
@@ -646,7 +690,7 @@
                                     {{ $q->cliente->nombre ?? '' }}
                                 </td>
                                 <td>
-                                    {{ $q->telefono ?? '' }}
+                                    {{ $q->cliente->telefono ?? '' }}
                                 </td>
                                 <td>
                                     {{ $q->fecha_hora ?? '' }}
@@ -706,6 +750,7 @@
                 <table class="table table-striped w-100">
                     <thead class="listado_tabla_titulo">
                         <tr>
+                            <th>Fecha</th>
                             <th>Cliente</th>
                             <th>Telefono</th>
                             <th>Ingreso</th>
@@ -722,12 +767,18 @@
                         @foreach ($data as $criterio)
                             @php $historial = $criterio->historialConsultas ?? []; @endphp
 
+
+
                             @if ($historial && count($historial) > 0)
                                 @foreach ($historial as $consulta)
+
                                     <tr>
+
+
+                                        <td>{{Carbon\Carbon::parse($consulta->fecha_hora ?? '-')->format('d/m/Y')}}</td>
                                         @if ($loop->first)
                                             <td rowspan="{{ count($historial) }}">
-                                                {{ $criterio->cliente->nombre ?? '-' }}
+                                             @if($criterio->tipo_consulta === 'R') (*) @endif   {{ $criterio->cliente->nombre ?? '-' }}
                                             </td>
                                             <td rowspan="{{ count($historial) }}">
                                                 {{ $criterio->cliente->telefono ?? '-' }}
@@ -760,7 +811,9 @@
                                 @endforeach
                             @else
                                 <tr>
-                                    <td>{{ $criterio->cliente->nombre ?? '-' }}</td>
+
+                                    <td>{{ Carbon\Carbon::parse($criterio->fecha_criterio_venta)->format('d/m/Y')}}</td>
+                                    <td>@if($criterio->tipo_consulta === 'R') (*) @endif {{ $criterio->cliente->nombre ?? '-' }} </td>
                                     <td>{{ $criterio->cliente->telefono ?? '-' }}</td>
                                     <td>{{ $criterio->cliente->ingreso ?? '-' }}</td>
                                     <td>-</td>
@@ -960,6 +1013,78 @@
 
                 </div>
             @endforeach
+
+        @elseif($pertenece === 'tiempoOfrecimiento')
+                <div class="col-md-12">
+                    <table class="table table-striped w-100">
+                        <thead class="listado_tabla_titulo">
+                            <tr>
+                            <th>Código Alquiler</th>
+                            <th>Dirección</th>
+                            <th>Piso / Depto</th>
+                            <!-- <th>Estado</th> -->
+                            <th>Antigüedad</th>
+                            <th>Inmueble</th>
+                            <th>Precio</th>
+                            <th>Cartel</th>
+                           <!--  <th>Coment. Cartel</th> -->
+                            <th>Autorización</th>
+                            <th>Condicion</th>
+                            <th>Propietario</th>
+                            </tr>
+                        </thead>
+
+                        <tbody class="listado_tabla">
+                            @foreach ($propiedades as $propiedad)
+
+                                <tr>
+                                        <td @if ($propiedad->estadoVenta?->name === 'EN VENTA' || $propiedad->estadoVenta?->name === 'EN VENTA COMPARTIDA') class="listado_estado_en_ambos" @endif>
+                                            <span class=""> {{ $propiedad->cod_alquiler ?? '' }}</span>
+                                            @if ($propiedad->estadoVenta?->name === 'EN VENTA' || $propiedad->estadoVenta?->name === 'EN VENTA COMPARTIDA')
+                                                <span class="listado_estado_alquilado">VENT</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            {{ $propiedad->calle ? $propiedad->calle->name . ' ' . $propiedad->numero_calle : '' }}
+                                        </td>
+                                        <td>
+                                            @if ($propiedad->piso == null || $propiedad->piso == 0)
+                                                {{ $propiedad->departamento ?? '' }}
+                                            @elseif($propiedad->departamento == null)
+                                                {{ $propiedad->piso ?? '' }}
+                                            @else
+                                                {{ $propiedad->piso ?? '' }} / {{ $propiedad->departamento ?? '' }}
+                                            @endif
+                                        </td>
+                                   <!--  <td>{{ $propiedad->estadoAlquiler->name ?? '' }}</td> -->
+                                    <td>{{ in_array($propiedad->antiguedad, ['0 años 0 meses 0 dias', ''], true) ? '-' : $propiedad->antiguedad }}</td>
+
+                                        <td>{{ $propiedad->tipoInmueble->inmueble ?? '' }}</td>
+
+                                        <td style="white-space: nowrap;">
+                                            @if ($propiedad->precio && $propiedad->precio->moneda_alquiler_pesos && $propiedad->precio->moneda_alquiler_pesos != 0)
+                                                $ {{ $propiedad->precio->moneda_alquiler_pesos }}
+                                            @elseif($propiedad->precio && $propiedad->precio->moneda_alquiler_dolar != 0)
+                                                u$s {{ $propiedad->precio->moneda_alquiler_dolar }}
+                                            @endif
+                                        </td>
+                                        <td>{{ $propiedad->cartel ?? '' }}</td>
+                                        <!-- <td>{{ $propiedad->comentario_cartel ?? '' }}</td> -->
+
+                                        <td>{{ $propiedad->autorizacion_alquiler ?? '' }}</td>
+                                        <td style="text-align: left;">
+                                           {{ strtoupper($propiedad->condicion ?? '') }}
+                                        </td>
+                                        <td>
+    @foreach ($propiedad->propietarios as $propietario)
+        {{ $propietario->nombre }} {{ $propietario->apellido }}@if (!$loop->last), @endif
+    @endforeach
+</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
 
         @endif
     </div>
