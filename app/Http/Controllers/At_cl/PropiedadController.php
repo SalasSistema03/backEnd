@@ -6,6 +6,18 @@ use App\Models\At_cl\Calle;
 use App\Models\At_cl\Foto;
 use App\Models\At_cl\Observaciones_propiedades;
 use App\Models\At_cl\Propiedad;
+use App\Models\impuesto\Agua_padron;
+use App\Models\impuesto\Agua_carga;
+use App\Models\impuesto\Api_carga;
+use App\Models\impuesto\Api_padron;
+use App\Models\impuesto\Exp_broche;
+use App\Models\impuesto\Exp_Unidades;
+use App\Models\impuesto\Exp_unidades_sys;
+use App\Models\impuesto\Gas_carga;
+use App\Models\impuesto\Gas_padron;
+use App\Models\impuesto\Tgi_carga;
+
+use App\Models\impuesto\Tgi_padron;
 use App\Models\usuarios_y_permisos\Usuario;
 use App\Services\At_cl\EmpresaPropiedadService;
 use App\Services\At_cl\FiltroPropiedadService;
@@ -21,6 +33,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+
 
 /**
  * Controlador encargado de gestionar la búsqueda y CRUD completo de las propiedades,
@@ -205,7 +218,7 @@ class PropiedadController
                 // Carga de archivos multimedia
                 (new PropiedadMediaService)->subirDesdeRequest($request, $propiedad_creada->id);
             } catch (\Exception $e) {
-                Log::error('Fallo multimedia: '.$e->getMessage());
+                Log::error('Fallo multimedia: ' . $e->getMessage());
             }
             // Asociación de la propiedad a empresas (folios)
             $folios = [
@@ -247,7 +260,7 @@ class PropiedadController
             //Log::error("ERROR FATAL: " . $e->getMessage()); // Revisa el log de laravel después de esto
             return response()->json([
                 'success' => false,
-                'message' => 'Error: '.$e->getMessage(),
+                'message' => 'Error: ' . $e->getMessage(),
                 'trace' => $e->getTraceAsString(), // Solo para desarrollo
             ], 500);
         }
@@ -346,7 +359,6 @@ class PropiedadController
                 'estadoGeneral',
                 'estadoAlquiler',
                 'estadoVenta',
-                'precioActual',
                 'tasaciones',
                 'usuarioAsesor',
                 'usuarioCaptadorInt',
@@ -362,11 +374,45 @@ class PropiedadController
                 'historialEstadosVenta',
             ])->find($request->id);
 
-            if (! $propiedad) {
+            if (!$propiedad) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Propiedad no encontrada',
                 ], 404);
+            }
+
+            // Procesar impuestos para cada folio
+            $impuestosData = $this->procesarImpuestosPorFolios($propiedad->folios);
+
+            // Agregar datos de impuestos a la propiedad
+            $propiedad->impuestos = $impuestosData;
+
+            // Procesar Expensas por cada Folio
+            if ($propiedad->folios) {
+                foreach ($propiedad->folios as $folio) {
+                    $folio->montoExpensa = null; // Inicializar por defecto
+
+                    if (!empty($folio->folio)) {
+                        $idCasaExpensas = Exp_unidades_sys::where('folio', $folio->folio)->first();
+
+                        if ($idCasaExpensas && !empty($idCasaExpensas->casa)) {
+                            $expensasUnidades = Exp_Unidades::where('id_casa', $idCasaExpensas->casa)->first();
+
+                            if ($expensasUnidades && !empty($expensasUnidades->id)) {
+                                $expensa = Exp_broche::with('exp_administrador_consorcio')
+                                    ->where('unidad', $expensasUnidades->id)
+                                    ->orderBy('vencimiento', 'desc')
+                                    ->first();
+
+                                if ($expensa) {
+                                    $expensa->tipo = 'EXPENSAS';
+                                    $expensa->nombre_administrador = $expensa->exp_administrador_consorcio->nombre ?? null;
+                                    $folio->montoExpensa = $expensa;
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             // Obtener información adicional de contratos y folios
@@ -375,54 +421,49 @@ class PropiedadController
 
             // Obtener el detalle del contrato más alto
             $detalleContrato = null;
-            if (! empty($contratoMasReciente) && isset($contratoMasReciente['id_contrato_cabecera'])) {
+            if (!empty($contratoMasReciente) && isset($contratoMasReciente['id_contrato_cabecera'])) {
                 $detalleContrato = $propiedad->buscarDetalleContratoMasAlto($contratoMasReciente['id_contrato_cabecera']);
             }
 
             // Convertir a array y agregar información adicional
             $propiedadArray = $propiedad->toArray();
+            if ($propiedad->folios) {
+                $propiedadArray['folios'] = $propiedad->folios->toArray();
+            }
             $propiedadArray['buscarFolioActivo'] = $foliosActivos;
             $propiedadArray['buscarContratoMasReciente'] = $contratoMasReciente;
             $propiedadArray['detalleContrato'] = $detalleContrato;
+            $propiedadArray['impuestos'] = $impuestosData;
 
             // Eliminar valores null para limpiar la respuesta
             $propiedadFiltrada = array_filter($propiedadArray, function ($value) {
                 return $value !== null;
             });
 
-            // 1. Obtener el ID del usuario autenticado vía JWT/Token
+            // Permisos de botones
             $usuario_id = auth('api')->id();
-
-            // 2. Instanciar el servicio de permisos localmente
             $accessService = new PermitirAccesoSelladoService($usuario_id);
-            // 3. Recopilación de Permisos de Botones
             $botones = [
                 'propietario' => $accessService->tieneAcceso('propietario'),
                 'informacion_venta' => $accessService->tieneAcceso('informacion_venta'),
                 'informacion_alquiler' => $accessService->tieneAcceso('informacion_alquiler'),
                 'modificar' => $accessService->tieneAcceso('modificar'),
             ];
-            //Log::info('despues del array de botones', $botones);
-            // $resultado = $this->registro_sellado->getRegistroSellado();
+            //Log::info('Propiedad filtrada: ' . json_encode($propiedadFiltrada));
 
-            //Log::info('despues de resultado', $resultado);
             return response()->json([
                 'success' => true,
                 'data' => $propiedadFiltrada,
                 'botones' => $botones,
-                /* 'permisos' => [
-                    'botones' => $botones,
-                    'registro_sellado' => $resultado
-                ] */
             ]);
         } catch (\Exception $e) {
-
             return response()->json([
                 'success' => false,
                 'message' => 'Error al cargar los datos de la propiedad',
             ], 500);
         }
     }
+
 
     /**
      * Actualiza los datos de una propiedad existente
@@ -657,7 +698,7 @@ class PropiedadController
             ];
 
             if ($foliosEnviados !== [] && in_array(true, array_map(
-                fn ($folio) => $folio !== '-',
+                fn($folio) => $folio !== '-',
                 $foliosEnviados
             ), true)) {
                 $this->empresaPropiedadService->actualizarFolioExistente(
@@ -677,7 +718,7 @@ class PropiedadController
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al actualizar la propiedad: '.$e->getMessage(),
+                'message' => 'Error al actualizar la propiedad: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -711,12 +752,12 @@ class PropiedadController
 
             // Limpiar nombre del archivo para evitar caracteres inválidos
             $calleName = preg_replace('/[^a-zA-Z0-9\s]/', '', $calle->name);
-            $zipFileName = trim($calleName).'-'.$numero.'.zip';
+            $zipFileName = trim($calleName) . '-' . $numero . '.zip';
 
             // Crear y enviar el archivo ZIP
             return response()->streamDownload(function () use ($fotos, $calleName, $numero) {
                 $zip = new \ZipStream\ZipStream(
-                    outputName: $calleName.'-'.$numero.'.zip',
+                    outputName: $calleName . '-' . $numero . '.zip',
                     sendHttpHeaders: false
                 );
 
@@ -726,7 +767,7 @@ class PropiedadController
 
                 foreach ($fotos as $foto) {
                     $imagePath = str_replace('/imagenes', '', $foto->url);
-                    $filePath = $basePath.str_replace('/', '\\', $imagePath);
+                    $filePath = $basePath . str_replace('/', '\\', $imagePath);
 
                     if (file_exists($filePath)) {
                         $fileName = basename($filePath);
@@ -744,7 +785,7 @@ class PropiedadController
                 }
             }, $zipFileName, [
                 'Content-Type' => 'application/zip',
-                'Content-Disposition' => 'attachment; filename="'.$zipFileName.'"',
+                'Content-Disposition' => 'attachment; filename="' . $zipFileName . '"',
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -825,7 +866,7 @@ class PropiedadController
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error al guardar la novedad: '.$e->getMessage(),
+                'message' => 'Error al guardar la novedad: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -900,7 +941,7 @@ class PropiedadController
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error al buscar propiedades: '.$e->getMessage(),
+                'message' => 'Error al buscar propiedades: ' . $e->getMessage(),
             ], 500);
         }
     }
@@ -965,8 +1006,122 @@ class PropiedadController
                 ->showBackground()
                 ->setOption('displayHeaderFooter', true)
                 ->setOption('headerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Ficha de Propiedad</span></div>')
-                ->setOption('footerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Salas Inmobiliaria</span><span style="text-align:center;">'.$username.'</span>  <span style="text-align:right;" class="date"></span></div>')
+                ->setOption('footerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Salas Inmobiliaria</span><span style="text-align:center;">' . $username . '</span>  <span style="text-align:right;" class="date"></span></div>')
                 ->pdf();
         }, 'ficha_propiedad.pdf');
+    }
+
+    /**
+     * Procesa los impuestos (Agua, TGI, API) para cada folio de la propiedad
+     *
+     * @param \Illuminate\Database\Eloquent\Collection $folios
+     * @return array Datos estructurados de impuestos por folio
+     */
+    private function procesarImpuestosPorFolios($folios)
+    {
+        $impuestosData = [];
+
+        foreach ($folios as $folio) {
+            $folioData = [
+                'folio' => $folio->folio,
+                'empresa_id' => $folio->empresa_id,
+                'impuestos' => []
+            ];
+
+            // Definir configuración de impuestos
+            $impuestosConfig = [
+                'agua' => [
+                    'padron_model' => Agua_padron::class,
+                    'carga_model' => Agua_carga::class,
+                    'fields' => ['partida', 'administra', 'clave', 'importe']
+                ],
+                'tgi' => [
+                    'padron_model' => Tgi_padron::class,
+                    'carga_model' => Tgi_carga::class,
+                    'fields' => ['partida', 'administra', 'clave', 'importe']
+                ],
+                'api' => [
+                    'padron_model' => Api_padron::class,
+                    'carga_model' => Api_carga::class,
+                    'fields' => ['partida', 'administra', 'importe']
+                    // API no tiene 'clave'
+                ],
+                'gas' => [
+                    'padron_model' => Gas_padron::class,
+                    'carga_model' => Gas_carga::class,
+                    'fields' => ['partida', 'administra', 'clave', 'importe']
+                ]
+            ];
+
+            foreach ($impuestosConfig as $tipo => $config) {
+                // Obtener datos del padrón
+                $padronData = $config['padron_model']::where('folio', $folio->folio)
+                    ->where('empresa', $folio->empresa_id)
+                    ->get();
+
+                foreach ($padronData as $item) {
+                    // Obtener última carga
+                    $ultimaCarga = $this->obtenerUltimaCargaImpuesto(
+                        $config['carga_model'],
+                        $folio->folio,
+                        $folio->empresa_id
+                    );
+                    //Log::info('informacion de ultimacargar', [$ultimaCarga]);
+
+                    // Construir datos del impuesto
+                    $impuestoItem = [
+                        'tipo' => $tipo,
+                        'partida' => $item->partida,
+                        'administra' => $item->administra ?? null,
+                        //'importe' => $item->importe ?? null,
+                    ];
+
+                    // Agregar 'clave' solo si existe en el modelo
+                    if (in_array('clave', $config['fields'])) {
+                        //Log::info(' ultima  clave verificar', [$item->clave]);
+                        $impuestoItem['clave'] = $item->clave ?? null;
+                    }
+                    //Log::info('ultima clave verificar', [$impuestoItem]);
+
+                    // Agregar datos de la última carga
+                    if ($ultimaCarga) {
+                        $impuestoItem['ultima_carga'] = [
+                            'fecha_vencimiento' => $ultimaCarga->fecha_vencimiento ?? null,
+                            'importe' => $ultimaCarga->importe ?? null,
+                        ];
+                    } else {
+                        $impuestoItem['ultima_carga'] = null;
+                    }
+
+                    $folioData['impuestos'][] = $impuestoItem;
+                }
+            }
+
+            // Solo agregar folios que tengan datos de impuestos
+            if (!empty($folioData['impuestos'])) {
+                $impuestosData[] = $folioData;
+            }
+        }
+
+        return $impuestosData;
+    }
+
+    /**
+     * Obtiene la última carga de un impuesto específico
+     *
+     * @param string $modelo Clase del modelo de carga
+     * @param string $folio Número de folio
+     * @param int $empresa ID de la empresa
+     * @return object|null Modelo de carga o null si no existe
+     */
+    private function obtenerUltimaCargaImpuesto($modelo, $folio, $empresa)
+    {
+        /* Log::info('este es el modelo', [$modelo]);
+        Log::info('este es el folio', [$folio]);
+        Log::info('esta es la empresa', [$empresa]); */
+        return $modelo::where('compartidos', 'LIKE', '%"folio":' . $folio . '%')
+            ->where('compartidos', 'LIKE', '%"empresa":' . $empresa . '%')
+            ->orderByDesc('fecha_vencimiento')
+            ->first();
     }
 }
