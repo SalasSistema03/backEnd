@@ -29,6 +29,7 @@ class Api_padron extends Model
         'empresa',
         'estado',
         'comienza',
-        'rescicion'
+        'rescicion',
+        'seguir_pagando',
     ];
 }

@@ -337,12 +337,12 @@ class PadronImpuestoService
             //Log::info([$item->folio . '-' . ltrim($item->partida, '0') => $item]);
             return [$item->folio . '-' . ltrim($item->partida, '0') => $item];
         });
-        
+
 
         $nuevoPorFolioPartida = collect($nuevoPadron)->mapWithKeys(function ($item) {
             return [$item->folio . '-' . ltrim($item->partida, '0') => $item];
         });
-        
+
 
         $existentePorFolioCalle = collect($padronExistente)->groupBy(function ($item) {
             return $item->folio . '-' . trim($item->calle);
@@ -815,7 +815,7 @@ class PadronImpuestoService
 
 
 
-    /* 
+    /*
     public function obtenerPadron($impuesto)
     {
         if ($impuesto === 'tgi') {
@@ -995,7 +995,8 @@ class PadronImpuestoService
 
     public function ObtenerPadronFiltrado($impuesto, $request)
     {
-
+        //Log::info('request', $request->all());
+        //dd('hola');
         //Parametros de busqueda
         $search = $request->input('search_all');
         $search_folio = $request->input('search_folio');
@@ -1009,6 +1010,7 @@ class PadronImpuestoService
         // Separar filtros por tipo
         $estados = array_intersect($filtros, ['ACTIVO', 'INACTIVO', 'PENDIENTE', 'MODIFICADO']);
         $administraciones = array_intersect($filtros, ['L', 'P', 'I']);
+        $seguirPagando = array_intersect($filtros, ['SEGUIR-PAGANDO']);
 
         // Obtener todos los registros del padrón desde el servicio
         if ($impuesto === 'agua') {
@@ -1053,6 +1055,18 @@ class PadronImpuestoService
             return $estadoOk && $adminOk;
         });
 
+
+        Log::info('padron', $padron->all());
+        Log::info('seguirPagando', $seguirPagando);
+        if (!empty($seguirPagando)) {
+            $padron = $padron->filter(function ($item) {
+                return $item->seguir_pagando === 'S';
+            });
+        }
+
+
+        //Log::info('padron', $padron->all());
+
         // Si hay parámetros de búsqueda, devolver JSON (para AJAX)
         if (!empty($search) || !empty($search_folio) || !empty($request->input('filtros'))) {
             return response()->json(['message' => 'Filtro actualizado correctamente.', 'data' => $padron->values()->all()]);
@@ -1064,19 +1078,25 @@ class PadronImpuestoService
 
     public function actualizarPadronConcreto($request)
     {
+
+        //Log::info('llego a actualizarPadron', $request->all());
+
         $modelo = $this->obtenerModeloPorImpuesto($request->impuesto);
+
         // Verificar si ya existe otro registro con el mismo folio, clave y partida
 
-        $existe = $modelo::where('folio', $request->folio)
+        /* $existe = $modelo::where('folio', $request->folio)
             ->where('clave', $request->clave)
             ->where('partida', $request->partida)
-            ->where('id', '!=', $request->id) // excluir el actual
-            ->exists();
+            ->where('id', '!=', $request->id)   // excluir el actual
+            ->exists(); */
+        //Log::info($modelo);
+        //dd('hola');
 
-        if ($existe) {
+        /* if ($existe) {
             return response()->json(['message' => 'Ya existe otro registro con el mismo folio, clave y partida.'], 400);
         }
-
+ */
         // Si no existe duplicado, actualizar
         $registro = $modelo::findOrFail($request->id);
         $registro->folio = $request->folio;
@@ -1085,6 +1105,7 @@ class PadronImpuestoService
         $registro->clave = $request->clave;
         $registro->estado = $request->estado;
         $registro->administra = $request->administra;
+        $registro->seguir_pagando = $request->seguir_pagando;
         $registro->save();
 
 
