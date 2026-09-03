@@ -95,13 +95,44 @@ class ClientesController extends Controller
      */
     public function guardar(Request $request)
     {
+        Log::info('informacion de request', $request->all());
+        //dd('hola');
 
 
         try {
+            // Validación cuando el sector es alquiler
+            $clienteData = $request->input('cliente', []);
+            if (isset($clienteData['sector_asesor']) && $clienteData['sector_asesor'] === 'alquiler') {
+                $validator = Validator::make($request->all(), [
+                    'cliente.telefono' => 'required',
+                    'cliente.nombre' => 'required',
+                    'cliente.id_asesor_alquiler' => 'required',
+                    'cliente.ingreso_alq' => 'required',
+                    'cliente.usuario_id' => 'required',
+                    'propiedades_alquiler' => 'required_without:criterios_alquiler|array',
+                    'criterios_alquiler' => 'required_without:propiedades_alquiler|array',
+                ], [
+                    'cliente.telefono.required' => 'El teléfono es obligatorio.',
+                    'cliente.nombre.required' => 'El nombre es obligatorio.',
+                    'cliente.id_asesor_alquiler.required' => 'El asesor de alquiler es obligatorio.',
+                    'cliente.ingreso_alq.required' => 'El canal de ingreso es obligatorio.',
+                    'cliente.usuario_id.required' => 'El usuario es obligatorio.',
+                    'propiedades_alquiler.required_without' => 'Debe ingresar al menos una propiedad o un criterio de alquiler.',
+                    'criterios_alquiler.required_without' => 'Debe ingresar al menos una propiedad o un criterio de alquiler.',
+                ]);
 
+                if ($validator->fails()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Error de validación',
+                        'errors' => $validator->errors()
+                    ], 422);
+                }
+            }
 
             $cliente = null;
             $criteriosVentaCreados = [];
+            $criteriosAlquilerCreados = [];
             $propiedadesVentaInput = $request->input('propiedades_venta', []);
             $propiedadesAlquilerInput = $request->input('propiedades_alquiler', []);
             $usuarioId =   auth('api')->id();
@@ -111,7 +142,7 @@ class ClientesController extends Controller
             //$this->recordatorioController->storeDesdeClientes($request);
             //dd('hola');
 
-            DB::connection('mysql5')->transaction(function () use ($request, &$cliente, &$criteriosVentaCreados, $propiedadesVentaInput, $propiedadesAlquilerInput, $usuarioId) {
+            DB::connection('mysql5')->transaction(function () use ($request, &$cliente, &$criteriosVentaCreados, &$criteriosAlquilerCreados, $propiedadesVentaInput, $propiedadesAlquilerInput, $usuarioId) {
                 // 1. GUARDAR EL CLIENTE
                 $clienteData = $request->input('cliente');
                 if ($clienteData['sector_asesor'] === 'venta') {
@@ -306,8 +337,8 @@ class ClientesController extends Controller
 
                                     $this->consultaPropiedadAlquilerService->guardarConsultaPropAlquiler($propiedad);
 
-                                    $this->historialCodigoConsultaService
-                                        ->guardarHistorialCodigoConsulta($propiedad['id_propiedad'], $criterioCreado['id_criterio_alquiler']);
+                                    /* $this->historialCodigoConsultaService
+                                        ->guardarHistorialCodigoConsulta($propiedad['id_propiedad'], $criterioCreado['id_criterio_alquiler']); */
 
                                     $encontrado = true;
                                     break;
@@ -325,11 +356,11 @@ class ClientesController extends Controller
 
 
                     try {
-                        // Encontrar el criterioventa con el ID más grande
+                        // Encontrar el criterio alquiler con el ID más grande
                         $criterioAlquilerMasGrande = null;
                         $maxId = 0;
 
-                        foreach ($criteriosVentaCreados as $criterio) {
+                        foreach ($criteriosAlquilerCreados as $criterio) {
                             if (isset($criterio['id_criterio_alquiler']) && $criterio['id_criterio_alquiler'] > $maxId) {
                                 $maxId = $criterio['id_criterio_alquiler'];
                                 $criterioAlquilerMasGrande = $criterio;
