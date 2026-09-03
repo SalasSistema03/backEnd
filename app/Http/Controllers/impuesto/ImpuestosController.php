@@ -103,7 +103,7 @@ class ImpuestosController extends Controller
                 'eliminarImpuesto_gas' => $accessService->tieneAcceso('eliminarImpuesto_gas')
             ];
         }
-         if ($request->impuesto === 'api') {
+        if ($request->impuesto === 'api') {
             $botones = [
                 'modificarBajado_api' => $accessService->tieneAcceso('modificarBajado_api'),
                 'modificarEstado_api' => $accessService->tieneAcceso('modificarEstado_api'),
@@ -154,7 +154,7 @@ class ImpuestosController extends Controller
             return app(CargaTgiService::class)->cargarNuevoTgiService($codigoBarras);
         }
         if ($request->impuesto === 'agua') {
-           // Log::info('entro a agua');
+            // Log::info('entro a agua');
             $codigoBarras = $request->codigo_barras;
 
             if (!$codigoBarras) {
@@ -162,7 +162,7 @@ class ImpuestosController extends Controller
             }
 
             if (empty($codigoBarras) || strlen($codigoBarras) !== 45) {
-               // Log::info('error cod barras');
+                // Log::info('error cod barras');
                 return response()->json(['error' => 'Debés ingresar un código de barras válido de 35 caracteres'], 400);
             }
 
@@ -207,11 +207,22 @@ class ImpuestosController extends Controller
 
     public function exportarFaltantes(Request $request)
     {
-
         $registros = app(CargaImpuestoService::class)->exportarFaltantesService($request->anio, $request->mes, $request->impuesto);
 
+        $encabezados = [
+            'Folio',
+            'Partida',
+            'Clave',
+            'Abona',
+            'Administra',
+            'Empresa',
+            'Estado',
+            'Comienza',
+            'Rescision',
+            'Seguir Pagando',
+        ];
 
-        $contenido = '';
+        $contenido = implode("\t", $encabezados) . "\n";
 
         foreach ($registros as $r) {
             $fila = [
@@ -224,6 +235,7 @@ class ImpuestosController extends Controller
                 $r->estado,
                 Carbon::parse($r->comienza)->format('Y-m-d'),
                 Carbon::parse($r->rescicion)->format('Y-m-d'),
+                $r->seguir_pagando,
             ];
 
             $contenido .= implode("\t", $fila) . "\n";
@@ -240,7 +252,7 @@ class ImpuestosController extends Controller
 
     public function sumarMontos(Request $request)
     {
-        
+
         if ($request->impuesto === 'gas') {
             $total = app(CargaImpuestoService::class)->sumarMontosDiasService($request->anio, $request->mes,  $request->dia, $request->impuesto);
             return response()->json([
@@ -358,7 +370,7 @@ class ImpuestosController extends Controller
 
     public function sinControlar(Request $request)
     {
-       // Log::info([$request]);
+        // Log::info([$request]);
         return app(CargaImpuestoService::class)->sinControlar($request->impuesto);
     }
 
@@ -370,7 +382,7 @@ class ImpuestosController extends Controller
 
     public function gasBajado(Request $request)
     {
-       // Log::info('gas bajado', [$request->all()]);
+        // Log::info('gas bajado', [$request->all()]);
         return app(CargaImpuestoService::class)->gasBajado($request->all());
     }
 }

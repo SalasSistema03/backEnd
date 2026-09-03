@@ -400,29 +400,69 @@ class CargaImpuestoService
 
         // 2️⃣ Obtener todos los registros activos que administra L
         if ($impuesto === 'tgi') {
-            $padrones = Tgi_padron::where('estado', 'ACTIVO')
-                ->where('administra', 'L')
-                ->get();
+            $padrones = Tgi_padron::where(function ($query) {
+                $query
+                    // 1) ACTIVO + administra L (sin condición de seguir_pagando)
+                    ->orWhere(function ($q) {
+                        $q->where('estado', 'ACTIVO')
+                            ->where('administra', 'L');
+                    })
+                    // 2) INACTIVO + administra L + seguir_pagando = S
+                    ->orWhere(function ($q) {
+                        $q->where('estado', 'INACTIVO')
+                            ->where('administra', 'L')
+                            ->where('seguir_pagando', 'S');
+                    });
+            })->get();
         }
         if ($impuesto === 'agua') {
-            $padrones = Agua_padron::where('estado', 'ACTIVO')
-                ->orWhere('estado', 'PENDIENTE')
-                ->where('administra', 'L')
-                ->get();
+            $padrones = Agua_padron::where(function ($query) {
+                $query
+                    // 1) (ACTIVO o PENDIENTE) + administra L, sin condición de seguir_pagando
+                    ->orWhere(function ($q) {
+                        $q->whereIn('estado', ['ACTIVO', 'PENDIENTE'])
+                            ->where('administra', 'L');
+                    })
+                    // 2) INACTIVO + administra L + seguir_pagando = S
+                    ->orWhere(function ($q) {
+                        $q->where('estado', 'INACTIVO')
+                            ->where('administra', 'L')
+                            ->where('seguir_pagando', 'S');
+                    });
+            })->get();
         }
         if ($impuesto === 'gas') {
-            $padrones = Gas_padron::where('estado', 'ACTIVO')
-                ->orWhere('estado', 'PENDIENTE')
-                ->where('administra', 'L')
-                ->get();
+            $padrones = Gas_padron::where(function ($query) {
+                $query
+                    // 1) (ACTIVO o PENDIENTE) + administra L, sin condición de seguir_pagando
+                    ->orWhere(function ($q) {
+                        $q->whereIn('estado', ['ACTIVO', 'PENDIENTE'])
+                            ->where('administra', 'L');
+                    })
+                    // 2) INACTIVO + administra L + seguir_pagando = S
+                    ->orWhere(function ($q) {
+                        $q->where('estado', 'INACTIVO')
+                            ->where('administra', 'L')
+                            ->where('seguir_pagando', 'S');
+                    });
+            })->get();
         }
         if ($impuesto === 'api') {
-            $padrones = Api_padron::where('estado', 'ACTIVO')
-                ->orWhere('estado', 'PENDIENTE')
-                ->where('administra', 'L')
-                ->get();
+            $padrones = Api_padron::where(function ($query) {
+                $query
+                    // 1) (ACTIVO o PENDIENTE) + administra L, sin condición de seguir_pagando
+                    ->orWhere(function ($q) {
+                        $q->whereIn('estado', ['ACTIVO', 'PENDIENTE'])
+                            ->where('administra', 'L');
+                    })
+                    // 2) INACTIVO + administra L + seguir_pagando = S
+                    ->orWhere(function ($q) {
+                        $q->where('estado', 'INACTIVO')
+                            ->where('administra', 'L')
+                            ->where('seguir_pagando', 'S');
+                    });
+            })->get();
         }
-
 
 
 
