@@ -35,9 +35,16 @@ class PdfImpuestoController
         return response()->json($data);
     }
 
+    public function PDF_BrocheSP(Request $request)
+    {
+        $data = (new PdfImpuesto)->obtenerRegistroPorBrocheSP($request->anio, $request->mes, $request->impuesto);
+
+        return response()->json($data);
+    }
+
     public function descargaPdf(Request $request)
     {
-       // Log::info('entro');
+        // Log::info('entro');
         // Los datos que antes pasabas por props en Vue
         $broches = $request->input('broches');
         $anio = $request->input('anio');

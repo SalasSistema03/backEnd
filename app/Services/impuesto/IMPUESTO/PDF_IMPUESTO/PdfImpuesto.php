@@ -225,4 +225,109 @@ class PdfImpuesto
             'broches' => array_values($grupos)
         ];
     }
+
+    public function obtenerRegistroPorBrocheSP($anio, $mes, $impuesto)
+    {
+        $modelo = (new CargaImpuestoService())->obtenerModeloCargaPorImpuesto($impuesto);
+
+        $registros = $modelo::where('periodo_anio', $anio)
+            ->where('periodo_mes', $mes)
+            ->with('padron')
+            ->get();
+
+        $registrosFiltrados = $registros->filter(function ($registro) {
+            // Descartar si ya fue bajado
+            if (isset($registro->bajado) && $registro->bajado === 'S') {
+                return false;
+            }
+
+            $padron = $registro->padron;
+            if (!$padron) {
+                return false;
+            }
+
+            return strtoupper($padron->estado ?? '') === 'INACTIVO'
+                && strtoupper($padron->administra ?? '') === 'L'
+                && strtoupper($padron->seguir_pagando ?? '') === 'S';
+        });
+
+        // 3️⃣ Agregar propiedad "folio" (usamos el primero válido)
+        foreach ($registrosFiltrados as $registro) {
+            $compartidos = json_decode($registro->compartidos, true);
+            $folio = null;
+
+            if (is_array($compartidos) && isset($compartidos[0]['folio'])) {
+                $folio = $compartidos[0]['folio'];
+            }
+
+            $registro->folio = $folio ?? 0;
+        }
+
+        // 4️⃣ Ordenar los registros por EMPRESA (1, 2, 3) y luego por FOLIO (ASC)
+        $registrosOrdenados = $registrosFiltrados
+            ->map(function ($registro) {
+                $compartidos = json_decode($registro['compartidos'], true);
+
+                if (is_array($compartidos)) {
+                    $activos = collect($compartidos)
+                        ->where('estado', 'INACTIVO')
+                        ->sortBy('folio')
+                        ->values();
+
+                    if ($activos->isNotEmpty()) {
+                        $primero = $activos->first();
+                        $registro['compartidos'] = [$primero];
+                        $registro['folio'] = $primero['folio'];
+                        // Extraemos la empresa para poder ordenar por ella después
+                        $registro['empresa_para_ordenar'] = $primero['empresa'] ?? 99;
+                    } else {
+                        $registro['compartidos'] = [];
+                        $registro['folio'] = null;
+                        $registro['empresa_para_ordenar'] = 99;
+                    }
+                }
+                return $registro;
+            })
+            ->filter(fn($registro) => !empty($registro['compartidos']))
+            // ORDENAMIENTO CRUCIAL AQUÍ:
+            ->sort(function ($a, $b) {
+                // Primero comparamos por empresa (1, 2, 3)
+                if ($a['empresa_para_ordenar'] != $b['empresa_para_ordenar']) {
+                    return $a['empresa_para_ordenar'] <=> $b['empresa_para_ordenar'];
+                }
+                // Si la empresa es igual, comparamos por folio
+                return $a['folio'] <=> $b['folio'];
+            })
+            ->values();
+
+        // 5️⃣ Agrupar por num_broche (manteniendo la misma estructura de broches que los otros métodos)
+        $grupos = [];
+
+        foreach ($registrosOrdenados as $registro) {
+            $numBroche = $registro->num_broche ?? 'SP';
+
+            if (!isset($grupos[$numBroche])) {
+                $grupos[$numBroche] = [
+                    'num_broche' => $numBroche,
+                    'total' => 0,
+                    'items' => []
+                ];
+            }
+
+            $importe = floatval(str_replace(',', '.', $registro->importe));
+            $grupos[$numBroche]['total'] += $importe;
+            $grupos[$numBroche]['items'][] = $registro;
+        }
+
+        ksort($grupos);
+
+        // 7️⃣ Calcular total general
+        $totalGeneral = array_sum(array_column($grupos, 'total'));
+
+        // 8️⃣ Retornar estructura final
+        return [
+            'total_general' => round($totalGeneral, 2),
+            'broches' => array_values($grupos)
+        ];
+    }
 }

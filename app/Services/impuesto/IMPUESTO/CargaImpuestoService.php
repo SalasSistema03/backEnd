@@ -661,6 +661,58 @@ class CargaImpuestoService
         return round($total, 2);
     }
 
+    public function sumarMontosSeguirPagandoService($anio, $mes, $impuesto)
+    {
+        // Obtener registros del período
+        $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
+        $registros = $modelo::where('periodo_anio', $anio)
+            ->where('periodo_mes', $mes)
+            //->where('num_broche', null)
+            ->where('bajado', 'N')
+            ->get();
+
+        // Filtrar registros que:
+        // - NO tengan folios 50xxx
+        // - Sean folios Inactivos que administre L y tengan seguir pagando = S (modelo agua_padron/tgi_padron, etc)
+        $modeloPadron = $this->obtenerModeloPadronPorImpuesto($impuesto);
+
+        $registrosFiltrados = $registros->filter(function ($registro) use ($modeloPadron) {
+            $compartidos = json_decode($registro->compartidos, true);
+
+            if (!is_array($compartidos)) {
+                return false;
+            }
+
+            // Si tiene algún folio 50xxx, lo descartamos
+            /* foreach ($compartidos as $comp) {
+                if (isset($comp['folio']) && preg_match('/^50\d{3}$/', (string)$comp['folio'])) {
+                    return false;
+                }
+            } */
+
+            // Obtener los folios del registro
+            $folios = collect($compartidos)->pluck('folio')->filter()->unique()->values()->all();
+            if (empty($folios)) {
+                return false;
+            }
+
+            // Verificar si cumple con: Inactivo + administra L + seguir_pagando = S en el padrón
+            return $modeloPadron::whereIn('folio', $folios)
+                ->where('estado', 'INACTIVO')
+                ->where('administra', 'L')
+                ->where('seguir_pagando', 'S')
+                ->exists();
+        });
+
+        $total = $registrosFiltrados->sum(function ($r) {
+            return (float) str_replace(',', '.', $r->importe);
+        });
+
+        //Log::info('Total Seguir Pagando: ' . $total);
+
+        return round($total, 2);
+    }
+
     //Funcion que genera la distribucion de broche por dias tanto de gas como de api
     public function generarDistribucionDiaBroches($anio, $mes, $dia, $cantidadBroches, $impuesto)
     {
@@ -1010,7 +1062,7 @@ class CargaImpuestoService
             foreach ($compartidos as $item) {
                 if (
                     isset($item['folio']) &&
-                    preg_match('/^500\d+$/', (string)$item['folio']) // ✅ solo folios que empiezan con 500
+                    preg_match('/^500\d+$/', (string)$item['folio']) //  solo folios que empiezan con 500
                 ) {
                     return true;
                 }
@@ -1027,6 +1079,47 @@ class CargaImpuestoService
             }
         } catch (\Exception $e) {
             Log::error('Error al actualizar num_broche: ' . $e->getMessage());
+            throw $e;
+        }
+
+        return true;
+    }
+
+    public function guardarDistribucionBrocheSeguirPagando($anio, $mes, $impuesto)
+    {
+        $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
+
+        $registros = $modelo::where('periodo_anio', $anio)
+            ->where('periodo_mes', $mes)
+            ->with('padron')
+            ->get();
+
+        $registrosFiltrados = $registros->filter(function ($registro) {
+            // Descartar si ya fue bajado
+            if (isset($registro->bajado) && $registro->bajado === 'S') {
+                return false;
+            }
+
+            $padron = $registro->padron;
+            if (!$padron) {
+                return false;
+            }
+
+            return strtoupper($padron->estado ?? '') === 'INACTIVO'
+                && strtoupper($padron->administra ?? '') === 'L'
+                && strtoupper($padron->seguir_pagando ?? '') === 'S';
+        });
+        //Log::info('estos son los registros', [$registrosFiltrados]);
+        //dd('hola');
+
+        try {
+            $usuarioId = auth('api')->id();
+            foreach ($registrosFiltrados as $registro) {
+                $modelo::where('id', $registro->id)
+                    ->update(['num_broche' => 'SP', 'controlado' => $usuarioId]);
+            }
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar num_broche seguir pagando: ' . $e->getMessage());
             throw $e;
         }
 

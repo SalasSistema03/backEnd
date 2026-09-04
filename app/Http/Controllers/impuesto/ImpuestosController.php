@@ -271,12 +271,14 @@ class ImpuestosController extends Controller
         if ($request->impuesto === 'tgi' || $request->impuesto === 'agua') {
             $total = app(CargaImpuestoService::class)->sumarMontosService($request->anio, $request->mes, $request->impuesto);
             $totalSalas = app(CargaImpuestoService::class)->sumarMontosSalasService($request->anio, $request->mes, $request->impuesto);
+            $totalSeguirPagando = app(CargaImpuestoService::class)->sumarMontosSeguirPagandoService($request->anio, $request->mes, $request->impuesto);
 
 
 
             return response()->json([
                 'total' => $total,
                 'totalSalas' => $totalSalas,
+                'totalSeguirPagando' => $totalSeguirPagando,
             ]);
         }
     }
@@ -325,6 +327,22 @@ class ImpuestosController extends Controller
                 app(CargaImpuestoService::class)->guardarDistribucionBrocheSALAS($request->anio, $request->mes, $request->impuesto);
 
 
+                return response()->json(['status' => 'success', 'message' => 'Los broches se guardaron correctamente.']);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Hubo un problema al guardar los broches: ' . $e->getMessage()
+                ], 500);
+            }
+        }
+    }
+
+    public function guardarBrocheSeguirPagando(Request $request)
+    {
+        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'api') {
+            try {
+
+                app(CargaImpuestoService::class)->guardarDistribucionBrocheSeguirPagando($request->anio, $request->mes, $request->impuesto);
                 return response()->json(['status' => 'success', 'message' => 'Los broches se guardaron correctamente.']);
             } catch (\Exception $e) {
                 return response()->json([
