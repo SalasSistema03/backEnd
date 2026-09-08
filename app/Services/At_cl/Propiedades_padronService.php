@@ -141,7 +141,7 @@ class Propiedades_padronService
             Propiedades_padron::where('propiedad_id', $propiedad_id)
                 ->where('padron_id', $propietario['id'])
                 ->update([
-                    'observaciones_baja' => $propietario['observaciones'] ?? '',
+                    'observaciones_baja' => $propietario['observaciones_baja'] ?? '',
                     'baja' => $propietario['baja'] ?? 'no',
                     'fecha_baja' => now(),
                 ]);

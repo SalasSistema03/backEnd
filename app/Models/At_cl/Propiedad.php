@@ -306,9 +306,9 @@ class Propiedad extends Model
 
 
 
-    public function scopeFiltrar($query, array $filtros)
+   public function scopeFiltrar($query, array $filtros)
     {
-        // Filtro por tipo de búsqueda (venta/alquiler)
+        // 1. TIPO DE BÚSQUEDA (Venta o Alquiler)
         if (!empty($filtros['busqueda'])) {
             if ($filtros['busqueda'] == 1) {
                 $query->whereNotNull('cod_venta');
@@ -318,14 +318,13 @@ class Propiedad extends Model
                 $query->has('folios');
             }
         } else {
-            // Si busqueda es nulo/vacío, trae las que tienen al menos un código
             $query->where(function ($q) {
                 $q->whereNotNull('cod_venta')
-                    ->orWhereNotNull('cod_alquiler');
+                  ->orWhereNotNull('cod_alquiler');
             });
         }
 
-        // Código
+        // 2. CÓDIGO
         if (!empty($filtros['codigo'])) {
             if (!empty($filtros['busqueda'])) {
                 if ($filtros['busqueda'] == 1) {
@@ -345,36 +344,43 @@ class Propiedad extends Model
             }
         }
 
-        // Calle
+        // 3. CALLE Y ZONAS
         if (!empty($filtros['calle_id'])) {
             $query->where('id_calle', $filtros['calle_id'])
-                ->orderBy('numero_calle', 'asc');;
+                  ->orderBy('numero_calle', 'asc');
         }
 
-        // Tipos de inmueble
         if (!empty($filtros['inmuebles'])) {
             $query->whereIn('id_inmueble', $filtros['inmuebles']);
         }
 
-        // Zonas
         if (!empty($filtros['zonas'])) {
             $query->whereIn('id_zona', $filtros['zonas']);
         }
 
-        // Cochera
+        // 4. HABITACIONES, COCHERA, MASCOTAS, CARTEL, MONEDA
         if (!empty($filtros['cochera'])) {
             $query->where('cochera', $filtros['cochera']);
         }
-
-        // Mascotas
+        
         if (!empty($filtros['mascotas'])) {
             $query->where('mascota', $filtros['mascotas']);
         }
+
         if (isset($filtros['habitaciones']) && $filtros['habitaciones'] !== '') {
             $query->where('cantidad_dormitorios', $filtros['habitaciones']);
         }
 
-        // Rango de precios
+        // NUEVOS FILTROS
+        if (isset($filtros['cartel']) && $filtros['cartel'] !== '') {
+            $query->where('cartel', $filtros['cartel']);
+        }
+
+        if (isset($filtros['moneda']) && $filtros['moneda'] !== '') {
+            $query->where('moneda', $filtros['moneda']);
+        }
+
+        // 5. RANGO DE PRECIOS
         if (!empty($filtros['desde']) || !empty($filtros['hasta'])) {
             $query->whereHas('precioActual', function ($q) use ($filtros) {
                 $q->where(function ($subQ) use ($filtros) {
@@ -407,23 +413,20 @@ class Propiedad extends Model
             });
         }
 
-        // Si el checkbox de ampliar no está marcado, filtrar por estados
-        if (!isset($filtros['ampliar']) || $filtros['ampliar'] == 0 || $filtros['ampliar'] === false) {
-            $estadosVentaExcluidos = Estado_venta::whereIn('id', ['3', '4', '5', '6', '7'])->pluck('id')->toArray();
-            $estadosAlquilerExcluidos = Estado_alquiler::whereIn('id', ['3', '4', '5', '6', '7'])->pluck('id')->toArray();
-
-            if (!empty($filtros['busqueda'])) {
-                if ($filtros['busqueda'] == 1) {
-                    // Para venta, excluir vendidas y baja temporal
-                    $query->whereNotIn('id_estado_venta', $estadosVentaExcluidos);
-                } elseif ($filtros['busqueda'] == 2) {
-                    // Para alquiler, excluir alquiladas y baja temporal
-                    $query->whereNotIn('id_estado_alquiler', $estadosAlquilerExcluidos);
-                }
-            } else {
-                $query->where(function ($q) use ($estadosVentaExcluidos, $estadosAlquilerExcluidos) {
-                    $q->whereNotIn('id_estado_venta', $estadosVentaExcluidos)
-                        ->orWhereNotIn('id_estado_alquiler', $estadosAlquilerExcluidos);
+        // 6. ESTADOS DE VENTA Y ALQUILER (CORRECCIÓN CRÍTICA)
+        if (!empty($filtros['busqueda'])) {
+            // Si busca algo específico, usa AND normal
+            if ($filtros['busqueda'] == 1 && !empty($filtros['estados_venta'])) {
+                $query->whereIn('id_estado_venta', $filtros['estados_venta']);
+            } elseif ($filtros['busqueda'] == 2 && !empty($filtros['estados_alquiler'])) {
+                $query->whereIn('id_estado_alquiler', $filtros['estados_alquiler']);
+            }
+        } else {
+            // Si busca "Todas", usamos una condición OR lógica
+            if (isset($filtros['estados_venta']) && isset($filtros['estados_alquiler'])) {
+                $query->where(function ($q) use ($filtros) {
+                    $q->whereIn('id_estado_venta', $filtros['estados_venta'])
+                      ->orWhereIn('id_estado_alquiler', $filtros['estados_alquiler']);
                 });
             }
         }
