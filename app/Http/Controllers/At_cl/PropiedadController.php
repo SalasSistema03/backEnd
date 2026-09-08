@@ -379,6 +379,7 @@ class PropiedadController
                 'observacionesPropiedades',
                 'historialEstadosAlquiler',
                 'historialEstadosVenta',
+                'localidad',
             ])->find($request->id);
 
             if (!$propiedad) {
@@ -539,6 +540,9 @@ class PropiedadController
                     'id_inmueble' => 'id_inmueble',
                     'id_zona' => 'id_zona',
                     'id_provincia' => 'id_provincia',
+                    'id_localidad' => 'id_localidad',
+                    'latitud' => 'latitud',
+                    'longitud' => 'longitud',
                     'llave' => 'llave',
                     'comentario_llave' => 'comentario_llave',
                     'cartel' => 'cartel',
@@ -671,6 +675,9 @@ class PropiedadController
                 $propietarios_eliminados = json_decode($request->propietarios_eliminados, true);
                 (new Propiedades_padronService)->eliminarPropietario($propiedad->id, $propietarios_eliminados);
             }
+
+            //Maneja observaciones baja
+            
             if ($request->has('propietarios_nuevos')) {
 
                 $propietarios_nuevos = json_decode($request->propietarios_nuevos, true);
