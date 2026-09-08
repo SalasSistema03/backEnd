@@ -43,7 +43,7 @@ class ListadoPdfAtcl
 
             // Ejecutar la query trayendo también la relación de observaciones y tipoInmueble
             $propiedades = $query->with(['observacionesPropiedades', 'tipoInmueble', 'historialEstadosAlquiler'])->get();
-//Log::info($propiedades);
+
             //dd($propiedades);
             // Solo ordenar por precio si es necesario (post-query)
             if ($request->orden === 'precio_asc' || $request->orden === 'precio_desc') {
@@ -95,7 +95,7 @@ class ListadoPdfAtcl
                     : '-';
 
 
-                 if ($request->estado_id === 1 || $request->estado_id === 2) {
+                if ($request->estado_id === 1 || $request->estado_id === 2) {
 
 
                     $historial = $propiedad->historialEstadosAlquiler;
@@ -103,7 +103,6 @@ class ListadoPdfAtcl
                     if ($historial && in_array($historial->id_estado_alquiler, [1, 2])) {
                         $propiedad->fecha_antiguedad = Carbon::parse($historial->fecha_alquiler);
                         $propiedad->antiguedad = $this->formatearAntiguedad($historial->fecha_alquiler);
-                        
                     } else {
                         $propiedad->fecha_antiguedad = Carbon::parse($propiedad->created_at);
                         $propiedad->antiguedad = $this->formatearAntiguedad($propiedad->created_at);
@@ -111,7 +110,7 @@ class ListadoPdfAtcl
                 } else {
 
                     $propiedad->antiguedad = "-";
-                } 
+                }
             }
 
             // Usuario actual
@@ -707,7 +706,7 @@ class ListadoPdfAtcl
             $query = $filtrosService->aplicarFiltrosUnificados($request->all());
 
             // Ejecutar la query trayendo también la relación de observaciones y tipoInmueble
-            $propiedades = $query->with(['observacionesPropiedades', 'tipoInmueble', 'historialEstadosAlquiler','propietarios'])->get();
+            $propiedades = $query->with(['observacionesPropiedades', 'tipoInmueble', 'historialEstadosAlquiler', 'propietarios'])->get();
 
             // Solo ordenar por precio si es necesario (post-query)
             if ($request->orden === 'precio_asc' || $request->orden === 'precio_desc') {
@@ -753,18 +752,18 @@ class ListadoPdfAtcl
                     ? $usernamesById[$propiedad->asesor]
                     : '-';
 
-                 /* $historial = $propiedad->fecha_ofrecimiento;
-                    $propiedad->fecha_antiguedad = Carbon::parse($historial);
-                    $propiedad->antiguedad = $this->formatearAntiguedad($historial);  */
-                    $historial = $propiedad->historialEstadosAlquiler;
+                $historial = $propiedad->fecha_ofrecimiento;
+                $propiedad->fecha_antiguedad = Carbon::parse($historial);
+                $propiedad->antiguedad = $this->formatearAntiguedad($historial);
+                /* $historial = $propiedad->historialEstadosAlquiler; */
 
-                    if ($historial && !empty($historial->fecha_alquiler)) {
-                        $propiedad->fecha_antiguedad = Carbon::parse($historial->fecha_alquiler);
-                        $propiedad->antiguedad = $this->formatearAntiguedad($historial->fecha_alquiler);
-                    } else {
-                        $propiedad->fecha_antiguedad = Carbon::parse($propiedad->created_at);
-                        $propiedad->antiguedad = $this->formatearAntiguedad($propiedad->created_at);
-                    }
+                if ($historial && !empty($historial->fecha_alquiler)) {
+                    $propiedad->fecha_antiguedad = Carbon::parse($historial->fecha_alquiler);
+                    $propiedad->antiguedad = $this->formatearAntiguedad($historial->fecha_alquiler);
+                } else {
+                    $propiedad->fecha_antiguedad = Carbon::parse($propiedad->created_at);
+                    $propiedad->antiguedad = $this->formatearAntiguedad($propiedad->created_at);
+                }
             }
 
             // --- NUEVO: agrupar por tipo de inmueble y ordenar cada grupo por antigüedad ---

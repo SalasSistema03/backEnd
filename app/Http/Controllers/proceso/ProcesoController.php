@@ -157,8 +157,9 @@ class ProcesoController extends Controller
     public function getHistorialContrato(Request $request)
     {
         try {
-            $form = $request->input('form');
-            $historial = (new ProcesoContratoService())->getHistorialContrato($form);
+            //Log::info($request->all());
+            //$form = $request->input('form');
+            $historial = (new ProcesoContratoService())->getHistorialContrato($request->all());
 
             return response()->json(['resultado' => $historial]);
         } catch (\Exception $e) {
@@ -252,11 +253,12 @@ class ProcesoController extends Controller
         }
     }
 
-    public function getComentarios(Request $request){
-    //Log::info($request);    
-    //dd('hola');
+    public function getComentarios(Request $request)
+    {
+        //Log::info($request);
+        //dd('hola');
         try {
-           
+
 
             $proceso = (new procesoDptoTecnicoService())->getComentarioInventario($request->id);
 

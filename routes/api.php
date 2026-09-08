@@ -216,6 +216,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/broches/sin_controlar', [ImpuestosController::class, 'sinControlar']);
         Route::put('/gas_bajado', [ImpuestosController::class, 'gasBajado']);
         Route::put('/gas_rechazar', [ImpuestosController::class, 'gasRechazar']);
+        Route::post('/epe/buscar', [ImpuestosController::class, 'buscarEpe']);
+        Route::post('/epe/cargar', [ImpuestosController::class, 'cargarEpe']);
+        Route::post('/epe/editar', [ImpuestosController::class, 'editarEpe']);
 
         // CONTABLE - RETENCIONES (URL: api/v1/retenciones)
         Route::get('retenciones/padronRetencion/{cuil}', [RetencionController::class, 'getPadronRetencionCUILController']);

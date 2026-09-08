@@ -29,6 +29,7 @@ class ProcesoContratoService
 
     public function getHistorialContrato($form)
     {
+        Log::info($form);
         $query = Proceso_propiedad::with([
             'propiedad.folios',
             'cliente',

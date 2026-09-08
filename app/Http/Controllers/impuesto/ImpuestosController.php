@@ -17,7 +17,7 @@ use App\Services\impuesto\GAS\CargaGasService;
 use App\Services\impuesto\Impuesto\PadronImpuestoService;
 use App\Services\impuesto\Impuesto\CargaImpuestoService;
 use App\Services\contable\sellado\PermitirAccesoSelladoService;
-
+use App\Services\impuesto\EPE\EpeService;
 
 class ImpuestosController extends Controller
 {
@@ -402,5 +402,22 @@ class ImpuestosController extends Controller
     {
         // Log::info('gas bajado', [$request->all()]);
         return app(CargaImpuestoService::class)->gasBajado($request->all());
+    }
+
+    public function buscarEpe(Request $request)
+    {
+        /*  Log::info($request->all());
+        Log::info('llego'); */
+        return app(EpeService::class)->buscarEpe($request->all());
+    }
+
+    public function cargarEpe(Request $request)
+    {
+        return app(EpeService::class)->cargarEpe($request->all());
+    }
+
+    public function editarEpe(Request $request)
+    {
+        return app(EpeService::class)->editarEpe($request->all());
     }
 }
