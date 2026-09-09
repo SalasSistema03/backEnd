@@ -106,7 +106,6 @@ class PropiedadController
                 'cod_venta' => $venta['cod_venta'] ?? null,
                 'cod_alquiler' => $alquiler['cod_alquiler'] ?? null,
                 'calle_id' => $request->calle_id,
-                'numero_calle' => $request->altura,
                 'piso' => $request->piso,
                 'departamento' => $request->dto,
                 'llave' => $request->llave,
@@ -488,6 +487,12 @@ class PropiedadController
      */
     public function actualizarPropiedad(Request $request)
     {
+        // Decodificar y limpiar datos JSON del request
+        $comodidades = $this->cleanArray(json_decode($request->comodidades, true) ?? []);
+        $descripcion = $this->cleanArray(json_decode($request->descripcion, true) ?? []);
+        $venta = $this->cleanArray(json_decode($request->venta, true) ?? []);
+        $alquiler = $this->cleanArray(json_decode($request->alquiler, true) ?? []);
+        $condicion_alquiler = $this->cleanArray(json_decode($request->condicion_alquiler, true) ?? []);
         //Log::info('entro', [$request->all()]);
 
         $validator = Validator::make($request->all(), [
@@ -522,11 +527,12 @@ class PropiedadController
             }
 
             // Decodificar y limpiar datos JSON del request
-            $comodidades = $this->cleanArray(json_decode($request->comodidades, true) ?? []);
-            $descripcion = $this->cleanArray(json_decode($request->descripcion, true) ?? []);
-            $venta = $this->cleanArray(json_decode($request->venta, true) ?? []);
-            $alquiler = $this->cleanArray(json_decode($request->alquiler, true) ?? []);
-            $condicion_alquiler = $this->cleanArray(json_decode($request->condicion_alquiler, true) ?? []);
+            // Decodificar y limpiar datos JSON del request forzando el tipo Array
+            $comodidades = (array) $this->cleanArray(json_decode($request->comodidades, true) ?? []);
+            $descripcion = (array) $this->cleanArray(json_decode($request->descripcion, true) ?? []);
+            $venta = (array) $this->cleanArray(json_decode($request->venta, true) ?? []);
+            $alquiler = (array) $this->cleanArray(json_decode($request->alquiler, true) ?? []);
+            $condicion_alquiler = (array) $this->cleanArray(json_decode($request->condicion_alquiler, true) ?? []);
             $usuario_id = $request->id_usuario;
 
             // Solo se actualizan claves recibidas. Las claves ausentes conservan el valor en BD.
@@ -677,7 +683,7 @@ class PropiedadController
             }
 
             //Maneja observaciones baja
-            
+
             if ($request->has('propietarios_nuevos')) {
 
                 $propietarios_nuevos = json_decode($request->propietarios_nuevos, true);
@@ -702,19 +708,18 @@ class PropiedadController
                 );
             }
 
-            // Actualizar folios de empresas
+          // Actualizar folios de empresas
+          // Actualizar folios de empresas
             $clavesFolios = ['FCentral', 'FCandioti', 'FTribunales'];
             $foliosEnviados = array_intersect_key($alquiler, array_flip($clavesFolios));
-            $folios = [
-                1 => $alquiler['FCentral'] ?? null,
-                2 => $alquiler['FCandioti'] ?? null,
-                3 => $alquiler['FTribunales'] ?? null,
-            ];
 
-            if ($foliosEnviados !== [] && in_array(true, array_map(
-                fn($folio) => $folio !== '-',
-                $foliosEnviados
-            ), true)) {
+            if (!empty($foliosEnviados)) {
+                $folios = [
+                    1 => (isset($alquiler['FCentral']) && $alquiler['FCentral'] !== '-' && $alquiler['FCentral'] !== '') ? $alquiler['FCentral'] : null,
+                    2 => (isset($alquiler['FCandioti']) && $alquiler['FCandioti'] !== '-' && $alquiler['FCandioti'] !== '') ? $alquiler['FCandioti'] : null,
+                    3 => (isset($alquiler['FTribunales']) && $alquiler['FTribunales'] !== '-' && $alquiler['FTribunales'] !== '') ? $alquiler['FTribunales'] : null,
+                ];
+
                 $this->empresaPropiedadService->actualizarFolioExistente(
                     $propiedad->id,
                     $folios
