@@ -413,20 +413,23 @@ class Propiedad extends Model
             });
         }
 
-        // 6. ESTADOS DE VENTA Y ALQUILER (CORRECCIÓN CRÍTICA)
-        if (!empty($filtros['busqueda'])) {
-            // Si busca algo específico, usa AND normal
-            if ($filtros['busqueda'] == 1 && !empty($filtros['estados_venta'])) {
-                $query->whereIn('id_estado_venta', $filtros['estados_venta']);
-            } elseif ($filtros['busqueda'] == 2 && !empty($filtros['estados_alquiler'])) {
-                $query->whereIn('id_estado_alquiler', $filtros['estados_alquiler']);
-            }
-        } else {
-            // Si busca "Todas", usamos una condición OR lógica
-            if (isset($filtros['estados_venta']) && isset($filtros['estados_alquiler'])) {
-                $query->where(function ($q) use ($filtros) {
-                    $q->whereIn('id_estado_venta', $filtros['estados_venta'])
-                      ->orWhereIn('id_estado_alquiler', $filtros['estados_alquiler']);
+       // Si el checkbox de ampliar no está marcado, filtrar por estados
+        if (!isset($filtros['ampliar']) || $filtros['ampliar'] == 0 || $filtros['ampliar'] === false) {
+            $estadosVentaExcluidos = Estado_venta::whereIn('id', ['3', '4', '5', '6', '7'])->pluck('id')->toArray();
+            $estadosAlquilerExcluidos = Estado_alquiler::whereIn('id', ['3', '4', '5', '6', '7'])->pluck('id')->toArray();
+
+            if (!empty($filtros['busqueda'])) {
+                if ($filtros['busqueda'] == 1) {
+                    // Para venta, excluir vendidas y baja temporal
+                    $query->whereNotIn('id_estado_venta', $estadosVentaExcluidos);
+                } elseif ($filtros['busqueda'] == 2) {
+                    // Para alquiler, excluir alquiladas y baja temporal
+                    $query->whereNotIn('id_estado_alquiler', $estadosAlquilerExcluidos);
+                }
+            } else {
+                $query->where(function ($q) use ($estadosVentaExcluidos, $estadosAlquilerExcluidos) {
+                    $q->whereNotIn('id_estado_venta', $estadosVentaExcluidos)
+                        ->orWhereNotIn('id_estado_alquiler', $estadosAlquilerExcluidos);
                 });
             }
         }
