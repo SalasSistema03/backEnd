@@ -40,6 +40,7 @@ class RegistrosMensualesService
         $registro->seguro = $request->seguro;
         $registro->limpieza = $request->limpieza;
         $registro->ascensor = $request->ascensor;
+        $registro->internet = $request->internet;
         $registro->honorario = $request->honorario;
         $registro->periodo = $request->periodo;
         $registro->id_unidad = $request->id_unidad;
