@@ -49,7 +49,7 @@
         $periodo = $registroClick['periodo'] ?? '';
         [$anio, $mes] = array_pad(explode('-', $periodo), 2, '');
         
-        $conceptos = ['tgi', 'agua', 'api', 'luz', 'seguro', 'limpieza', 'ascensor', 'honorario'];
+        $conceptos = ['tgi', 'agua', 'api', 'luz', 'seguro', 'limpieza', 'ascensor','internet', 'honorario'];
         
         // Suma total del 100% del edificio
         $totalGeneralEdificio = 0;

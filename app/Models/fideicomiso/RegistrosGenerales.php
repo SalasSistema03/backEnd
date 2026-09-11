@@ -23,6 +23,7 @@ class RegistrosGenerales extends Model
         'seguro',
         'limpieza',
         'ascensor',
+        'internet',
         'honorario',
         'periodo',
         'vencimiento',

@@ -28,6 +28,7 @@ class RegistrosMensuales extends Model
         'seguro',
         'limpieza',
         'ascensor',
+        'internet',
         'honorario',
         'periodo',
         'id_unidad',

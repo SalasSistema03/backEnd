@@ -106,6 +106,7 @@ class RegistrosMensualesController extends Controller
             'seguro' => 'sometimes|nullable|numeric',
             'limpieza' => 'sometimes|nullable|numeric',
             'ascensor' => 'sometimes|nullable|numeric',
+            'internet' => 'sometimes|nullable|numeric',
             'honorario' => 'sometimes|nullable|numeric',
             'periodo' => 'sometimes|string',
             'id_unidad' => 'sometimes|integer',
