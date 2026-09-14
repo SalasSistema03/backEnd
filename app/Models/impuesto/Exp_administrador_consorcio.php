@@ -10,16 +10,16 @@ class Exp_administrador_consorcio extends Model
 {
     use HasFactory;
 
-    // 👉 Conexión a MySQL 9 (definida en config/database.php)
+    // Conexión a MySQL 9 (definida en config/database.php)
     protected $connection = 'mysql9';
 
-    // 👉 Nombre de la tabla
+    // Nombre de la tabla
     protected $table = 'exp_administrador_consorcio';
 
-    // 👉 Clave primaria
+    // Clave primaria
     protected $primaryKey = 'id';
 
-    // 👉 Campos que se pueden asignar en masa
+    // Campos que se pueden asignar en masa
     protected $fillable = [
         'nombre',
         'cuit',
@@ -31,7 +31,7 @@ class Exp_administrador_consorcio extends Model
     ];
     
 
-    // 👉 Opcional: si no usás timestamps (created_at, updated_at)
+    // Opcional: si no usás timestamps (created_at, updated_at)
     public $timestamps = false;
 
     // Un administrador de consorcio puede tener varios exp_edificios

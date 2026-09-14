@@ -9,24 +9,27 @@ class Exp_edificio extends Model
 {
     use HasFactory;
 
-    // 👉 Conexión a MySQL 9
+    // Conexión a MySQL 9
     protected $connection = 'mysql9';
 
-    // 👉 Nombre de la tabla
+    // Nombre de la tabla
     protected $table = 'exp_edificios';
 
-    // 👉 Clave primaria
+    // Clave primaria
     protected $primaryKey = 'id';
 
-    // 👉 Campos asignables
+    // Campos asignables
     protected $fillable = [
         'direccion',
         'altura',
         'nombre_consorcio',
         'id_administrador_consorcio',
+        'metodo_pago',
+        'id_cbu',
+        'numero_cbu'
     ];
 
-    // 👉 Si la tabla no tiene created_at / updated_at
+    // Si la tabla no tiene created_at / updated_at
     public $timestamps = false;
 
 
@@ -43,9 +46,14 @@ class Exp_edificio extends Model
         return $this->hasMany(ExpUnidad::class);
     } */
 
-        // Definimos la relación: "Un edificio pertenece a un administrador"
+    // Definimos la relación: "Un edificio pertenece a un administrador"
     public function administrador()
     {
         return $this->belongsTo(Exp_administrador_consorcio::class, 'id_administrador_consorcio', 'id');
+    }
+
+    public function bancos()
+    {
+        return $this->hasOne(Bancos::class, 'id', 'id_cbu');
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services\impuesto\EXP;
 
+use App\Models\impuesto\Bancos;
 use App\Models\impuesto\Exp_edificio;
 use App\Models\impuesto\Exp_Unidades;
 use App\Models\impuesto\Exp_unidades_sys;
@@ -10,6 +11,7 @@ use App\Models\impuesto\Exp_broche;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Exception;
+use Illuminate\Support\Facades\Log;
 
 class ExpensasService
 {
@@ -38,8 +40,8 @@ class ExpensasService
     public function filtrarUnidadesCompleto(string $search, array $filtros): array
     {
         // 1. Ejecución del servicio interno tal como estaba en tu monolito
-        $unidadesServices = new UnidadesServices();
-        $unidadesServices->PadronUnidadesSyS();
+        /* $unidadesServices = new UnidadesServices();
+        $unidadesServices->PadronUnidadesSyS(); */
 
         // 2. Inicialización de la Query dinámica
         $query = Exp_unidades_sys::query();
@@ -77,7 +79,9 @@ class ExpensasService
         $unidades = $query->orderBy('folio')->get();
 
         // 3. Carga de datos contextuales necesarios para el Frontend
-        $edificios = Exp_edificio::all();
+        /* $edificios = Exp_edificio::all()
+            ->orderBy('nombre_consorcio', 'ASC'); */
+        $edificios = Exp_edificio::orderBy('nombre_consorcio', 'ASC')->get();
         $administradores = Exp_administrador_consorcio::all();
 
         // keyBy('id') transforma la colección en un diccionario/objeto asociativo por ID
@@ -102,6 +106,7 @@ class ExpensasService
      */
     public function completarCargaUnidadesService(array $data): void
     {
+        Log::info('Completar carga unidades', $data);
         $repetir   = $data['repetir'];
         $idCasa    = $data['id'];
         $edificio  = $data['edificio'];
@@ -128,12 +133,11 @@ class ExpensasService
                 } else {
                     Exp_unidades::create($payload);
                 }
-
-                // Actualizar el estado en las unidades del sistema principal
-                Exp_unidades_sys::where('casa', $idCasa)->update([
-                    'estado' => $estadoSys
-                ]);
             }
+            // Actualizar el estado en las unidades del sistema principal
+            Exp_unidades_sys::where('casa', $idCasa)->update([
+                'estado' => $estadoSys
+            ]);
 
             DB::commit();
         } catch (\Exception $e) {
@@ -348,5 +352,11 @@ class ExpensasService
             ]);
 
         return true;
+    }
+
+    public function obtenerBancosService()
+    {
+        $bancos = Bancos::all();
+        return $bancos;
     }
 }
