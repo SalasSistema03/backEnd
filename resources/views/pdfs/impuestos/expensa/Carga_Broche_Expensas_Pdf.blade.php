@@ -83,6 +83,8 @@
     @php
         // Agrupar resultados por administrador (nombre)
         $agrupadoPorAdmin = collect($resultado)->groupBy('nombre');
+        $numero_cbu;
+        $unicocbu;
     @endphp
 
     @foreach ($agrupadoPorAdmin as $nombreAdmin => $items)
@@ -116,6 +118,14 @@
                 <strong>CUIT:</strong> {{ $primerItem->cuit }} &nbsp;&nbsp; &nbsp;&nbsp;
                 <strong>Dirección:</strong> {{ $primerItem->direccion_administra }} {{ $primerItem->altura_administra }}
             </p>
+
+            @if($unicocbu === true)
+            <p>
+                <strong>Método Pago:</strong> {{ $primerItem->metodo_pago ?? 'No especificado' }} &nbsp;&nbsp; &nbsp;&nbsp;
+                <strong>CBU:</strong> {{ $numero_cbu }}
+            </p>
+            @endif
+
             <p>
                 <strong>Contacto:</strong> {{ $primerItem->contacto }} &nbsp;&nbsp; &nbsp;&nbsp;
                 @if ($primerItem->pagina_web)
@@ -137,12 +147,19 @@
             @foreach ($itemsAgrupados as $edificioId => $itemsEdificio)
             {{-- @dd($itemsEdificio);  --}}
             @php
-                $primerItem = $itemsEdificio->first();
+                $itemEdif = $itemsEdificio->first();
             @endphp
             <p>
-                <strong>Edificio:</strong> {{ $primerItem->nombre_consorcio }}&nbsp;&nbsp;
-                <strong>Dirección:</strong> {{ $primerItem->direccion_edificio }} {{ $primerItem->altura_edificio }}
+                <strong>Edificio:</strong> {{ $itemEdif->nombre_consorcio }}&nbsp;&nbsp;
+                <strong>Dirección:</strong> {{ $itemEdif->direccion_edificio }} {{ $itemEdif->altura_edificio }}
             </p>
+
+            @if($unicocbu !== true)
+            <p>
+                <strong>Método Pago:</strong> {{ $itemEdif->metodo_pago ?? 'No especificado' }} &nbsp;&nbsp; &nbsp;&nbsp;
+                <strong>CBU:</strong> {{ $itemEdif->numero_cbu ?? 'No asignado' }}
+            </p>
+            @endif
                 <table class="table table-striped table-hover">
                     <thead class="table-light">
                         <tr>

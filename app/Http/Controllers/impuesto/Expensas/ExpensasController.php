@@ -233,7 +233,7 @@ class ExpensasController extends Controller
 
         } catch (\Exception $e) {
             return response()->json([
-                'status'  => 'error', 
+                'status'  => 'error',
                 'message' => $e->getMessage() ?: 'No se pudo crear el edificio.'
             ], 422);
         }
@@ -253,7 +253,7 @@ class ExpensasController extends Controller
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
-                'status'  => 'error', 
+                'status'  => 'error',
                 'message' => $e->getMessage() ?: 'No se pudo actualizar el edificio.'
             ], 500);
         }
@@ -424,9 +424,26 @@ class ExpensasController extends Controller
             $administrador = $request->input('administrador');
 
             $resultado = $this->ExpensasService->obtenerDatosBrochePdf($mes, $anio, $administrador);
+            //Log::info($resultado);
+            //si todos los resultados tienen el mismo id_cbu y numero_cbu, guardar en  el numero_cbu y unicocbu = true
+
+
+
+
+
+
+
+            // 1. Extraer los CBUs descartando nulls y vacíos, y dejando los únicos
+            $cbus = collect($resultado)->pluck('numero_cbu')->filter()->unique();
+
+            // 2. Si sólo hay exactamente 1 CBU distinto, significa que todos comparten el mismo
+            $unicocbu   = $cbus->count() === 1;
+            $numero_cbu = $unicocbu ? $cbus->first() : null;
+
+            //dd('hola');
             $username = auth('api')->user()->username ?? 'Usuario';
 
-            $html = view('pdfs.impuestos.expensa.Carga_Broche_Expensas_Pdf', compact('resultado'))->render();
+            $html = view('pdfs.impuestos.expensa.Carga_Broche_Expensas_Pdf', compact('resultado', 'numero_cbu', 'unicocbu'))->render();
 
             return response()->streamDownload(function () use ($html, $username) {
                 echo \Spatie\Browsershot\Browsershot::html($html)
