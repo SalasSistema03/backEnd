@@ -34,7 +34,6 @@ use App\Http\Controllers\At_cl\MapaPropiedadController;
 use App\Http\Controllers\fideicomiso\RegistrosGeneralesController;
 use App\Http\Controllers\fideicomiso\RegistrosMensualesController;
 use App\Http\Controllers\fideicomiso\UnidadesController;
-// --- IMPORTACIONES UNIDAS DE AMBAS RAMAS ---
 use App\Services\At_cl\PropiedadService;
 use App\Services\clientes\UsuarioSectorService;
 use App\Http\Controllers\proceso\ProcesoController;
@@ -265,6 +264,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/expensas/completar-carga', [ExpensasController::class, 'completarCargaUnidadesController']);
         Route::post('/expensas/actualizar-padron', [ExpensasController::class, 'actualizarPadronUnidadesController']);
         Route::delete('/expensas/eliminar-unidad/{id}', [ExpensasController::class, 'eliminarUnidadController']);
+        Route::get('/expensas/bancos', [ExpensasController::class, 'getBancosController']);
 
         // 1. Endpoint para llenar la tabla en Vue.js (Lee datos)
         Route::get('/expensas/administradores', [ExpensasController::class, 'getAdministradoresController']);

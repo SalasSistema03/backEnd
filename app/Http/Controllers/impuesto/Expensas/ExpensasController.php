@@ -144,7 +144,7 @@ class ExpensasController extends Controller
      */
     public function getAdministradoresController(Request $request, ProveedoresServices $proveedoresServices)
     {
-        /* $usuarioId = Auth::id(); 
+        /* $usuarioId = Auth::id();
         $vistaNombre = 'exp-administrador-consorcio';
         $permisoService = new PermitirAccesoPropiedadService($usuarioId); */
 
@@ -232,7 +232,10 @@ class ExpensasController extends Controller
             ], 201); // 201 Created
 
         } catch (\Exception $e) {
-            return response()->json(['status' => 'error', 'message' => 'No se pudo crear el edificio.'], 500);
+            return response()->json([
+                'status'  => 'error', 
+                'message' => $e->getMessage() ?: 'No se pudo crear el edificio.'
+            ], 422);
         }
     }
 
@@ -249,7 +252,10 @@ class ExpensasController extends Controller
                 'message' => 'Edificio actualizado correctamente.'
             ], 200);
         } catch (\Exception $e) {
-            return response()->json(['status' => 'error', 'message' => 'No se pudo actualizar el edificio.'], 500);
+            return response()->json([
+                'status'  => 'error', 
+                'message' => $e->getMessage() ?: 'No se pudo actualizar el edificio.'
+            ], 500);
         }
     }
 
@@ -363,8 +369,8 @@ class ExpensasController extends Controller
     }
 
 
-//DEPRECATED - ESTA USANDO SNAPPY, YA NO SE USA ESO
-   /*  public function descargarBrocheExpensas(Request $request)
+    //DEPRECATED - ESTA USANDO SNAPPY, YA NO SE USA ESO
+    /*  public function descargarBrocheExpensas(Request $request)
     {
         try {
             // 1. Validamos que lleguen los datos mínimos
@@ -410,39 +416,38 @@ class ExpensasController extends Controller
         }
     } */
 
-        public function descargarBrocheExpensas(Request $request)
-{
-    try {
-        $mes = $request->input('mes');
-        $anio = $request->input('anio');
-        $administrador = $request->input('administrador');
+    public function descargarBrocheExpensas(Request $request)
+    {
+        try {
+            $mes = $request->input('mes');
+            $anio = $request->input('anio');
+            $administrador = $request->input('administrador');
 
-        $resultado = $this->ExpensasService->obtenerDatosBrochePdf($mes, $anio, $administrador);
-        $username = auth('api')->user()->username ?? 'Usuario';
+            $resultado = $this->ExpensasService->obtenerDatosBrochePdf($mes, $anio, $administrador);
+            $username = auth('api')->user()->username ?? 'Usuario';
 
-        $html = view('pdfs.impuestos.expensa.Carga_Broche_Expensas_Pdf', compact('resultado'))->render();
+            $html = view('pdfs.impuestos.expensa.Carga_Broche_Expensas_Pdf', compact('resultado'))->render();
 
-        return response()->streamDownload(function () use ($html, $username) {
-            echo \Spatie\Browsershot\Browsershot::html($html)
-                ->format('Legal')
-                ->margins(20, 15, 15, 15)
-                ->emulateMedia('screen')
-                ->showBackground()
-                ->setOption('displayHeaderFooter', true)
-                ->setOption('footerTemplate', '<div style="font-size:8px; width:100%; display:flex; justify-content:space-between; padding:0 15px;"><span>Salas Inmobiliaria</span><span></span><span>' . $username . '</span></div>')
-                ->pdf();
-        }, "broches_expensas_{$anio}_{$mes}.pdf");
-
-    } catch (\Exception $e) {
-        Log::info($e);
-        return response()->json([
-            'status' => 'error',
-            'message' => 'ERROR REAL: ' . $e->getMessage(),
-            'linea' => $e->getLine(),
-            'archivo' => $e->getFile()
-        ], 500);
+            return response()->streamDownload(function () use ($html, $username) {
+                echo \Spatie\Browsershot\Browsershot::html($html)
+                    ->format('Legal')
+                    ->margins(20, 15, 15, 15)
+                    ->emulateMedia('screen')
+                    ->showBackground()
+                    ->setOption('displayHeaderFooter', true)
+                    ->setOption('footerTemplate', '<div style="font-size:8px; width:100%; display:flex; justify-content:space-between; padding:0 15px;"><span>Salas Inmobiliaria</span><span></span><span>' . $username . '</span></div>')
+                    ->pdf();
+            }, "broches_expensas_{$anio}_{$mes}.pdf");
+        } catch (\Exception $e) {
+            Log::info($e);
+            return response()->json([
+                'status' => 'error',
+                'message' => 'ERROR REAL: ' . $e->getMessage(),
+                'linea' => $e->getLine(),
+                'archivo' => $e->getFile()
+            ], 500);
+        }
     }
-}
 
 
 
@@ -468,11 +473,26 @@ class ExpensasController extends Controller
                 'status' => 'success',
                 'message' => 'Broche actualizado correctamente.'
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'No se pudo actualizar el broche. ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function getBancosController()
+    {
+        try {
+            $bancos = $this->ExpensasService->obtenerBancosService();
+            return response()->json([
+                'status' => 'success',
+                'data' => $bancos
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se pudo obtener los bancos. ' . $e->getMessage()
             ], 500);
         }
     }
