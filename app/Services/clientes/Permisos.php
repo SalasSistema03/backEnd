@@ -43,7 +43,7 @@ class Permisos
     public function traerUsuarioPorBoton($botonNombre)
     {
         //Log::info("botonNombre: " . $botonNombre);
-        $data = Permiso::where('boton_id', 49)->get();
+        $data = Permiso::where('boton_id', 50)->get();
         foreach ($data as $usuario) {
             // Utilizamos ->first() o find() para obtener un solo modelo, no una colección
             $user = Usuario::find($usuario->usuario_id);
