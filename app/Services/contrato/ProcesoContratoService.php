@@ -268,9 +268,11 @@ class ProcesoContratoService
         $folioEncontrado = Registro_sellado::where('folio', $folioSolicitado)->first();
 
         if ($folioEncontrado) {
-            if ($folioEncontrado->mostrar != 0) {
-                throw new \RuntimeException('Folio ya calculado.');
-            }
+             if ($folioEncontrado->mostrar != 0) {
+                /* throw new \RuntimeException('Folio ya calculado.'); */
+                return;
+            } 
+
 
             $folioEncontrado->update($datosSellado);
             return;
