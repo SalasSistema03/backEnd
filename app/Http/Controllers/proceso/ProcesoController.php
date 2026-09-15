@@ -86,8 +86,12 @@ class ProcesoController extends Controller
         try {
             $idProceso = $request->input('id');
             $historial = $this->reservaService->getHistorial($idProceso);
+            $historialContratoNuevos = (new ProcesoContratoService())->getObservacionesContratoNuevo($idProceso);
+            $historialDptoNuevos = (new ProcesoDptoTecnicoService())->getComentarioInventario($idProceso);
+            Log::info($historialDptoNuevos);
 
-            return response()->json(['resultado' => $historial]);
+
+            return response()->json(['resultado' => $historial, 'historialContratoNuevos' => $historialContratoNuevos, 'historialDptoNuevos' => $historialDptoNuevos]);
         } catch (\Exception $e) {
             Log::error('Error getHistorial: ' . $e->getMessage(), ['exception' => $e]);
             return response()->json(['error' => 'Error al obtener historial.'], 500);
