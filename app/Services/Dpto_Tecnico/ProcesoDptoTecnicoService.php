@@ -31,7 +31,7 @@ class ProcesoDptoTecnicoService
             'historialEstadoContrato.estado',
             'historialEstadoContrato.tirillaEntregadaPor',
             'historialEstadoContrato.tirillaControladaPor',
-            'historialEstadoDpto.verificadoPor',
+            'historialEstadoDpto.quien_cargo',
             'historialEstadoDpto.estado',
             'propiedad.calle',
             'registroSellado',
@@ -111,6 +111,6 @@ class ProcesoDptoTecnicoService
 
     public function getComentarioInventario($id_inventario)
     {
-        return Historial_estado_dpto::where('id_proceso_propiedad', $id_inventario)->with('verificadoPor:id,username', 'estado')->get();
+        return Historial_estado_dpto::where('id_proceso_propiedad', $id_inventario)->with('quien_cargo:id,username', 'estado')->get();
     }
 }

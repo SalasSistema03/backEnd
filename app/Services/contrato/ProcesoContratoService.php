@@ -29,7 +29,7 @@ class ProcesoContratoService
 
     public function getHistorialContrato($form)
     {
-        Log::info($form);
+        //Log::info($form);
         $query = Proceso_propiedad::with([
             'propiedad.folios',
             'cliente',
@@ -38,7 +38,7 @@ class ProcesoContratoService
             'historialEstadoContrato.estado',
             'historialEstadoContrato.tirillaEntregadaPor',
             'historialEstadoContrato.tirillaControladaPor',
-            'historialEstadoDpto.verificadoPor',
+            'historialEstadoDpto.quien_cargo',
             'propiedad.calle',
             'registroSellado',
         ])->whereNotNull('id_historial_estado_contrato');
@@ -108,9 +108,9 @@ class ProcesoContratoService
         return $data;
     }
 
-    public function getObservacionesContratoNuevo(array $request)
+    public function getObservacionesContratoNuevo($idProceso)
     {
-        $observaciones = Historial_estado_contrato::where('id_proceso_propiedad', $request['id_proceso'])->get(['observaciones', 'fecha_carga', 'quien_cargo', 'id_estado']);
+        $observaciones = Historial_estado_contrato::where('id_proceso_propiedad', $idProceso)->get(['observaciones', 'fecha_carga', 'quien_cargo', 'id_estado']);
         foreach ($observaciones as $observacion) {
             $usuario = Usuario::find($observacion->quien_cargo);
             $observacion->nombre_usuario = $usuario ? $usuario->username : 'Usuario no encontrado';
