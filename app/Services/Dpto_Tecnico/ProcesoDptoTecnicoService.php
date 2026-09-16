@@ -22,51 +22,59 @@ use App\Models\proceso\Estado_dpto;
 class ProcesoDptoTecnicoService
 {
     public function getHistorialInventario($form)
-    {
-        $query = Proceso_propiedad::with([
-            'propiedad.folios',
-            'cliente',
-            'asesorUsuario',
-            'historialEstadoReserva',
-            'historialEstadoContrato.estado',
-            'historialEstadoContrato.tirillaEntregadaPor',
-            'historialEstadoContrato.tirillaControladaPor',
-            'historialEstadoDpto.quien_cargo',
-            'historialEstadoDpto.estado',
-            'propiedad.calle',
-            'registroSellado',
-            'historialEstadoDpto',
-        ])->whereNotNull('id_historial_estado_dpto');
+{
+    $query = Proceso_propiedad::with([
+        'propiedad.folios',
+        'cliente',
+        'asesorUsuario',
+        'historialEstadoReserva',
+        'historialEstadoContrato.estado',
+        'historialEstadoContrato.tirillaEntregadaPor',
+        'historialEstadoContrato.tirillaControladaPor',
+        'historialEstadoDpto.quien_cargo',
+        'historialEstadoDpto.estado',
+        'propiedad.calle',
+        'registroSellado',
+        'historialEstadoDpto',
+    ])->whereNotNull('id_historial_estado_dpto');
 
-        if (!empty($form['mes']) && !empty($form['anio'])) {
-            $query->whereYear('fecha_reserva', $form['anio'])
-                ->whereMonth('fecha_reserva', $form['mes']);
-        }
-
-        if (!empty($form['folio'])) {
-
-            $propiedadIds = Propiedad::whereHas('folios', function ($q) use ($form) {
-                $q->where('folio', $form['folio']);
-            })->pluck('id');
-
-
-            $query->whereIn('id_propiedad', $propiedadIds);
-        }
-
-        if (!empty($form['filtroAsesor'])) {
-            $query->whereHas('historialEstadoDpto', function ($q) use ($form) {
-                $q->where('verificado_por', $form['filtroAsesor']);
-            });
-        }
-
-        if (!empty($form['filtroEstado'])) {
-            $query->whereHas('historialEstadoDpto', function ($q) use ($form) {
-                $q->where('id_estado', $form['filtroEstado']);
-            });
-        }
-
-        return $query->get();
+    if (!empty($form['mes']) && !empty($form['anio'])) {
+        $query->whereYear('fecha_reserva', $form['anio'])
+            ->whereMonth('fecha_reserva', $form['mes']);
     }
+
+    if (!empty($form['folio'])) {
+        $propiedadIds = Propiedad::whereHas('folios', function ($q) use ($form) {
+            $q->where('folio', $form['folio']);
+        })->pluck('id');
+
+        $query->whereIn('id_propiedad', $propiedadIds);
+    }
+
+    if (!empty($form['filtroAsesor'])) {
+        $query->whereHas('historialEstadoDpto', function ($q) use ($form) {
+            $q->where('verificado_por', $form['filtroAsesor']);
+        });
+    }
+
+    if (!empty($form['filtroEstado'])) {
+        $query->whereHas('historialEstadoDpto', function ($q) use ($form) {
+            $q->where('id_estado', $form['filtroEstado']);
+        });
+    } else {
+        // No se filtró por estado -> ordenar por id_estado de historialEstadoDpto
+        $query->join(
+                'historial_estado_dpto',
+                'proceso_propiedad.id_historial_estado_dpto',
+                '=',
+                'historial_estado_dpto.id'
+            )
+            ->select('proceso_propiedad.*')
+            ->orderBy('historial_estado_dpto.id_estado', 'asc');
+    }
+
+    return $query->get();
+}
 
     public function getUsuariosDpto(Request $request)
     {
@@ -85,10 +93,11 @@ class ProcesoDptoTecnicoService
     public function actualizarInventario(Request $request, $usuarioId)
     {
         //Log::info([$request->all()]);
+        //dd($request->all());
         $data = Historial_estado_dpto::find($request->inventario_id);
 
         if ($data) {
-            $data->create([
+            $dataNuevo = Historial_estado_dpto::create([
                 'id_estado'             => $request->estado_id,
                 'observaciones'         => $request->observaciones,
                 'fecha_inventario'      => \Carbon\Carbon::parse($request->fecha_inventario)->setTimeFrom(now()),
@@ -98,11 +107,21 @@ class ProcesoDptoTecnicoService
                 'verificado_por'        => $request->verificado_por,
             ]);
 
+            $procesoPropiedad = Proceso_propiedad::find($request->id_proceso_propiedad);
+           /*  Log::info('datos de data', [$dataNuevo]);
+            Log::info('datos de procesopropiedad', [$procesoPropiedad]);
+            dd('hola'); */
+            $procesoPropiedad->update([
+                'id_historial_estado_dpto' => $dataNuevo->id
+            ]);
+
+
             return response()->json([
                 'message' => 'Inventario actualizado exitosamente.',
                 'data' => $data,
             ], 200);
         }
+
 
         return response()->json([
             'message' => 'Inventario no encontrado.',
