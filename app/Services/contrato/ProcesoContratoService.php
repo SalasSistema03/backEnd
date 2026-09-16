@@ -43,8 +43,6 @@ class ProcesoContratoService
             'registroSellado',
         ])->whereNotNull('id_historial_estado_contrato');
 
-
-
         // Filter by year and month
         if (!empty($form['mes']) && !empty($form['anio'])) {
             $query->whereYear('fecha_reserva', $form['anio'])
@@ -73,6 +71,18 @@ class ProcesoContratoService
         }
 
         $res = $query->get();
+
+        foreach ($res as $proceso) {
+            $historialEstadoContrato = $proceso->historialEstadoContrato;
+            $folio = $proceso->propiedad?->folios?->first()?->folio;
+
+            if ($historialEstadoContrato?->gastos_administrativos === null && $folio !== null) {
+                $folioEncontrado = Registro_sellado::where('folio', $folio)->first();
+                if ($folioEncontrado) {
+                    $historialEstadoContrato->gastos_administrativos = $folioEncontrado->gasto_administrativo;
+                }
+            }
+        }
 
         //Log::info($res);
         //dd($res);
@@ -265,20 +275,24 @@ class ProcesoContratoService
             'usuario_id'               => $usuario->id ?? null,
         ];
 
+       
         $folioEncontrado = Registro_sellado::where('folio', $folioSolicitado)->first();
 
         if ($folioEncontrado) {
             if ($folioEncontrado->mostrar != 0) {
-                throw new \RuntimeException('Folio ya calculado.');
+                /* throw new \RuntimeException('Folio ya calculado.'); */
+                return;
             }
+         
 
-            $folioEncontrado->update($datosSellado);
             return;
         }
 
         $registro = Registro_sellado::create($datosSellado);
+        
 
         $proceso->update(['id_registro_sellado' => $registro->id_registro_sellado]);
+     
     }
 
     /**
