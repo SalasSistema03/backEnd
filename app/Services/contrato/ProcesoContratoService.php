@@ -7,6 +7,7 @@ use App\Models\At_cl\Empresas_propiedades;
 use App\Models\Contable\Sellado\Registro_sellado;
 use App\Models\proceso\Estado_contrato;
 use App\Models\proceso\Historial_estado_contrato;
+use App\Models\proceso\Historial_estado_dpto;
 use App\Models\proceso\Proceso_propiedad;
 use App\Models\proceso\Historial_estado_reserva;
 use App\Models\sys\Contratos_cabecera_sys;
@@ -29,7 +30,6 @@ class ProcesoContratoService
 
     public function getHistorialContrato($form)
     {
-        //Log::info($form);
         $query = Proceso_propiedad::with([
             'propiedad.folios',
             'cliente',
@@ -83,10 +83,6 @@ class ProcesoContratoService
                 }
             }
         }
-
-        //Log::info($res);
-        //dd($res);
-        //Log::info('Resultados filtrados:', ['count' => $res->count()]);
         return $res;
     }
 
@@ -97,19 +93,15 @@ class ProcesoContratoService
 
         $data = historial_estado_contrato::create([
             'id_estado' => $request['id_estado'] ?? null,
+            'observaciones' => $request['observaciones'] ?? 'Modificacion General',
             'fecha_comercial_presenta_carpeta' => $request['fecha_comercial_presenta_carpeta'] ?? null,
             'fecha_preaprobada' => $request['fecha_preaprobada'] ?? null,
             'fecha_reserva' => $request['fecha_reserva'] ?? null,
             'gastos_administrativos' => $request['gastos_administrativos'] ?? null,
-            'tirilla_entregada_a' => $request['tirilla_entregada_a'] ?? null,
-            'fecha_tirilla_entregada' => $request['fecha_tirilla_entregada'] ?? null,
-            'tirilla_controlada_por' => is_array($request['tirilla_controlada_por'] ?? null) ? $request['tirilla_controlada_por']['id'] : ($request['tirilla_controlada_por'] ?? null),
-            'fecha_tirilla_controlada' => $request['fecha_tirilla_controlada'] ?? null,
+            'cuotas_ga' => $request['cuotas'] ?? null,
             'fecha_contrato' => $request['fecha_contrato'] ?? null,
             'fecha_autorizacion' => $request['fecha_autorizacion'] ?? null,
             'fecha_finalizacion_firma_cobro' => $request['fecha_finalizacion_firma_cobro'] ?? null,
-            'observaciones' => $request['observaciones'] ?? null,
-            /* 'fecha_inventario' => $request['fecha_inventario'] ?? null, */
             'quien_cargo' => $usuario->id ?? null,
             'fecha_carga' => now()->format('Y-m-d H:i:s'),
             'id_proceso_propiedad' => $request['id_proceso'] ?? null,
@@ -130,23 +122,6 @@ class ProcesoContratoService
         return $observaciones;
     }
 
-    public function getSelladoPrecargado(Request $request)
-    {
-        $data = Registro_sellado::where('folio', $request->folio)
-            ->where('empresa', $request->empresa)
-            ->first();
-        $procesoPropiedad = Proceso_propiedad::where('id_registro_sellado', $data->id_registro_sellado)->first();
-        $data->proceso_monto = $procesoPropiedad->monto_reserva;
-        return $data;
-    }
-
-
-
-
-
-
-
-
     /**
      * Orquesta la actualización completa del estado del contrato:
      * crea el historial, actualiza el proceso, gestiona el sellado
@@ -156,6 +131,8 @@ class ProcesoContratoService
      */
     public function actualizarEstadoContrato(array $request, $usuarioId)
     {
+        /* Log::info([$request]);
+        dd('hola'); */
         return DB::transaction(function () use ($request, $usuarioId) {
 
             $historialEstadoContrato = $this->crearHistorialEstadoContrato($request);
@@ -170,11 +147,27 @@ class ProcesoContratoService
             $usuario = Usuario::find($usuarioId);
             $folio = $this->obtenerFolioPropiedad($proceso->id_propiedad);
 
-            if ($this->requiereProcesarSellado($request)) {
+             /* if ($this->requiereProcesarSellado($request)) {
                 $this->procesarRegistroSellado($request, $proceso, $usuario);
-            }
+            }  */
 
             $this->actualizarEstadoReservaYNotificar($request, $proceso, $usuario, $folio);
+
+            if($request['id_estado'] == 6){
+                $propiedad = Propiedad::find($request['folio'][0]['propiedad_id']);
+                if($propiedad){
+                    $propiedad->update([
+                        'id_estado_alquiler' => $proceso->estado_alquiler_inicial,
+                    ]);
+                }
+                if($proceso){
+                    //busca el historial de estado dpto con el id mas grande
+                    $historialEstadoDpto = Historial_estado_dpto::where('id_proceso_propiedad', $proceso->id)->orderByDesc('id')->first();
+                    if($historialEstadoDpto){
+                        $historialEstadoDpto->update([ 'id_estado' => '4']);
+                    }
+                }
+            }
 
             return $proceso->fresh();
         });
