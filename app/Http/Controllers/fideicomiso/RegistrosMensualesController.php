@@ -151,22 +151,23 @@ class RegistrosMensualesController extends Controller
     }
 
 
-public function comprobantesPdfController(Request $request)
+
+
+    public function comprobantesPdfController(Request $request)
 {
     Log::info('entro a comprobantesPdfController');
     $data = $request->all();
 
-    // Aseguramos que 'detallado' sea un booleano puro (por defecto true si no viene)
-    $data['detallado'] = filter_var($request->input('detallado', true), FILTER_VALIDATE_BOOLEAN);
+    // Guardamos el booleano
+    $esDetallado = filter_var($request->input('detallado', true), FILTER_VALIDATE_BOOLEAN);
+    $data['detallado'] = $esDetallado;
 
     $periodo = $data['registro']['periodo'] ?? null;
     
     if ($periodo) {
-        // 1. Buscamos el 100% (Registro General)
         $registroGeneral = \App\Models\fideicomiso\RegistrosGenerales::where('periodo', $periodo)->first();
         $data['registro_general'] = $registroGeneral ? $registroGeneral->toArray() : [];
 
-        // 2. Buscamos TODOS los registros de las unidades para armar la tabla gigante
         $todosLosRegistros = \App\Models\fideicomiso\RegistrosMensuales::where('periodo', $periodo)
             ->join('unidades', 'registros_mensuales.id_unidad', '=', 'unidades.id')
             ->select('registros_mensuales.*', 'unidades.piso', 'unidades.unidad', 'unidades.propietario', 'unidades.porcentual')
@@ -182,18 +183,21 @@ public function comprobantesPdfController(Request $request)
 
     $html = view('pdfs.fideicomiso.liquidacionFideicomiso', compact('data'))->render();
     
-    // Asignación dinámica de orientación
-    $orientacion = $data['detallado'] ? 'landscape' : 'portrait'; 
-
-    return response()->streamDownload(function () use ($html, $orientacion) {
-        echo \Spatie\Browsershot\Browsershot::html($html)
+    return response()->streamDownload(function () use ($html, $esDetallado) {
+        $pdf = \Spatie\Browsershot\Browsershot::html($html)
             ->format('A4')
             ->margins(8, 8, 8, 8) 
             ->showBackground()
             ->emulateMedia('print')
-            ->setOption('displayHeaderFooter', false) 
-            ->$orientacion() // Aplica portrait o landscape según el caso
-            ->pdf();
+            ->setOption('displayHeaderFooter', false);
+            
+        // Si es detallado lo hacemos apaisado. Si no, queda vertical.
+        if ($esDetallado) {
+            $pdf->landscape(); 
+        }
+
+        echo $pdf->pdf();
+        
     }, 'Detalle_de_Liquidacion.pdf');
 }
 
