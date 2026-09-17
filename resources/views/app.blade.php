@@ -30,7 +30,7 @@
     <!-- Custom CSS -->
     <!-- App -->
     <title>Salas</title>
-    <script type="module" crossorigin src="/assets/index-BkZsl-_A.js"></script>
+    <script type="module" crossorigin src="/assets/index-DcIJR_mf.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-D8e3GNmn.css">
   </head>
   <body>
