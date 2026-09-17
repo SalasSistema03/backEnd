@@ -158,7 +158,7 @@ Route::prefix('v1')->group(function () {
         //clientes
         Route::post('/clientes/guardar', [ClientesController::class, 'guardar']);
         Route::get('cliente/{telefono?}', [ClientesController::class, 'clientePorTelefono']);
-        Route::get('/tieneAcceso/{usuarioId}/{botonNombre}', [SelladoController::class, 'tieneAccesoUsuario']);
+        /* Route::get('/tieneAcceso/{usuarioId}/{botonNombre}', [SelladoController::class, 'tieneAccesoUsuario']); */
         Route::get('/verificaPermisoAsesor/{botonNombre}', [Permisos::class, 'verificarAccesoBotones_Elementos']);
         Route::get('/cantidadClientesPorAsesor', [clientesController::class, 'getCantidadClientes']);
         Route::get('/traerClientesAsignados', [clientesController::class, 'traerClientesAsignados']);
@@ -208,7 +208,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/exportar_broches', [PdfImpuestoController::class, 'PDF_broche']);
         Route::get('/exportar_broches_salas', [PdfImpuestoController::class, 'PDF_BorcheSalas']);
         Route::get('/exportar_broches_sp', [PdfImpuestoController::class, 'PDF_BrocheSP']);
-        Route::get('/modificar_bajado', [ImpuestosController::class, 'modificarBajadoController']);
+        /* Route::get('/modificar_bajado', [ImpuestosController::class, 'modificarBajadoController']); */
         Route::put('/modificar_estado', [ImpuestosController::class, 'modificarEstadoTGIController']);
         Route::delete('/eliminar_impuesto', [ImpuestosController::class, 'eliminarRegistro']);
         Route::post('/broches/pdf', [PdfImpuestoController::class, 'descargaPdf']);
@@ -288,7 +288,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/verificaPermisoUsuario/{botonNombre}', [Permisos::class, 'traerUsuarioPorBoton']);
         Route::post('/ActualizarEstadoContrato', [ProcesoController::class, 'ActualizarEstadoContrato']);
         Route::get('/getObservacionesContratoNuevo', [ProcesoController::class, 'getObservacionesContratoNuevo']);
-        Route::get('/getSelladoPrecargado', [ProcesoContratoService::class, 'getSelladoPrecargado']);
+       
 
 
         //Mapa de propiedades
