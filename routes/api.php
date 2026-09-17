@@ -42,6 +42,7 @@ use App\Models\At_cl\Zona;
 use App\Models\At_cl\Tipo_inmueble;
 use App\Services\contrato\ProcesoContratoService;
 use Illuminate\Support\Facades\Log;
+use App\Http\Controllers\usuarios_y_permisos\PermisosController;
 
 
 
@@ -109,6 +110,7 @@ Route::prefix('v1')->group(function () {
         Route::get('nombres-de-usuarios', [UsuarioService::class, 'getNombresDeUsuarios']);
         Route::get('datos-generales/{id_usuario}', [UsuarioService::class, 'getDatosGenerales']);
         Route::put('update-datos-generales/{id_usuario}', [UsuarioService::class, 'updateDatosGenerales']);
+
 
         // Atcl (URL: Variables generales de atcl)
         Route::get('calles', [CalleController::class, 'getCalles']);
@@ -336,6 +338,8 @@ Route::prefix('v1')->group(function () {
             Route::post('carga-masiva', [RegistrosGeneralesController::class, 'cargaMasivaController'])->name('carga-masiva');
             Route::post('comprobantes-pdf', [RegistrosMensualesController::class, 'comprobantesPdfController'])->name('comprobantes-pdf');
         });
+
+        Route::get('/usuarios/{id}/permisos/pdf', [PermisosController::class, 'exportarPermisosPdf']);
     });
 });
 

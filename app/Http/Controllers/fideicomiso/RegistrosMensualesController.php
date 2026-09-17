@@ -182,17 +182,17 @@ public function comprobantesPdfController(Request $request)
 
     $html = view('pdfs.fideicomiso.liquidacionFideicomiso', compact('data'))->render();
     
-    // A4 Apaisado es ideal para meter 11 columnas
-    $orientacion = 'landscape'; 
+    // Asignación dinámica de orientación
+    $orientacion = $data['detallado'] ? 'landscape' : 'portrait'; 
 
     return response()->streamDownload(function () use ($html, $orientacion) {
         echo \Spatie\Browsershot\Browsershot::html($html)
             ->format('A4')
-            ->margins(8, 8, 8, 8) // Achicamos un poco los márgenes para ganar espacio
+            ->margins(8, 8, 8, 8) 
             ->showBackground()
             ->emulateMedia('print')
-            ->setOption('displayHeaderFooter', false) // Quitamos header/footer automático para aprovechar toda la hoja
-            ->$orientacion()
+            ->setOption('displayHeaderFooter', false) 
+            ->$orientacion() // Aplica portrait o landscape según el caso
             ->pdf();
     }, 'Detalle_de_Liquidacion.pdf');
 }
