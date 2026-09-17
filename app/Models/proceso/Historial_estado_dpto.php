@@ -41,4 +41,8 @@ class Historial_estado_dpto extends Model
     {
         return $this->belongsTo(Usuario::class, 'quien_cargo', 'id');
     }
+    public function verificado_por()
+    {
+        return $this->belongsTo(Usuario::class, 'verificado_por', 'id');
+    }
 }

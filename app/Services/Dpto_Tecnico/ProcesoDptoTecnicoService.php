@@ -29,10 +29,11 @@ class ProcesoDptoTecnicoService
         'asesorUsuario',
         'historialEstadoReserva',
         'historialEstadoContrato.estado',
-        'historialEstadoContrato.tirillaEntregadaPor',
-        'historialEstadoContrato.tirillaControladaPor',
+        /* 'historialEstadoContrato.tirillaEntregadaPor',
+        'historialEstadoContrato.tirillaControladaPor', */
         'historialEstadoDpto.quien_cargo',
         'historialEstadoDpto.estado',
+        'historialEstadoDpto.verificado_por',
         'propiedad.calle',
         'registroSellado',
         'historialEstadoDpto',
@@ -73,6 +74,7 @@ class ProcesoDptoTecnicoService
             ->orderBy('historial_estado_dpto.id_estado', 'asc');
     }
 
+    Log::info($query->get());
     return $query->get();
 }
 
@@ -92,14 +94,14 @@ class ProcesoDptoTecnicoService
 
     public function actualizarInventario(Request $request, $usuarioId)
     {
-        //Log::info([$request->all()]);
-        //dd($request->all());
+       /*  Log::info([$request->all()]);
+        dd($request->all()); */
         $data = Historial_estado_dpto::find($request->inventario_id);
 
         if ($data) {
             $dataNuevo = Historial_estado_dpto::create([
                 'id_estado'             => $request->estado_id,
-                'observaciones'         => $request->observaciones,
+                'observaciones'         => $request->observaciones ?? 'Modificacion General',
                 'fecha_inventario'      => \Carbon\Carbon::parse($request->fecha_inventario)->setTimeFrom(now()),
                 'fecha_carga'           => now(),
                 'quien_cargo'           => $usuarioId,
@@ -108,12 +110,20 @@ class ProcesoDptoTecnicoService
             ]);
 
             $procesoPropiedad = Proceso_propiedad::find($request->id_proceso_propiedad);
-           /*  Log::info('datos de data', [$dataNuevo]);
-            Log::info('datos de procesopropiedad', [$procesoPropiedad]);
-            dd('hola'); */
+           
             $procesoPropiedad->update([
                 'id_historial_estado_dpto' => $dataNuevo->id
             ]);
+
+            if($request->estado_id == 4){
+                $procesoPropiedad->propiedad->update([
+                    'id_estado_alquiler' => $procesoPropiedad->estado_alquiler_inicial,
+                ]);
+                $historialEstadoContrato = Historial_estado_contrato::where('id_proceso_propiedad', $procesoPropiedad->id)->orderByDesc('id')->first();
+                if($historialEstadoContrato){
+                    $historialEstadoContrato->update([ 'id_estado' => '6']);
+                }
+            }
 
 
             return response()->json([

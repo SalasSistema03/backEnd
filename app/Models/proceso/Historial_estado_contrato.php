@@ -24,22 +24,18 @@ class Historial_estado_contrato extends Model
 
     protected $fillable = [
         'id_estado',
-        /* 'fecha_inventario', */
+        'observaciones',
         'fecha_comercial_presenta_carpeta',
         'fecha_preaprobada',
         'fecha_reserva',
         'gastos_administrativos',
-        'tirilla_entregada_a',
-        'fecha_tirilla_entregada',
-        'tirilla_controlada_por',
-        'fecha_tirilla_controlada',
+        'cuotas_ga',
         'fecha_contrato',
         'fecha_autorizacion',
         'fecha_finalizacion_firma_cobro',
-        'observaciones',
         'quien_cargo',
         'fecha_carga',
-        'id_proceso_propiedad'
+        'id_proceso_propiedad',
     ];
 
     public function estado()
