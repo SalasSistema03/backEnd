@@ -288,7 +288,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/verificaPermisoUsuario/{botonNombre}', [Permisos::class, 'traerUsuarioPorBoton']);
         Route::post('/ActualizarEstadoContrato', [ProcesoController::class, 'ActualizarEstadoContrato']);
         Route::get('/getObservacionesContratoNuevo', [ProcesoController::class, 'getObservacionesContratoNuevo']);
-       
+       Route::get('/getSelladoPrecargado', [ProcesoContratoService::class, 'getSelladoPrecargado']);
 
 
         //Mapa de propiedades

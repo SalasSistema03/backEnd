@@ -74,7 +74,7 @@ class ProcesoDptoTecnicoService
             ->orderBy('historial_estado_dpto.id_estado', 'asc');
     }
 
-    Log::info($query->get());
+    //Log::info($query->get());
     return $query->get();
 }
 

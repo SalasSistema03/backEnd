@@ -270,7 +270,7 @@ class FiltrosPdfService
 
     public function ordenarPorAutorizacion($propiedades, string $orden, string $sector)
     {
-        Log::info('Entró a autorización');
+        //Log::info('Entró a autorización');
 
         if ($orden === 'autorizacion') {
             $propiedades = $propiedades->sortBy(function ($propiedad) {

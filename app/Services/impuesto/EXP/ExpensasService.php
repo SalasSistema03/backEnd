@@ -106,7 +106,7 @@ class ExpensasService
      */
     public function completarCargaUnidadesService(array $data): void
     {
-        Log::info('Completar carga unidades', $data);
+        //Log::info('Completar carga unidades', $data);
         $repetir   = $data['repetir'];
         $idCasa    = $data['id'];
         $edificio  = $data['edificio'];

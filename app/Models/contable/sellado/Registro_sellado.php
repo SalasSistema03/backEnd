@@ -46,6 +46,7 @@ class Registro_sellado extends Model
         'fecha_carga',
         'usuario_id',
         'mostrar',
+        'finalizado'
     ];
 
     //Esta funcion trae los datos del usuario

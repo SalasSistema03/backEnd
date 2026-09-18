@@ -232,9 +232,9 @@ class RetencionController extends Controller
                 'data' => $resultado
             ], 200);
         } catch (\Exception $e) {
-            Log::info('error persona', [
+            /* Log::info('error persona', [
                 'exception' => $e
-            ]);
+            ]); */
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error al guardar la persona',

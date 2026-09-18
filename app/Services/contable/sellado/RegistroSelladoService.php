@@ -11,6 +11,8 @@ use App\Services\contable\sellado\ValorSelladoService;
 use App\Services\contable\sellado\ValorDatosRegistralesService;
 use App\Models\contable\sellado\Valor_registro_extra;
 use Illuminate\Support\Facades\Log;
+use App\Models\Proceso\Proceso_propiedad;
+use App\Models\At_cl\Empresas_propiedades;
 
 class RegistroSelladoService
 {
@@ -44,7 +46,8 @@ class RegistroSelladoService
     {
         // IMPORTANTE: El 'id' debe estar presente para que Laravel pueda unir las tablas
         return Registro_sellado::with('usuario')
-            ->where('mostrar', 1) // Filtra solo los registros donde mostrar = 1
+            ->where('mostrar', 1)
+            ->where('finalizado' ,'!=', '1') // Filtra solo los registros donde mostrar = 1
             ->orderBy('id_registro_sellado', 'desc')
             ->get()
             ->toArray();
@@ -53,6 +56,7 @@ class RegistroSelladoService
 
     public function calcularSellado(array $data)
     {
+        //Log::info('Datos recibidos para calcular sellado: ' . json_encode($data));
         // 1. Extraer valores con valores por defecto
         $monto_documento = $data['monto_documento'] ?? 0;
         $monto_contrato  = $data['monto_contrato'] ?? 0;
@@ -66,6 +70,12 @@ class RegistroSelladoService
             $data['tipo_contrato'],
             $cantidad_meses
         );
+
+         $gasto_adm_calc2 = Registro_sellado::where('folio', $data['folio'])
+            ->where('empresa', $data['empresa'])
+            ->orderBy('id_registro_sellado', 'desc')
+            ->get('gasto_administrativo')
+            ->first();
 
         $prop_alq_calc = $this->proporcional_alquiler(
             $monto_alquiler,
@@ -118,28 +128,40 @@ class RegistroSelladoService
             'prop_doc'          => $prop_alq_calc['monto_documento'] ?? 0,
             'total_contrato'    => $sellado_calc['total_alquiler'] ?? 0,
             'fecha_carga'       => now()->toDateString(),
+            'gasto_adm_calc2' => $gasto_adm_calc2->gasto_administrativo ?? 0,
+            
         ];
     }
 
     public function guardarSellado(array $data)
     {
+        //Log::info('Datos recibidos para guardar sellado: ' . json_encode($data));
+        //dd('hola');
+
         return DB::transaction(function () use ($data) {
             // Primero obtenemos los resultados del cálculo para estar seguros de qué guardamos
             $resultados = $this->calcularSellado($data);
+
+            $gastoAdministrativo = 
+                 $data['resultado']['gasto_adm_calc2']
+               
+                ?? 0;
+
             //Llama el id del usuario actual
             $usuario_id = auth('api')->id();
 
             // Insertamos o actualizamos en la tabla buscando por folio y empresa
-            return Registro_sellado::updateOrCreate(
+            $Registro_sellado = Registro_sellado::updateOrCreate(
                 [
                     'folio'                   => $resultados['folio'],
                     'empresa'                 => $data['empresa'],
+                    'finalizado'              => 0,
                 ],
                 [
                     'cantidad_informes'       => $resultados['cantidad_informes'],
                     'cantidad_meses'          => $resultados['cantidad_meses'],
                     'fecha_inicio'            => $resultados['fecha_inicio'],
-                    'gasto_administrativo'    => $resultados['gasto_administrativo'],
+                    'gasto_administrativo'    => $gastoAdministrativo,
                     'hojas'                   => $resultados['hojas'],
                     'informe'                 => $resultados['informe'],
                     'inq_prop'                => $resultados['inq_prop'],
@@ -158,8 +180,26 @@ class RegistroSelladoService
                     'fecha_carga'             => $resultados['fecha_carga'],
                     'usuario_id'              => $usuario_id,
                     'mostrar'                 => 1,
+                    'finalizado'              => 0,
                 ]
             );
+
+            // El folio y la empresa viven en empresa_propiedad, no en proceso_propiedad.
+            $propiedadIds = Empresas_propiedades::where('folio', $resultados['folio'])
+                ->where('empresa_id', $data['empresa'])
+                ->pluck('propiedad_id');
+
+            $procesoPropiedad = Proceso_propiedad::whereIn('id_propiedad', $propiedadIds)
+                ->where('id_registro_sellado', 0)
+                ->first();
+
+            if ($procesoPropiedad) {
+                $procesoPropiedad->update([
+                    'id_registro_sellado' => $Registro_sellado->id_registro_sellado,
+                ]);
+            }
+
+            return $Registro_sellado;
         });
     }
 
@@ -169,7 +209,9 @@ class RegistroSelladoService
     public function eliminarRegistro()
     {
         try {
-            Registro_sellado::truncate(); // Elimina todos los registros de la tabla
+           /*  Registro_sellado::truncate(); */ // Elimina todos los registros de la tabla
+           //Pasa a finalizadoo  1 todosl os registros de la tabla "registro_sellado"
+            Registro_sellado::where('finalizado', 0)->update(['finalizado' => 1]);
 
             return response()->json([
                 'status' => 'success',

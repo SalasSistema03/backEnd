@@ -121,7 +121,7 @@ class EnvioMailService
                     $contenido .= "  - Dormitorios: " . ($criterio['cant_dormitorios'] ?? 'Sin Datos') . "\n";
                     $contenido .= "  - Cochera:" . ($criterio['cochera'] ?? 'Sin Datos') . "\n";
                     $contenido .= "  - Zona: " . ($zona?->name ?? 'Sin Datos') . "\n\n";
-                    FacadesLog::info('Estos son los datos de Criterio ' . ($index + 1) . ': ' . json_encode($criterio));
+                    //FacadesLog::info('Estos son los datos de Criterio ' . ($index + 1) . ': ' . json_encode($criterio));
                 }
             } else {
                 $contenido .= "No se registraron criterios de venta.\n\n";
@@ -139,7 +139,7 @@ class EnvioMailService
                     $contenido .= "  - Codigo Propiedad: " . $codigo . "\n";
                     // Mostrar datos de calle de forma segura, sin asumir objeto
                     $contenido .= "  - Calle: " . (($calle?->name ?? 'Sin Datos') . ' ' . ($casa?->numero_calle ?? 'Sin Datos')) . "\n\n";
-                    FacadesLog::info('Edyos  son los datos de Propiedad ' . ($index + 1) . ': ' . json_encode($propiedad));
+                    //FacadesLog::info('Edyos  son los datos de Propiedad ' . ($index + 1) . ': ' . json_encode($propiedad));
                 }
             } else {
                 $contenido .= "No se registraron propiedades.\n\n";
@@ -177,7 +177,7 @@ class EnvioMailService
                     $contenido .= "  - Dormitorios: " . ($criterio['cant_dormitorios'] ?? 'Sin Datos') . "\n";
                     $contenido .= "  - Cochera:" . ($criterio['cochera'] ?? 'Sin Datos') . "\n";
                     $contenido .= "  - Zona: " . ($zona?->name ?? 'Sin Datos') . "\n\n";
-                    FacadesLog::info('Estos son los datos de Criterio ' . ($index + 1) . ': ' . json_encode($criterio));
+                    //FacadesLog::info('Estos son los datos de Criterio ' . ($index + 1) . ': ' . json_encode($criterio));
                 }
             } else {
                 $contenido .= "No se registraron criterios de venta.\n\n";
@@ -195,7 +195,7 @@ class EnvioMailService
                     $contenido .= "  - Codigo Propiedad: " . $codigo . "\n";
                     // Mostrar datos de calle de forma segura, sin asumir objeto
                     $contenido .= "  - Calle: " . (($calle?->name ?? 'Sin Datos') . ' ' . ($casa?->numero_calle ?? 'Sin Datos')) . "\n\n";
-                    FacadesLog::info('Edyos  son los datos de Propiedad ' . ($index + 1) . ': ' . json_encode($propiedad));
+                    //FacadesLog::info('Edyos  son los datos de Propiedad ' . ($index + 1) . ': ' . json_encode($propiedad));
                 }
             } else {
                 $contenido .= "No se registraron propiedades.\n\n";
@@ -446,7 +446,7 @@ class EnvioMailService
     public function enviarNuevoMail($criteriosVenta = [], $clienteId, $propiedades = [], $sector = 'venta'): bool
     {
         // Log seguro del payload
-        try {
+        /* try {
             FacadesLog::info('Payload enviarNuevoMail: ' . json_encode([
                 'criteriosVenta' => $criteriosVenta,
                 'clienteId' => $clienteId,
@@ -454,7 +454,7 @@ class EnvioMailService
             ]));
         } catch (\Throwable $e) {
             FacadesLog::warning('No se pudo loguear el payload de enviarNuevoMail: ' . $e->getMessage());
-        }
+        } */
 
         $mail = new PHPMailer(true);
         $identificador = 1;
@@ -513,7 +513,7 @@ class EnvioMailService
                 throw new Exception('Destinatario inválido: email de asesor no válido');
             }
             $mail->addAddress($emailTo);
-            FacadesLog::info('Email destinatario validado', ['to' => $emailTo]);
+            //FacadesLog::info('Email destinatario validado', ['to' => $emailTo]);
 
             // Preparar contenido del email
             $contenido = $this->prepararContenidoEmail($criteriosVenta, $clienteId, $propiedades, $identificador, $sector);
@@ -656,7 +656,7 @@ class EnvioMailService
                     $contenidoSms = preg_replace('/\n+/', "\n", $contenidoSms);
                     $contenidoSms = trim($contenidoSms);
 
-                    FacadesLog::info("📱 Enviando SMS a $telefonoSms: " . $contenidoSms);
+                    //FacadesLog::info("📱 Enviando SMS a $telefonoSms: " . $contenidoSms);
 
                     // 6. Enviar SMS
                     try {
@@ -670,11 +670,11 @@ class EnvioMailService
                             ]);
 
                         $body = $response->body();
-                        if ($response->successful() && strpos($body, 'Send failed!') === false) {
+                       /*  if ($response->successful() && strpos($body, 'Send failed!') === false) {
                             FacadesLog::info("✅ SMS enviado a $telefonoSms. Resp: " . $body);
                         } else {
                             FacadesLog::error("❌ Fallo SMS a $telefonoSms. Status: " . $response->status() . " Resp: " . $body);
-                        }
+                        } */
                     } catch (\Exception $e) {
                         FacadesLog::error('⚠️ Error de conexión SMS a ' . $telefonoSms . ': ' . $e->getMessage());
                     }

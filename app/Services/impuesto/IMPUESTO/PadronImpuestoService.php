@@ -1056,8 +1056,8 @@ class PadronImpuestoService
         });
 
 
-        Log::info('padron', $padron->all());
-        Log::info('seguirPagando', $seguirPagando);
+        /* Log::info('padron', $padron->all());
+        Log::info('seguirPagando', $seguirPagando); */
         if (!empty($seguirPagando)) {
             $padron = $padron->filter(function ($item) {
                 return $item->seguir_pagando === 'S';
