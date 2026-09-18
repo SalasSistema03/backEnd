@@ -29,7 +29,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::useBootstrap();
         // Compartir los datos del modelo Permiso con todas las vistas
-        View::share('permisos', Permiso::all());
+        /* View::share('permisos', Permiso::all()); */
 
 
     }
