@@ -52,7 +52,7 @@ class UsuariosController extends Controller
 
     public function getAsesorAlquiler()
     {
-        Log::info('getAsesorAlquiler called');
+        //Log::info('getAsesorAlquiler called');
         $asesor_alquiler = (new UsuarioService())->getAsesorAlquiler();
         return response()->json($asesor_alquiler);
     }

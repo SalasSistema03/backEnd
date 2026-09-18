@@ -95,7 +95,7 @@ class ClientesController extends Controller
      */
     public function guardar(Request $request)
     {
-        Log::info('informacion de request', $request->all());
+        //Log::info('informacion de request', $request->all());
         //dd('hola');
 
 
@@ -284,7 +284,7 @@ class ClientesController extends Controller
                     foreach ($criteriosAlquiler as $criterio) {
                         // Si tiene id_criterio_venta, es un criterio existente, lo saltamos
                         if (isset($criterio['id_criterio_alquiler'])) {
-                            Log::info('Omitiendo criterio existente', ['id_criterio_alquiler' => $criterio['id_criterio_alquiler']]);
+                            //Log::info('Omitiendo criterio existente', ['id_criterio_alquiler' => $criterio['id_criterio_alquiler']]);
                             continue;
                         }
 
@@ -312,7 +312,7 @@ class ClientesController extends Controller
                         foreach ($propiedadesAlquilerInput as $propiedad) {
 
                             if (isset($propiedad['id_con_prop_alquiler'])) {
-                                Log::info('Omitiendo propiedad existente', ['id_con_prop_venta' => $propiedad['id_con_prop_venta']]);
+                                //Log::info('Omitiendo propiedad existente', ['id_con_prop_venta' => $propiedad['id_con_prop_venta']]);
                                 continue;
                             }
                             $propiedad['id_cliente'] = $cliente->id_cliente;
@@ -456,7 +456,7 @@ class ClientesController extends Controller
         ]);
 
         if ($request->pertenece_a_inmobiliaria === 'S' && is_null($request->nombre_de_inmobiliaria)) {
-            log::info('El cliente pertenece a una inmobiliaria pero no se proporcionó un nombre.');
+            //log::info('El cliente pertenece a una inmobiliaria pero no se proporcionó un nombre.');
             return redirect()->back()->withErrors(['nombre_de_inmobiliaria' => 'El nombre de la inmobiliaria es obligatorio si pertenece a una.']);
         }
 

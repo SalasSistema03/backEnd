@@ -28,14 +28,15 @@ class Historial_estado_contrato extends Model
         'fecha_comercial_presenta_carpeta',
         'fecha_preaprobada',
         'fecha_reserva',
-        'gastos_administrativos',
+        /* 'gastos_administrativos', */
         'cuotas_ga',
-        'fecha_contrato',
+        'fecha_firma_contrato',
         'fecha_autorizacion',
         'fecha_finalizacion_firma_cobro',
         'quien_cargo',
         'fecha_carga',
         'id_proceso_propiedad',
+       
     ];
 
     public function estado()

@@ -155,7 +155,7 @@ class RegistrosMensualesController extends Controller
 
     public function comprobantesPdfController(Request $request)
 {
-    Log::info('entro a comprobantesPdfController');
+    //Log::info('entro a comprobantesPdfController');
     $data = $request->all();
 
     // Guardamos el booleano

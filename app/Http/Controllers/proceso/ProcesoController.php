@@ -29,6 +29,7 @@ class ProcesoController extends Controller
     {
         DB::beginTransaction();
         try {
+
             $usuarioId = auth('api')->id();
             $data = $request->all();
 
@@ -88,7 +89,7 @@ class ProcesoController extends Controller
             $historial = $this->reservaService->getHistorial($idProceso);
             $historialContratoNuevos = (new ProcesoContratoService())->getObservacionesContratoNuevo($idProceso);
             $historialDptoNuevos = (new ProcesoDptoTecnicoService())->getComentarioInventario($idProceso);
-            Log::info($historialDptoNuevos);
+            //Log::info($historialDptoNuevos);
 
 
             return response()->json(['resultado' => $historial, 'historialContratoNuevos' => $historialContratoNuevos, 'historialDptoNuevos' => $historialDptoNuevos]);

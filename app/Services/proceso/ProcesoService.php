@@ -34,6 +34,7 @@ class ProcesoService
      */
     public function subirReserva(array $data, $usuarioId)
     {
+        //Log::info([$data]);
         try {
             $comprobantePath = null;
 

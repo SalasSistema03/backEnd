@@ -174,7 +174,7 @@ class AsesoresController
                 );
             });
 
-            Log::info('clientes', [$clientes]);
+            //Log::info('clientes', [$clientes]);
 
             return response()->json([
                 'clientes' => $clientes
