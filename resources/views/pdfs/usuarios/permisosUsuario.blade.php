@@ -3,26 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
     <style>
         {!! file_get_contents(public_path('css/pdfStyles.css')) !!}
 
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             background-color: #ffffff;
-            color: #000000;
+            color: #1a1a1a;
         }
 
         /* ===== Cabecera del Reporte ===== */
         .report-header {
-            border-bottom: 2px solid #000000;
+            border-bottom: 2px solid rgb(0, 85, 185);
             padding-bottom: 10px;
             margin-bottom: 15px;
         }
 
+        .report-title {
+            color: rgb(0, 85, 185);
+            text-transform: uppercase;
+        }
+
         .user-card {
-            border: 1px solid #000000;
+            border: 1px solid rgb(0, 85, 185);
             padding: 6px 15px;
             border-radius: 4px;
+            background-color: #f4f8fc;
         }
 
         /* ===== Leyenda ===== */
@@ -40,37 +47,35 @@
             width: 100%;
         }
 
-        /* ===== NIVEL 0: Módulo (raíz) =====
-           OJO: NO se pone page-break-inside:avoid aquí. Si el módulo es
-           más alto que una página, forzar "avoid" empuja el bloque ENTERO
-           a la página siguiente y deja la página actual en blanco.
-           El corte se controla a nivel de fila (más abajo). */
+        /* ===== NIVEL 0: Módulo (raíz) ===== */
         .nodo-modulo {
-            border: 2px solid #000000;
+            border: 1px solid rgb(0, 85, 185);
             border-radius: 3px;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
         }
         .nodo-modulo-header {
             padding: 8px 12px;
             font-weight: bold;
             font-size: 0.95rem;
             text-transform: uppercase;
-            /* Evita que la cabecera del módulo quede sola al final de una
-               página, separada de su primera fila hija */
             break-after: avoid-page;
             page-break-after: avoid;
         }
-        .modulo-permitido { background-color: #000000; color: #ffffff; }
-        .modulo-denegado  { background-color: #ffffff; color: #666666; }
+        .modulo-permitido { 
+            background-color: rgb(0, 85, 185); 
+            color: #ffffff; 
+        }
+        .modulo-denegado  { 
+            background-color: #f8f9fa; 
+            color: #72777a; 
+            border-bottom: 1px solid #e0e0e0;
+        }
 
         .nodo-modulo-body {
             padding: 8px 10px 10px 10px;
         }
 
-        /* ===== NIVEL 1 y 2: filas del árbol =====
-           Aquí SÍ se evita el corte: cada fila es chica, así que "avoid"
-           solo mueve esa fila puntual a la siguiente página si no entra,
-           sin arrastrar el resto del árbol. */
+        /* ===== NIVEL 1 y 2: filas del árbol ===== */
         .fila-arbol {
             width: 100%;
             padding: 2px 0;
@@ -78,11 +83,9 @@
             page-break-inside: avoid;
         }
 
-        /* El prefijo (├──, └──, │  ) se dibuja con monospace para que
-           las líneas del árbol queden perfectamente alineadas */
         .tree-prefix {
             font-family: 'Courier New', Courier, monospace;
-            color: #999999;
+            color: #6c757d;
             white-space: pre;
             font-size: 0.85rem;
         }
@@ -96,9 +99,10 @@
             font-size: 0.78rem;
         }
 
-        .texto-permitido { color: #000000; font-weight: bold; }
-        .texto-denegado  { color: #888888; text-decoration: line-through; }
+        .texto-permitido { color: #0f172a; font-weight: bold; }
+        .texto-denegado  { color: #94a3b8; text-decoration: line-through; }
 
+        /* ===== Badges / Acciones ===== */
         .badge-accion {
             font-size: 0.7rem;
             padding: 2px 10px;
@@ -107,19 +111,20 @@
             letter-spacing: 0.3px;
         }
         .badge-permitido {
-            border: 1.5px solid #000000;
-            color: #000000;
+            border: 1.5px solid rgb(0, 85, 185);
+            color: rgb(0, 85, 185);
+            background-color: #eaf2fd;
             font-weight: bold;
         }
         .badge-denegado {
-            border: 1px dotted #888888;
-            color: #888888;
+            border: 1px dotted #94a3b8;
+            color: #94a3b8;
             text-decoration: line-through;
         }
 
         .sin-datos {
             font-size: 0.75rem;
-            color: #777777;
+            color: #6c757d;
             font-style: italic;
         }
 
@@ -143,16 +148,16 @@
                     : null;
             @endphp
             @if($logoBase64)
-                <img src="{{ $logoBase64 }}" style="max-height: 40px;">
+                <img src="{{ $logoBase64 }}" style="max-height: 45px;">
             @endif
         </div>
         <div class="col-8 text-end">
-            <h4 class="mb-2 fw-bolder" style="text-transform: uppercase;">Reporte de Permisos</h4>
+            <h4 class="mb-2 fw-bolder report-title">Reporte de Permisos</h4>
             <div class="user-card d-inline-block text-start">
-                <div style="font-size: 0.75rem; color: #555;">USUARIO</div>
-                <div style="font-size: 1rem; font-weight: bold;">
+                <div style="font-size: 0.7rem; color: rgb(0, 85, 185); font-weight: bold;">USUARIO</div>
+                <div style="font-size: 0.95rem; font-weight: bold; color: #1a1a1a;">
                     {{ $data['usuario']->username }}
-                    <span style="font-weight: normal;">({{ $data['usuario']->name }})</span>
+                    <span style="font-weight: normal; color: #555;">({{ $data['usuario']->name }})</span>
                 </div>
             </div>
         </div>
@@ -160,8 +165,8 @@
 
     <!-- ===================== LEYENDA ===================== -->
     <div class="leyenda">
-        <span><span class="icon fw-bold">✔️</span> Acceso Habilitado</span>
-        <span><span class="icon">✖</span> Acceso Denegado (Tachado / Punteado)</span>
+        <span><span class="icon fw-bold" style="color: rgb(0, 85, 185);">✔️</span> Acceso Habilitado</span>
+        <span><span class="icon" style="color: #94a3b8;">✖</span> Acceso Denegado</span>
     </div>
 
     <!-- ===================== ÁRBOL DE PERMISOS ===================== -->
@@ -183,10 +188,7 @@
                     @forelse ($nav->vistas as $vista)
                         @php
                             $tieneVista = in_array($vista->id, $data['vistas_permitidas']);
-                            // Conector de este nodo dentro de su padre (módulo)
-                            $conectorVista = $loop->last ? '└── ' : '├── ';
-                            // Si no es el último, la línea vertical del módulo debe continuar
-                            // hacia los hijos (botones) de esta vista
+                            $conectorVista = $loop->last ? '└────── ' : '├────── ';
                             $continuacionVista = $loop->last ? '    ' : '│   ';
                         @endphp
 
@@ -194,7 +196,7 @@
                         <div class="fila-arbol nodo-vista {{ $tieneVista ? 'texto-permitido' : 'texto-denegado' }}">
                             <span class="tree-prefix">{{ $conectorVista }}</span>
                             <span class="icon">{{ $tieneVista ? '✔️' : '✖' }}</span>
-                            {{ $vista->vista_nombre }}
+                            {{ $vista->nombre_visual }}
                         </div>
 
                         <!-- ---------- NIVEL 2: BOTONES ---------- -->
@@ -202,19 +204,19 @@
                             @foreach($vista->botones as $boton)
                                 @php
                                     $tieneBoton = in_array($boton->id, $data['botones_permitidos']);
-                                    $conectorBoton = $loop->last ? '└── ' : '├── ';
+                                    $conectorBoton = $loop->last ? '└────────────────────── ' : '├────────────────────── ';
                                     $prefijoBoton = $continuacionVista . $conectorBoton;
                                 @endphp
                                 <div class="fila-arbol nodo-boton">
                                     <span class="tree-prefix">{{ $prefijoBoton }}</span>
                                     <span class="badge-accion {{ $tieneBoton ? 'badge-permitido' : 'badge-denegado' }}">
-                                        {{ $boton->btn_nombre }}
+                                        {{ $boton->nombre_visual }}
                                     </span>
                                 </div>
                             @endforeach
                         @else
                             <div class="fila-arbol">
-                                <span class="tree-prefix">{{ $continuacionVista }}└── </span>
+                                <span class="tree-prefix">{{ $continuacionVista }}└───────────────────── </span>
                                 <span class="sin-datos">(Sin acciones configurables)</span>
                             </div>
                         @endif
