@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\contable\sellado;
 
 use App\Http\Controllers\Controller;
+use App\Models\Contable\Sellado\Registro_sellado;
 use Illuminate\Http\Request;
 use App\Services\contable\sellado\DatosCalculoService;
 use App\Services\contable\sellado\RegistroSelladoService;
 use App\Services\contable\sellado\ValorDatosRegistralesService;
 use App\Services\contable\sellado\PermitirAccesoSelladoService;
+use Illuminate\Support\Facades\Log;
 
 class SelladoController extends Controller
 {
@@ -19,8 +21,7 @@ class SelladoController extends Controller
     public function __construct(
         protected RegistroSelladoService $registro_sellado,
         protected DatosCalculoService   $datosCalculoService,
-    ) {
-    }
+    ) {}
 
     public function getDatosSelladoController()
     {
@@ -136,7 +137,7 @@ class SelladoController extends Controller
             ], 500);
         }
     }
-    
+
 
     //Este metodo elimina todos los registros de la tabla "registro_sellado"
     public function eliminarRegistroSelladoController()
@@ -192,12 +193,12 @@ class SelladoController extends Controller
         }
     }
 
-    
+
     /* Lista los DATOS DE CALCULO que utiliza el sellado (Los datos que figuran en el engranaje)*/
     public function getDatosCalculo()
     {
         try {
-            return response()->json( [
+            return response()->json([
                 'configuracion' => [
                     'valores_datos_registrales' => $this->datosCalculoService->getAllValorDatosRegistrales(),
                     'valores_gasto_administrativo' => $this->datosCalculoService->getAllValorGastoAdministrativo(),
@@ -206,7 +207,6 @@ class SelladoController extends Controller
                     'valor_registro_extra' => $this->datosCalculoService->getValorRegistroExtra(),
                 ]
             ]);
-
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'message' => 'Error al obtener los datos de calculo: '], 500);
         }
@@ -229,5 +229,76 @@ class SelladoController extends Controller
                 'message' => 'Error al exportar a Excel: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    public function traerSelladoSinConfirmar(Request $request)
+    {
+        /* Log::info('traerSelladoSinConfirmar', $request->all());
+        dd('hola'); */
+        try {
+            $query = Registro_sellado::where('mostrar', 1)
+                ->where('finalizado', 1)
+                ->where('confirmar', 0)
+                ->with([
+                    'usuario:id,username',
+                    'propiedad' => function ($q) {
+                        $q->select('propiedades.id', 'propiedades.id_calle', 'propiedades.numero_calle', 'empresa_propiedad.folio');
+                    },
+                    'propiedad.calle:id,name',
+                    'proceso:id,meses_contrato'
+                ]);
+            //tiene que verificar el mes y anio con respecto a fecha_carga, este campo es tipo DATE
+            if ($request->filled('mes') && $request->filled('anio')) {
+                /* Log::info('FILTRANDO FECHA', [
+                    'mes' => $request->mes,
+                    'anio' => $request->anio,
+                ]); */
+                $query->whereMonth('fecha_carga', (int) $request->mes)
+                    ->whereYear('fecha_carga', (int) $request->anio);
+
+                /* Log::info('SQL', [
+                    'sql' => $query->toSql(),
+                    'bindings' => $query->getBindings(),
+                ]); */
+            }
+
+            if ($request->filled('folio')) {
+                $query->where('folio', 'like', '%' . $request->folio . '%');
+            }
+            if ($request->filled('nombre')) {
+                $query->where('nombre', 'like', '%' . $request->nombre . '%');
+            }
+
+            $response = $query->get();
+
+            /* Log::info($response); */
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Sellado sin confirmar obtenido correctamente',
+                'data' => $response
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al obtener el sellado sin confirmar: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function confirmarSelladoController(Request $request)
+    {
+
+        $registroSellado = Registro_sellado::where('id_registro_sellado', $request->id)->first();
+        $registroSellado->update([
+            'confirmar' => '1'
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Sellado confirmado correctamente',
+        ], 200);
+
+        //Log::info($request);
+        //dd('hola');
     }
 }
