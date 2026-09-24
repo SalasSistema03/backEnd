@@ -81,7 +81,7 @@ Route::prefix('v1')->group(function () {
             //rutas que se usan a services/Api/Atcl/atclApi
             Route::get('calles', [CalleController::class, 'getCalles']);
             Route::get('tipos-inmueble', [Tipo_inmuebleController::class, 'getTiposInmueble']);
-            Route::get('zonas', [ZonaController::class, 'getZonas']);
+            //Route::get('zonas', [ZonaController::class, 'getZonas']);
             Route::get('provincias', [ProvinciaController::class, 'getProvincias']);
             Route::get('estado-general', [EstadoGeneralController::class, 'getEstadoGeneral']);
             Route::get('estado-venta', [EstadoVentaController::class, 'getEstadoVenta']);
@@ -155,6 +155,8 @@ Route::prefix('v1')->group(function () {
         Route::post('sellado/guardar', [SelladoController::class, 'guardarSelladoController']);
         Route::delete('sellado/eliminar', [SelladoController::class, 'eliminarRegistroSelladoController']);
         Route::get('sellado/exportar-registros', [SelladoController::class, 'exportarexportarRegistrosSelladoController']);
+        Route::get('/sellado/traerSinConfirmar', [SelladoController::class, 'traerSelladoSinConfirmar']);
+        Route::post('/sellado/confirmar', [SelladoController::class, 'confirmarSelladoController']);
 
 
         //clientes
@@ -290,7 +292,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/verificaPermisoUsuario/{botonNombre}', [Permisos::class, 'traerUsuarioPorBoton']);
         Route::post('/ActualizarEstadoContrato', [ProcesoController::class, 'ActualizarEstadoContrato']);
         Route::get('/getObservacionesContratoNuevo', [ProcesoController::class, 'getObservacionesContratoNuevo']);
-       
+        Route::get('/getSelladoPrecargado', [ProcesoContratoService::class, 'getSelladoPrecargado']);
 
 
         //Mapa de propiedades

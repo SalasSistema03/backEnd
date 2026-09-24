@@ -150,7 +150,7 @@ class ListadoPdfAtcl
             $propietario = $request->propietario;
             //sLog::info('propietario', [$propietario]);
             $campoCodigo = ($sector === 'Alquiler') ? 'cod_alquiler' : 'cod_venta';
-            Log::info($campoCodigo);
+            //Log::info($campoCodigo);
 
             if ($propietario !== null) {
                 $propiedades = Propiedades_padron::where('padron_id', $propietario)

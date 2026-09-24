@@ -102,7 +102,7 @@ class PadronService
                 }
             }
 
-            Log::info("Padrón actualizado correctamente: ID {$padron->id}");
+            //Log::info("Padrón actualizado correctamente: ID {$padron->id}");
 
             return response()->json([
                 'success' => true,

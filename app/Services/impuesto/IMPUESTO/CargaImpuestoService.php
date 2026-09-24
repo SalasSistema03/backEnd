@@ -375,7 +375,7 @@ class CargaImpuestoService
         }
 
         if ($impuesto === 'api') {
-            Log::info('entro al if');
+            //Log::info('entro al if');
             $jsonFolios = Api_carga::where('periodo_anio', $anio)
                 ->where('periodo_mes', $mes)
                 ->pluck('id_apiPadron')

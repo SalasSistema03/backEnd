@@ -184,7 +184,7 @@ class PropiedadController
 
         try {
             DB::beginTransaction();
-            log::info('Payload recibido para guardar:', $request->all());
+            //log::info('Payload recibido para guardar:', $request->all());
             // Preparar datos para el servicio
             $datos = [
                 'calle_id' => $request->calle_id,
@@ -1147,7 +1147,7 @@ class PropiedadController
     public function validarUbicacionDuplicada(Request $request)
 
     {
-        Log::info('Payload recibido:', $request->all());
+        //Log::info('Payload recibido:', $request->all());
         try {
             $id_calle = $request->calle_id;
             $numero = (int) $request->numero_calle;

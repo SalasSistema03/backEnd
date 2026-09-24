@@ -33,8 +33,8 @@ class CriterioBusquedaVentaService
         $criteriosExistentes = self::getCriteriosExistentesPorIDCliente($idCliente);
         $idsExistentes = $criteriosExistentes->pluck('id_criterio_venta')->toArray();
 
-        Log::info('Criterios existentes', ['ids' => $idsExistentes]);
-        Log::info('Criterios nuevos recibidos', ['criterios' => $criteriosNuevos]);
+        //Log::info('Criterios existentes', ['ids' => $idsExistentes]);
+        //Log::info('Criterios nuevos recibidos', ['criterios' => $criteriosNuevos]);
 
         // Separar criterios nuevos (sin id) y existentes (con id)
         $criteriosAAgregar = [];
@@ -53,7 +53,7 @@ class CriterioBusquedaVentaService
         // Eliminar criterios que ya no están en la lista nueva
         $idsAEliminar = array_diff($idsExistentes, $idsRecibidos);
         if (!empty($idsAEliminar)) {
-            Log::info('Eliminando criterios', ['ids' => $idsAEliminar]);
+            //Log::info('Eliminando criterios', ['ids' => $idsAEliminar]);
             CriterioBusquedaVenta::whereIn('id_criterio_venta', $idsAEliminar)
                 ->update(['estado_criterio_venta' => 'Eliminado']);
         }
@@ -67,7 +67,7 @@ class CriterioBusquedaVentaService
             }
         }
 
-        Log::info('Criterios agregados', ['cantidad' => count($criteriosCreados)]);
+        //Log::info('Criterios agregados', ['cantidad' => count($criteriosCreados)]);
 
         return [
             'eliminados' => count($idsAEliminar),

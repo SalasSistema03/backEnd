@@ -62,7 +62,7 @@ class EpeService
                 'propiedad.empresas:id'
             ])
                 ->get();
-            Log::info('resultado', [$resultado]);
+            //Log::info('resultado', [$resultado]);
             return $resultado;
         }
     }

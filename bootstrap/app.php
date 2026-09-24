@@ -16,4 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
+        $exceptions->render(function (\Tymon\JWTAuth\Exceptions\JWTException $e, $request) {
+        if ($request->is('api/*')) {
+            return response()->json(['error' => 'No autenticado: ' . $e->getMessage()], 401);
+        }
+    });
     })->create();

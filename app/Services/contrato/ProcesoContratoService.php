@@ -85,6 +85,17 @@ class ProcesoContratoService
         }
         return $res;
     }
+    public function getSelladoPrecargado(Request $request)
+    {
+        $data = Registro_sellado::where('folio', $request->folio)
+            ->where('empresa', $request->empresa)
+            ->where('mostrar', 0)
+            ->where('finalizado', '!=', '1')
+            ->first();
+        $procesoPropiedad = Proceso_propiedad::where('id_registro_sellado', $data->id_registro_sellado)->first();
+        $data->proceso_monto = $procesoPropiedad->monto_reserva;
+        return $data;
+    }
 
     public function crearHistorialEstadoContrato(array $request)
     {
@@ -97,14 +108,15 @@ class ProcesoContratoService
             'fecha_comercial_presenta_carpeta' => $request['fecha_comercial_presenta_carpeta'] ?? null,
             'fecha_preaprobada' => $request['fecha_preaprobada'] ?? null,
             'fecha_reserva' => $request['fecha_reserva'] ?? null,
-            'gastos_administrativos' => $request['gastos_administrativos'] ?? null,
+            /* 'gastos_administrativos' => $request['gastos_administrativos'] ?? null, */
             'cuotas_ga' => $request['cuotas'] ?? null,
-            'fecha_contrato' => $request['fecha_contrato'] ?? null,
+            'fecha_firma_contrato' => $request['fecha_firma_contrato'] ?? null,
             'fecha_autorizacion' => $request['fecha_autorizacion'] ?? null,
             'fecha_finalizacion_firma_cobro' => $request['fecha_finalizacion_firma_cobro'] ?? null,
             'quien_cargo' => $usuario->id ?? null,
             'fecha_carga' => now()->format('Y-m-d H:i:s'),
             'id_proceso_propiedad' => $request['id_proceso'] ?? null,
+            
         ]);
 
         return $data;
@@ -131,8 +143,8 @@ class ProcesoContratoService
      */
     public function actualizarEstadoContrato(array $request, $usuarioId)
     {
-        /* Log::info([$request]);
-        dd('hola'); */
+         /* Log::info([$request]);
+        dd('hola');   */
         return DB::transaction(function () use ($request, $usuarioId) {
 
             $historialEstadoContrato = $this->crearHistorialEstadoContrato($request);
@@ -147,9 +159,9 @@ class ProcesoContratoService
             $usuario = Usuario::find($usuarioId);
             $folio = $this->obtenerFolioPropiedad($proceso->id_propiedad);
 
-             /* if ($this->requiereProcesarSellado($request)) {
+            if ($this->requiereProcesarSellado($request)) {
                 $this->procesarRegistroSellado($request, $proceso, $usuario);
-            }  */
+            }  
 
             $this->actualizarEstadoReservaYNotificar($request, $proceso, $usuario, $folio);
 
@@ -216,7 +228,8 @@ class ProcesoContratoService
             return false;
         }
 
-        $campos = ['monto', 'chojas', 'informe', 'CantInforme', 'contrato', 'inquilino_propietario', 'precio_alquiler'];
+        //$campos = ['monto', 'chojas', 'informe', 'CantInforme', 'contrato', 'inquilino_propietario', 'precio_alquiler'];
+        $campos = ['gastos_administrativos','cant_meses','precio_alquiler','monto','chojas','informe','tipo_contrato','inquilino_propietario','fecha_inicio_contrato'];
 
         foreach ($campos as $campo) {
             if (($request[$campo] ?? null) !== null) {
@@ -253,19 +266,23 @@ class ProcesoContratoService
 
         $datosSellado = [
             'mostrar'                  => 0,
+            'finalizado'               => 0,
             'folio'                    => $folioSolicitado,
             'empresa'                  => $idEmpresa,
             'nombre'                   => $nombreInquilino ?? '',
             'cantidad_meses'           => $request['cant_meses'] ?? null,
+            'monto_alquiler_comercial' => $request['precio_alquiler'] ?? null,
             'monto_documento'          => $request['monto'] ?? null,
-            'monto_contrato'           => $request['monto_contrato'] ?? null,
+            //'monto_contrato'           => $request['monto_contrato'] ?? null,
             'hojas'                    => $request['chojas'] ?? null,
             'informe'                  => $request['informe'] ?? null,
             'cantidad_informes'        => $request['CantInforme'] ?? null,
             'tipo_contrato'            => $request['tipo_contrato'] ?? null,
             'inq_prop'                 => $request['inquilino_propietario'] ?? null,
-            'fecha_inicio'             => $comienza,
+            'fecha_inicio'             => $request['fecha_inicio_contrato'] ?? null,
             'usuario_id'               => $usuario->id ?? null,
+            'gasto_administrativo'     => $request['gastos_administrativos'] ?? null,
+           
         ];
 
        

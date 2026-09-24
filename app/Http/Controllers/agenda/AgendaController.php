@@ -224,7 +224,7 @@ class AgendaController extends Controller
                     'fecha_hora' => now()
                 ]);
             } elseif ($request->sector == 2 && $request->telefono && $request->propiedad != null) {
-                Log::info($request->all());
+                //Log::info($request->all());
                 $cliente_buscado = Clientes::where('telefono', $request->telefono)->first();
                 $criterio_buscado = CriterioBusquedaVenta::where('id_cliente', $cliente_buscado->id_cliente)
                     ->orderBy('id_criterio_venta', 'desc')

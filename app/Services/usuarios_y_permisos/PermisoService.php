@@ -201,7 +201,7 @@ class PermisoService
 
     private function separarPermisosYSectores(array $permisos): array
     {
-        Log::info('separarPermisosYSectores', ['permisos' => $permisos]);
+        //Log::info('separarPermisosYSectores', ['permisos' => $permisos]);
         $permisosRecibidos = [];
         $sectoresRecibidos = [];
 
@@ -241,10 +241,10 @@ class PermisoService
         $permisosActuales = $this->obtenerPermisosActuales($usuario_id);
 
         // Eliminar permisos obsoletos
-        Log::info('esto son los eliminarpermisos obsoletos', ['permisosActuales' => $permisosActuales, 'permisosNuevos' => $permisosNuevos]);
+        //Log::info('esto son los eliminarpermisos obsoletos', ['permisosActuales' => $permisosActuales, 'permisosNuevos' => $permisosNuevos]);
 
         $this->eliminarPermisosObsoletos($permisosActuales, $permisosNuevos, $usuario_id);
-        Log::info('elimino permiso');
+        //Log::info('elimino permiso');
         //dd('elimino permiso');
         // Agregar nuevos permisos
         $this->agregarPermisosNuevos($permisosActuales, $permisosNuevos, $usuario_id);
@@ -261,12 +261,12 @@ class PermisoService
 
     private function eliminarPermisosObsoletos(array $permisosActuales,  array $permisosNuevos,  int $usuario_id): void
     {
-        Log::info('esto son los eliminarpermisos obsoletos', ['permisosActuales' => $permisosActuales, 'permisosNuevos' => $permisosNuevos]);
+        //Log::info('esto son los eliminarpermisos obsoletos', ['permisosActuales' => $permisosActuales, 'permisosNuevos' => $permisosNuevos]);
         $permisosAEliminar = array_diff(
             array_map('json_encode', $permisosActuales),
             array_map('json_encode', $permisosNuevos)
         );
-        Log::info('permisos a eliminar', ['permisosAEliminar' => $permisosAEliminar]);
+        //Log::info('permisos a eliminar', ['permisosAEliminar' => $permisosAEliminar]);
 
         if (empty($permisosAEliminar)) {
             return;
@@ -283,7 +283,7 @@ class PermisoService
             ->where('sector_id', $permiso[2])
             ->delete();
            } */
-            Log::info('permiso eliminado', ['permiso' => $permiso]);
+            //Log::info('permiso eliminado', ['permiso' => $permiso]);
         }
     }
 

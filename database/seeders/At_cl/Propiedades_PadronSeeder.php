@@ -54,6 +54,6 @@ class Propiedades_PadronSeeder extends Seeder
             }
         }
 
-        Log::info('Se han creado las asociaciones entre propiedades y padrones.');
+        //Log::info('Se han creado las asociaciones entre propiedades y padrones.');
     }
 }

@@ -11,7 +11,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Services\At_cl\PadronService;
 use App\Http\Requests\StorePadronRequest;
-use App\Models\sistema_usuarios_permisos\Usuario;
 use Illuminate\Support\Facades\Log;
 
 /**
