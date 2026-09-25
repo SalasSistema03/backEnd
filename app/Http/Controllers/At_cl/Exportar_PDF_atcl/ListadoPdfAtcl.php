@@ -367,256 +367,652 @@ class ListadoPdfAtcl
         }
         if ($pertenece === 'consultasIngresadas') {
 
+            /*
+    |--------------------------------------------------------------------------
+    | CONSULTAS NUEVAS
+    |--------------------------------------------------------------------------
+    */
             if ($request->consulta === 'Consultas Nuevas') {
-                $data = CriterioBusquedaVenta::query()
-                    ->with(['tipoInmueble', 'zona', 'cliente.asesor.usuario', 'historialConsultas']);
 
+                $data = CriterioBusquedaVenta::query()
+                    ->with([
+                        'tipoInmueble',
+                        'zona',
+                        'cliente.asesor.usuario',
+                        'historialConsultas'
+                    ]);
+
+                /*
+        |--------------------------------------------------------------------------
+        | FILTRO POR ASESOR
+        |--------------------------------------------------------------------------
+        */
+                if (!empty($request->asesor)) {
+                    $data->whereHas('cliente', function ($query) use ($request) {
+                        $query->where('id_asesor_venta', $request->asesor);
+                    });
+                }
+
+                /*
+        |--------------------------------------------------------------------------
+        | FILTRO POR FECHA
+        |--------------------------------------------------------------------------
+        */
                 $fechaDesde = $request->desde;
                 $fechaHasta = $request->hasta;
 
                 if (!empty($fechaDesde) && !empty($fechaHasta)) {
 
-                    $data->whereBetween('fecha_criterio_venta', [$fechaDesde, $fechaHasta]);
+                    $data->whereBetween(
+                        'fecha_criterio_venta',
+                        [$fechaDesde, $fechaHasta]
+                    );
                 } elseif (!empty($fechaDesde)) {
 
-                    $data->where('fecha_criterio_venta', '>=', $fechaDesde);
+                    $data->where(
+                        'fecha_criterio_venta',
+                        '>=',
+                        $fechaDesde
+                    );
                 } elseif (!empty($fechaHasta)) {
 
-                    $data->where('fecha_criterio_venta', '<=', $fechaHasta);
+                    $data->where(
+                        'fecha_criterio_venta',
+                        '<=',
+                        $fechaHasta
+                    );
                 }
 
-                $data = $data->orderBy('id_categoria', 'desc')->get();
+                $data = $data
+                    ->orderBy('id_categoria', 'desc')
+                    ->get();
 
-                // 1. Sacamos los id_cliente que aparecen en el resultado ya filtrado por fecha
-                $idsClientes = $data->pluck('id_cliente')->unique();
 
-                // 2. Buscamos, para esos clientes, cual es su PRIMER id_criterio_venta en TODA la tabla
-                //    (sin importar fecha ni estado_criterio_venta)
-                $primeraConsultaPorCliente = CriterioBusquedaVenta::whereIn('id_cliente', $idsClientes)
-                    ->selectRaw('id_cliente, MIN(id_criterio_venta) as primer_id')
+                /*
+        |--------------------------------------------------------------------------
+        | PRIMERA CONSULTA DE CADA CLIENTE
+        |--------------------------------------------------------------------------
+        */
+
+                $idsClientes = $data
+                    ->pluck('id_cliente')
+                    ->unique();
+
+                $primeraConsultaPorCliente = CriterioBusquedaVenta::whereIn(
+                    'id_cliente',
+                    $idsClientes
+                )
+                    ->selectRaw(
+                        'id_cliente, MIN(id_criterio_venta) as primer_id'
+                    )
                     ->groupBy('id_cliente')
-                    ->pluck('primer_id', 'id_cliente');
+                    ->pluck(
+                        'primer_id',
+                        'id_cliente'
+                    );
 
-                // 3. Set de ids que quedaron dentro del rango filtrado (para chequear pertenencia rapido)
-                $idsDentroDelRango = $data->pluck('id_criterio_venta')->flip();
 
-                // 4. Si la primera consulta GLOBAL del cliente no esta dentro del rango filtrado,
-                //    significa que lo que aparece aca es una reconsulta de algo anterior -> se excluye por completo
-                $data = $data->filter(function ($criterio) use ($primeraConsultaPorCliente, $idsDentroDelRango) {
-                    $primerId = $primeraConsultaPorCliente[$criterio->id_cliente] ?? null;
+                /*
+        |--------------------------------------------------------------------------
+        | IDS DENTRO DEL RANGO
+        |--------------------------------------------------------------------------
+        */
 
-                    return $primerId !== null && $idsDentroDelRango->has($primerId);
-                })->values();
+                $idsDentroDelRango = $data
+                    ->pluck('id_criterio_venta')
+                    ->flip();
 
-                // 5. De los que quedaron (primera consulta real dentro del rango), si el cliente
-                //    reconsulto mas de una vez DENTRO del mismo rango, nos quedamos con el id_criterio_venta mas grande
-                $data = $data->sortByDesc('id_criterio_venta')
+
+                /*
+        |--------------------------------------------------------------------------
+        | SOLO CLIENTES CUYA PRIMERA CONSULTA ESTÁ EN EL RANGO
+        |--------------------------------------------------------------------------
+        */
+
+                $data = $data
+                    ->filter(function ($criterio) use (
+                        $primeraConsultaPorCliente,
+                        $idsDentroDelRango
+                    ) {
+
+                        $primerId =
+                            $primeraConsultaPorCliente[$criterio->id_cliente] ?? null;
+
+                        return $primerId !== null
+                            && $idsDentroDelRango->has($primerId);
+                    })
+                    ->values();
+
+
+                /*
+        |--------------------------------------------------------------------------
+        | SI HAY RECONSULTA, QUEDARNOS CON LA MÁS RECIENTE
+        |--------------------------------------------------------------------------
+        */
+
+                $data = $data
+                    ->sortByDesc('id_criterio_venta')
                     ->unique('id_cliente')
                     ->sortByDesc('id_categoria')
                     ->values();
 
-                //por ultimo las ordenamos por fecha de menor a mayor
-                $data = $data->sortBy('fecha_criterio_venta')->values();
 
-                // 1. Contamos el total de criterios directamente usando el método count() de la colección
+                /*
+        |--------------------------------------------------------------------------
+        | ORDEN FINAL POR FECHA
+        |--------------------------------------------------------------------------
+        */
+
+                $data = $data
+                    ->sortBy('fecha_criterio_venta')
+                    ->values();
+
+
+                /*
+        |--------------------------------------------------------------------------
+        | TOTALES
+        |--------------------------------------------------------------------------
+        */
+
                 $total_criterios = $data->count();
 
-                // 2. Agrupamos y contamos cuántos criterios tiene cada asesor
+
+                /*
+        |--------------------------------------------------------------------------
+        | CONTEO POR ASESOR
+        |--------------------------------------------------------------------------
+        */
+
                 $conteoAsesores = [];
 
-                // Agrupamos la colección por el username del asesor de forma segura
                 $agrupadosPorAsesor = $data->groupBy(function ($criterio) {
-                    return $criterio->cliente->asesor->usuario->username ?? 'Sin Asesor';
+
+                    return $criterio->cliente->asesor->usuario->username
+                        ?? 'Sin Asesor';
                 });
 
                 foreach ($agrupadosPorAsesor as $username => $criterios) {
+
                     $conteoAsesores[$username] = $criterios->count();
                 }
-                //Log::info($data);
 
-                // 3. Agrupamos y contamos cuántos criterios tiene cada tipo de ingreso (Whatsapp, Sitio web, etc)
+
+                /*
+        |--------------------------------------------------------------------------
+        | CONTEO POR TIPO DE INGRESO
+        |--------------------------------------------------------------------------
+        */
+
                 $total_tipo_ingreso = [];
-                /* no distinguir entre mayuculas y minisculas */
+
                 $agrupadosPorIngreso = $data->groupBy(function ($criterio) {
-                    return strtolower($criterio->cliente?->ingreso ?? 'Sin Especificar');
+
+                    return strtolower(
+                        $criterio->cliente?->ingreso
+                            ?? 'Sin Especificar'
+                    );
                 });
 
                 foreach ($agrupadosPorIngreso as $ingreso => $criterios) {
+
                     $total_tipo_ingreso[$ingreso] = $criterios->count();
                 }
+
+
+                /*
+    |--------------------------------------------------------------------------
+    | GENERALES
+    |--------------------------------------------------------------------------
+    */
             } elseif ($request->consulta === 'Generales') {
 
                 $data = CriterioBusquedaVenta::query()
                     //->where('estado_criterio_venta', 'Activo')
-                    ->with(['tipoInmueble', 'zona', 'cliente.asesor.usuario', 'historialConsultas']);
+                    ->with([
+                        'tipoInmueble',
+                        'zona',
+                        'cliente.asesor.usuario',
+                        'historialConsultas'
+                    ]);
+
+                /*
+        |--------------------------------------------------------------------------
+        | FILTRO POR ASESOR
+        |--------------------------------------------------------------------------
+        */
+
+                if (!empty($request->asesor)) {
+                    $data->whereHas('cliente', function ($query) use ($request) {
+                        $query->where('id_asesor_venta', $request->asesor);
+                    });
+                }
+
+
+                /*
+        |--------------------------------------------------------------------------
+        | FILTRO POR FECHA
+        |--------------------------------------------------------------------------
+        */
 
                 $fechaDesde = $request->desde;
                 $fechaHasta = $request->hasta;
 
                 if (!empty($fechaDesde) && !empty($fechaHasta)) {
 
-                    $data->whereBetween('fecha_criterio_venta', [$fechaDesde, $fechaHasta]);
+                    $data->whereBetween(
+                        'fecha_criterio_venta',
+                        [$fechaDesde, $fechaHasta]
+                    );
                 } elseif (!empty($fechaDesde)) {
 
-                    $data->where('fecha_criterio_venta', '>=', $fechaDesde);
+                    $data->where(
+                        'fecha_criterio_venta',
+                        '>=',
+                        $fechaDesde
+                    );
                 } elseif (!empty($fechaHasta)) {
 
-                    $data->where('fecha_criterio_venta', '<=', $fechaHasta);
+                    $data->where(
+                        'fecha_criterio_venta',
+                        '<=',
+                        $fechaHasta
+                    );
                 }
 
-                $data = $data->orderBy('id_categoria', 'desc')->get();
 
-                // 1. Sacamos los id_cliente que aparecen en el resultado ya filtrado por fecha
-                $idsClientes = $data->pluck('id_cliente')->unique();
+                $data = $data
+                    ->orderBy('id_categoria', 'desc')
+                    ->get();
 
-                // 2. Buscamos, para esos clientes, cual es su PRIMER id_criterio_venta en TODA la tabla
-                //    (sin importar fecha ni estado_criterio_venta)
-                $primeraConsultaPorCliente = CriterioBusquedaVenta::whereIn('id_cliente', $idsClientes)
-                    ->selectRaw('id_cliente, MIN(id_criterio_venta) as primer_id')
+
+                /*
+        |--------------------------------------------------------------------------
+        | PRIMERA CONSULTA POR CLIENTE
+        |--------------------------------------------------------------------------
+        */
+
+                $idsClientes = $data
+                    ->pluck('id_cliente')
+                    ->unique();
+
+                $primeraConsultaPorCliente = CriterioBusquedaVenta::whereIn(
+                    'id_cliente',
+                    $idsClientes
+                )
+                    ->selectRaw(
+                        'id_cliente, MIN(id_criterio_venta) as primer_id'
+                    )
                     ->groupBy('id_cliente')
-                    ->pluck('primer_id', 'id_cliente');
+                    ->pluck(
+                        'primer_id',
+                        'id_cliente'
+                    );
 
-                // 3. Set de ids que quedaron dentro del rango filtrado (para chequear pertenencia rapido)
-                $idsDentroDelRango = $data->pluck('id_criterio_venta')->flip();
 
-                // 4. Si el cliente reconsulto mas de una vez DENTRO del mismo rango, nos quedamos
-                //    con el id_criterio_venta mas grande (la mas reciente)
-                $data = $data->sortByDesc('id_criterio_venta')
+                /*
+        |--------------------------------------------------------------------------
+        | IDS DENTRO DEL RANGO
+        |--------------------------------------------------------------------------
+        */
+
+                $idsDentroDelRango = $data
+                    ->pluck('id_criterio_venta')
+                    ->flip();
+
+
+                /*
+        |--------------------------------------------------------------------------
+        | ÚLTIMA CONSULTA DE CADA CLIENTE
+        |--------------------------------------------------------------------------
+        */
+
+                $data = $data
+                    ->sortByDesc('id_criterio_venta')
                     ->unique('id_cliente')
                     ->sortByDesc('id_categoria')
                     ->values();
 
-                // 5. Marcamos cada registro como "R" (reconsulta) si su primera consulta GLOBAL
-                //    del cliente no esta dentro del rango filtrado; sino queda null (consulta nueva del periodo)
-                $data = $data->map(function ($criterio) use ($primeraConsultaPorCliente, $idsDentroDelRango) {
-                    $primerId = $primeraConsultaPorCliente[$criterio->id_cliente] ?? null;
 
-                    $criterio->tipo_consulta = ($primerId !== null && !$idsDentroDelRango->has($primerId))
+                /*
+        |--------------------------------------------------------------------------
+        | MARCAR RECONSULTAS
+        |--------------------------------------------------------------------------
+        */
+
+                $data = $data->map(function ($criterio) use (
+                    $primeraConsultaPorCliente,
+                    $idsDentroDelRango
+                ) {
+
+                    $primerId =
+                        $primeraConsultaPorCliente[$criterio->id_cliente] ?? null;
+
+                    $criterio->tipo_consulta =
+                        ($primerId !== null
+                            && !$idsDentroDelRango->has($primerId))
                         ? 'R'
                         : null;
 
                     return $criterio;
                 });
 
-                //por ultimo las ordenamos por fecha de menor a mayor
-                $data = $data->sortBy('fecha_criterio_venta')->values();
 
-                // 1. Contamos el total de criterios directamente usando el método count() de la colección
+                /*
+        |--------------------------------------------------------------------------
+        | ORDEN FINAL
+        |--------------------------------------------------------------------------
+        */
+
+                $data = $data
+                    ->sortBy('fecha_criterio_venta')
+                    ->values();
+
+
+                /*
+        |--------------------------------------------------------------------------
+        | TOTALES
+        |--------------------------------------------------------------------------
+        */
+
                 $total_criterios = $data->count();
 
-                // 2. Agrupamos y contamos cuántos criterios tiene cada asesor
+
+                /*
+        |--------------------------------------------------------------------------
+        | CONTEO POR ASESOR
+        |--------------------------------------------------------------------------
+        */
+
                 $conteoAsesores = [];
 
-                // Agrupamos la colección por el username del asesor de forma segura
                 $agrupadosPorAsesor = $data->groupBy(function ($criterio) {
-                    return $criterio->cliente->asesor->usuario->username ?? 'Sin Asesor';
+
+                    return $criterio->cliente->asesor->usuario->username
+                        ?? 'Sin Asesor';
                 });
 
                 foreach ($agrupadosPorAsesor as $username => $criterios) {
+
                     $conteoAsesores[$username] = $criterios->count();
                 }
-                // Log::info($data);
 
-                // 3. Agrupamos y contamos cuántos criterios tiene cada tipo de ingreso (Whatsapp, Sitio web, etc)
+
+                /*
+        |--------------------------------------------------------------------------
+        | CONTEO POR INGRESO
+        |--------------------------------------------------------------------------
+        */
+
                 $total_tipo_ingreso = [];
-                /* no distinguir entre mayuculas y minisculas */
+
                 $agrupadosPorIngreso = $data->groupBy(function ($criterio) {
-                    return strtolower($criterio->cliente?->ingreso ?? 'Sin Especificar');
+
+                    return strtolower(
+                        $criterio->cliente?->ingreso
+                            ?? 'Sin Especificar'
+                    );
                 });
 
                 foreach ($agrupadosPorIngreso as $ingreso => $criterios) {
+
                     $total_tipo_ingreso[$ingreso] = $criterios->count();
                 }
+
+
+                /*
+    |--------------------------------------------------------------------------
+    | RECONSULTAS
+    |--------------------------------------------------------------------------
+    */
             } elseif ($request->consulta === 'Reconsultas') {
 
                 $data = CriterioBusquedaVenta::query()
                     //->where('estado_criterio_venta', 'Activo')
-                    ->with(['tipoInmueble', 'zona', 'cliente.asesor.usuario', 'historialConsultas']);
+                    ->with([
+                        'tipoInmueble',
+                        'zona',
+                        'cliente.asesor.usuario',
+                        'historialConsultas'
+                    ]);
+
+
+                /*
+        |--------------------------------------------------------------------------
+        | FILTRO POR ASESOR
+        |--------------------------------------------------------------------------
+        */
+
+                if (!empty($request->asesor)) {
+                    $data->whereHas('cliente', function ($query) use ($request) {
+                        $query->where('id_asesor_venta', $request->asesor);
+                    });
+                }
+
+
+                /*
+        |--------------------------------------------------------------------------
+        | FILTRO POR FECHA
+        |--------------------------------------------------------------------------
+        */
 
                 $fechaDesde = $request->desde;
                 $fechaHasta = $request->hasta;
 
                 if (!empty($fechaDesde) && !empty($fechaHasta)) {
 
-                    $data->whereBetween('fecha_criterio_venta', [$fechaDesde, $fechaHasta]);
+                    $data->whereBetween(
+                        'fecha_criterio_venta',
+                        [$fechaDesde, $fechaHasta]
+                    );
                 } elseif (!empty($fechaDesde)) {
 
-                    $data->where('fecha_criterio_venta', '>=', $fechaDesde);
+                    $data->where(
+                        'fecha_criterio_venta',
+                        '>=',
+                        $fechaDesde
+                    );
                 } elseif (!empty($fechaHasta)) {
 
-                    $data->where('fecha_criterio_venta', '<=', $fechaHasta);
+                    $data->where(
+                        'fecha_criterio_venta',
+                        '<=',
+                        $fechaHasta
+                    );
                 }
 
-                $data = $data->orderBy('id_categoria', 'desc')->get();
 
-                // 1. Sacamos los id_cliente que aparecen en el resultado ya filtrado por fecha
-                $idsClientes = $data->pluck('id_cliente')->unique();
+                $data = $data
+                    ->orderBy('id_categoria', 'desc')
+                    ->get();
 
-                // 2. Buscamos, para esos clientes, cual es su PRIMER id_criterio_venta en TODA la tabla
-                //    (sin importar fecha ni estado_criterio_venta)
-                $primeraConsultaPorCliente = CriterioBusquedaVenta::whereIn('id_cliente', $idsClientes)
-                    ->selectRaw('id_cliente, MIN(id_criterio_venta) as primer_id')
+
+                /*
+        |--------------------------------------------------------------------------
+        | PRIMERA CONSULTA POR CLIENTE
+        |--------------------------------------------------------------------------
+        */
+
+                $idsClientes = $data
+                    ->pluck('id_cliente')
+                    ->unique();
+
+                $primeraConsultaPorCliente = CriterioBusquedaVenta::whereIn(
+                    'id_cliente',
+                    $idsClientes
+                )
+                    ->selectRaw(
+                        'id_cliente, MIN(id_criterio_venta) as primer_id'
+                    )
                     ->groupBy('id_cliente')
-                    ->pluck('primer_id', 'id_cliente');
+                    ->pluck(
+                        'primer_id',
+                        'id_cliente'
+                    );
 
-                // 3. Set de ids que quedaron dentro del rango filtrado (para chequear pertenencia rapido)
-                $idsDentroDelRango = $data->pluck('id_criterio_venta')->flip();
 
-                // 4. Si el cliente reconsulto mas de una vez DENTRO del mismo rango, nos quedamos
-                //    con el id_criterio_venta mas grande (la mas reciente)
-                $data = $data->sortByDesc('id_criterio_venta')
+                /*
+        |--------------------------------------------------------------------------
+        | IDS DENTRO DEL RANGO
+        |--------------------------------------------------------------------------
+        */
+
+                $idsDentroDelRango = $data
+                    ->pluck('id_criterio_venta')
+                    ->flip();
+
+
+                /*
+        |--------------------------------------------------------------------------
+        | ÚLTIMA CONSULTA DE CADA CLIENTE
+        |--------------------------------------------------------------------------
+        */
+
+                $data = $data
+                    ->sortByDesc('id_criterio_venta')
                     ->unique('id_cliente')
                     ->sortByDesc('id_categoria')
                     ->values();
 
-                // 5. Marcamos cada registro como "R" (reconsulta) si su primera consulta GLOBAL
-                //    del cliente no esta dentro del rango filtrado; sino queda null (consulta nueva del periodo)
-                $data = $data->map(function ($criterio) use ($primeraConsultaPorCliente, $idsDentroDelRango) {
-                    $primerId = $primeraConsultaPorCliente[$criterio->id_cliente] ?? null;
 
-                    $criterio->tipo_consulta = ($primerId !== null && !$idsDentroDelRango->has($primerId))
+                /*
+        |--------------------------------------------------------------------------
+        | MARCAR RECONSULTAS
+        |--------------------------------------------------------------------------
+        */
+
+                $data = $data->map(function ($criterio) use (
+                    $primeraConsultaPorCliente,
+                    $idsDentroDelRango
+                ) {
+
+                    $primerId =
+                        $primeraConsultaPorCliente[$criterio->id_cliente] ?? null;
+
+                    $criterio->tipo_consulta =
+                        ($primerId !== null
+                            && !$idsDentroDelRango->has($primerId))
                         ? 'R'
                         : null;
 
                     return $criterio;
                 });
 
-                // 6. Nos quedamos SOLO con las reconsultas (descartamos las consultas nuevas del periodo)
-                $data = $data->filter(function ($criterio) {
-                    return $criterio->tipo_consulta === 'R';
-                })->values();
 
-                //por ultimo las ordenamos por fecha de menor a mayor
-                $data = $data->sortBy('fecha_criterio_venta')->values();
+                /*
+        |--------------------------------------------------------------------------
+        | DEJAR SOLAMENTE RECONSULTAS
+        |--------------------------------------------------------------------------
+        */
 
-                // 1. Contamos el total de criterios directamente usando el método count() de la colección
+                $data = $data
+                    ->filter(function ($criterio) {
+
+                        return $criterio->tipo_consulta === 'R';
+                    })
+                    ->values();
+
+
+                /*
+        |--------------------------------------------------------------------------
+        | ORDEN FINAL
+        |--------------------------------------------------------------------------
+        */
+
+                $data = $data
+                    ->sortBy('fecha_criterio_venta')
+                    ->values();
+
+
+                /*
+        |--------------------------------------------------------------------------
+        | TOTALES
+        |--------------------------------------------------------------------------
+        */
+
                 $total_criterios = $data->count();
 
-                // 2. Agrupamos y contamos cuántos criterios tiene cada asesor
+
+                /*
+        |--------------------------------------------------------------------------
+        | CONTEO POR ASESOR
+        |--------------------------------------------------------------------------
+        */
+
                 $conteoAsesores = [];
 
-                // Agrupamos la colección por el username del asesor de forma segura
                 $agrupadosPorAsesor = $data->groupBy(function ($criterio) {
-                    return $criterio->cliente->asesor->usuario->username ?? 'Sin Asesor';
+
+                    return $criterio->cliente->asesor->usuario->username
+                        ?? 'Sin Asesor';
                 });
 
                 foreach ($agrupadosPorAsesor as $username => $criterios) {
+
                     $conteoAsesores[$username] = $criterios->count();
                 }
 
-                // 3. Agrupamos y contamos cuántos criterios tiene cada tipo de ingreso (Whatsapp, Sitio web, etc)
+
+                /*
+        |--------------------------------------------------------------------------
+        | CONTEO POR INGRESO
+        |--------------------------------------------------------------------------
+        */
+
                 $total_tipo_ingreso = [];
-                /* no distinguir entre mayuculas y minisculas */
+
                 $agrupadosPorIngreso = $data->groupBy(function ($criterio) {
-                    return strtolower($criterio->cliente?->ingreso ?? 'Sin Especificar');
+
+                    return strtolower(
+                        $criterio->cliente?->ingreso
+                            ?? 'Sin Especificar'
+                    );
                 });
 
                 foreach ($agrupadosPorIngreso as $ingreso => $criterios) {
+
                     $total_tipo_ingreso[$ingreso] = $criterios->count();
                 }
             }
 
-            $html = view('pdfs.atcl.listadoPropiedad', compact('data', 'username', 'pertenece', 'sector', 'total_criterios', 'conteoAsesores', 'total_tipo_ingreso', 'fechaDesde', 'fechaHasta'))->render();
+
+            /*
+    |--------------------------------------------------------------------------
+    | LOGS
+    |--------------------------------------------------------------------------
+    */
+
+            Log::info('Filtro asesor recibido:', [
+                'asesor' => $request->asesor,
+                'consulta' => $request->consulta,
+                'desde' => $request->desde,
+                'hasta' => $request->hasta,
+            ]);
+
+            Log::info('Cantidad de resultados finales:', [
+                'cantidad' => $data->count(),
+            ]);
+
+
+            /*
+    |--------------------------------------------------------------------------
+    | GENERAR HTML
+    |--------------------------------------------------------------------------
+    */
+
+            $html = view(
+                'pdfs.atcl.listadoPropiedad',
+                compact(
+                    'data',
+                    'username',
+                    'pertenece',
+                    'sector',
+                    'total_criterios',
+                    'conteoAsesores',
+                    'total_tipo_ingreso',
+                    'fechaDesde',
+                    'fechaHasta'
+                )
+            )->render();
         }
         if ($pertenece === 'conversaciones') {
             //  Log::info($request->all());
