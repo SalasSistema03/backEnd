@@ -1225,16 +1225,28 @@ class CargaImpuestoService
 
     public function gasRechazar($datos)
     {
+        //Log::info($datos);
+        //dd('hola');
         $modelo = $this->obtenerModeloCargaPorImpuesto($datos['impuesto']);
         if ($datos['impuesto'] === 'api' || $datos['impuesto'] === 'gas') {
             $modelo::where('fecha_vencimiento', $datos['fecha_vencimiento'])
                 ->update(['num_broche' => null]);
             return response()->json(['message' => 'Gas rechazado correctamente'], 200);
-        } elseif ($datos['impuesto'] === 'agua' || $datos['impuesto'] === 'tgi') {
+        } elseif ($datos['impuesto'] === 'agua') {
             $modelo::where('fecha_vencimiento', $datos['fecha_vencimiento'])
                 ->where('num_broche', $datos['numero_broche'])
                 ->update(['num_broche' => null]);
             return response()->json(['message' => 'Gas rechazado correctamente'], 200);
+        } elseif ($datos['impuesto'] === 'tgi') {
+            $fecha = Carbon::parse($datos['fecha_vencimiento']);
+
+            $modelo::whereBetween('fecha_vencimiento', [
+                $fecha->copy()->startOfMonth(),
+                $fecha->copy()->endOfMonth(),
+            ])
+                ->where('num_broche', $datos['numero_broche'])
+                ->update(['num_broche' => null]);
+                return response()->json(['message' => 'Rechazado correctamente'], 200);
         }
     }
 

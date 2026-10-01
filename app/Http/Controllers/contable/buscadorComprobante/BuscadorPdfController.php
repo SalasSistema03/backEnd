@@ -35,8 +35,13 @@ class BuscadorPdfController
 
         if ($comprobante == 'Opp Concatenadas') {
             // Buscar y combinar PDFs similares
-
-            return $this->buscarYCombinarPDFs($rutaBase, $empresa, $comprobante, $tipo, $numero, $letra, $puntos,$numeros);
+            try {
+                return $this->buscarYCombinarPDFs($rutaBase, $empresa, $comprobante, $tipo, $numero, $letra, $puntos,$numeros);
+            } catch (\Exception $e) {
+                $letra = "";
+                return $this->buscarYCombinarPDFs($rutaBase, $empresa, $comprobante, $tipo, $letra, $numero, $puntos,$numeros);
+            }
+            /* return $this->buscarYCombinarPDFs($rutaBase, $empresa, $comprobante, $tipo, $numero, $letra, $puntos,$numeros); */
         } else {
             // Ruta base donde se encuentran los PDFs
             $rutaCompleta = $rutaBase . $empresa . "\\" . $comprobante . "\\" . $quien . "\\" . $tipo . "\\" . $letra . "\\" . $nombreArchivo;
