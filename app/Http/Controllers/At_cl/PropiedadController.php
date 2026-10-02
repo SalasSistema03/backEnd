@@ -380,7 +380,12 @@ class PropiedadController
                 'historialEstadosAlquiler',
                 'historialEstadosVenta',
                 'localidad',
+                'Notas' => function ($query) {
+                    $query->whereDate('fecha', '>=', now()->toDateString());
+                },
+                'Notas.agenda.sector',
             ])->find($request->id);
+            Log::info($propiedad);
 
             if (!$propiedad) {
                 return response()->json([
@@ -494,7 +499,7 @@ class PropiedadController
         $venta = $this->cleanArray(json_decode($request->venta, true) ?? []);
         $alquiler = $this->cleanArray(json_decode($request->alquiler, true) ?? []);
         $condicion_alquiler = $this->cleanArray(json_decode($request->condicion_alquiler, true) ?? []);
-        
+
         $validator = Validator::make($request->all(), [
             'id' => ['required', 'integer', 'exists:propiedades,id'],
             'comodidades' => ['nullable', 'json'],
@@ -652,13 +657,21 @@ class PropiedadController
             );
 
             $camposColeccion = [
-                'fotos_modificadas', 'fotos_eliminadas', 'fotos_nuevas_data',
-                'documentos_modificados', 'documentos_eliminados', 'documentos_nuevos_data',
-                'videos_modificados', 'videos_eliminados', 'videos_nuevos_data',
-                'propietarios_nuevos', 'propietarios_eliminados', 'propietarios_modificados',
+                'fotos_modificadas',
+                'fotos_eliminadas',
+                'fotos_nuevas_data',
+                'documentos_modificados',
+                'documentos_eliminados',
+                'documentos_nuevos_data',
+                'videos_modificados',
+                'videos_eliminados',
+                'videos_nuevos_data',
+                'propietarios_nuevos',
+                'propietarios_eliminados',
+                'propietarios_modificados',
             ];
             $tieneCambiosDeColeccion = collect($camposColeccion)->contains(
-                fn ($campo) => $request->has($campo)
+                fn($campo) => $request->has($campo)
             );
             $tieneCambiosDeBloque = ! empty($comodidades) || ! empty($descripcion) ||
                 ! empty($venta) || ! empty($alquiler) || ! empty($condicion_alquiler);
@@ -793,10 +806,14 @@ class PropiedadController
             }
 
             $clavesHistorialVenta = [
-                'estado_venta', 'descripcion_estado_venta', 'fecha_baja_temporal_venta',
+                'estado_venta',
+                'descripcion_estado_venta',
+                'fecha_baja_temporal_venta',
             ];
             $clavesHistorialAlquiler = [
-                'estado_alquiler', 'descripcion_estado_alquiler', 'fecha_baja_temporal_alquiler',
+                'estado_alquiler',
+                'descripcion_estado_alquiler',
+                'fecha_baja_temporal_alquiler',
             ];
             $actualizarHistorialVenta = count(array_intersect(array_keys($venta), $clavesHistorialVenta)) > 0;
             $actualizarHistorialAlquiler = count(array_intersect(array_keys($alquiler), $clavesHistorialAlquiler)) > 0;
