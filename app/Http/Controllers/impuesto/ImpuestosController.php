@@ -299,7 +299,7 @@ class ImpuestosController extends Controller
     {
         if ($request->impuesto === 'gas' || $request->impuesto === 'api') {
             $resultado = app(CargaImpuestoService::class)->generarDistribucionDiaBroches($request->anio, $request->mes, $request->dia, $request->cant_broches, $request->impuesto);
-            app(CargaImpuestoService::class)->guardarDistribucionBroches($resultado['registrosFiltrados'], $request->impuesto);
+            app(CargaImpuestoService::class)->guardarDistribucionBrochess($resultado['registrosFiltrados'], $request->impuesto);
             return response()->json([
                 'status' => 'success',
                 'message' => 'Los broches se guardaron correctamente.'
@@ -309,7 +309,7 @@ class ImpuestosController extends Controller
 
             $resultado = app(CargaImpuestoService::class)->generarDistribucionBroches($request->anio, $request->mes, $request->cant_broches, $request->impuesto);
 
-            app(CargaImpuestoService::class)->guardarDistribucionBroches($resultado['registrosFiltrados'], $request->impuesto);
+            app(CargaImpuestoService::class)->guardarDistribucionBrochess($resultado['registrosFiltrados'], $request->impuesto);
 
             return response()->json([
                 'status' => 'success',

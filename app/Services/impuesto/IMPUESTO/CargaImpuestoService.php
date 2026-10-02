@@ -875,7 +875,7 @@ class CargaImpuestoService
             'total' => $totalFinal
         ];
     }
-    //Este servicio sirve para enviar en formato JSON la info de los broches, y que sea consumia por el front JS
+    /* //Este servicio sirve para enviar en formato JSON la info de los broches, y que sea consumia por el front JS
     public function generarDistribucionBroches($anio, $mes, $cantidadBroches, $impuesto)
     {
         // Log::info('entro a distribucion');
@@ -1021,9 +1021,156 @@ class CargaImpuestoService
             'registrosFiltrados' => $registrosFiltrados,
             'total' => $totalFinal
         ];
+    } */
+
+    // Este servicio sirve para enviar en formato JSON la info de los broches, y que sea consumido por el front JS
+    public function generarDistribucionBroches($anio, $mes, $cantidadBroches, $impuesto)
+    {
+        // Paso 0: Calcular totales
+        $totalMontoBroche = $this->sumarMontosService($anio, $mes, $impuesto);
+        $registros = $totalMontoBroche->registros;
+        $topePorBroche = $totalMontoBroche->total / $cantidadBroches;
+
+        // Filtrar registros del año y mes indicados, SOLO los no bajados (bajado = 'n')
+        $registrosFiltrados = [];
+        foreach ($registros as $r) {
+            if (
+                (int)$r->periodo_anio === (int)$anio &&
+                (int)$r->periodo_mes === (int)$mes &&
+                strtolower((string)$r->bajado) === 'n'
+            ) {
+                $registrosFiltrados[] = $r;
+            }
+        }
+
+        // Paso 1: Agrupar por folio mínimo ACTIVO
+        $gruposPorFolio = [];
+
+        foreach ($registrosFiltrados as $registro) {
+            $folios = json_decode($registro->compartidos, true) ?: [];
+
+            $foliosActivos = [];
+            foreach ($folios as $f) {
+                if (isset($f['estado'], $f['folio']) && strtoupper($f['estado']) === 'ACTIVO') {
+                    $foliosActivos[] = (int)$f['folio'];
+                }
+            }
+
+            // Sin folios activos: se excluye y se limpia el num_broche viejo
+            if (empty($foliosActivos)) {
+                $registro->num_broche = null;
+                continue;
+            }
+
+            $folioMinimo = min($foliosActivos);
+
+            if (!isset($gruposPorFolio[$folioMinimo])) {
+                $gruposPorFolio[$folioMinimo] = [];
+            }
+
+            $gruposPorFolio[$folioMinimo][] = $registro;
+        }
+
+        // Paso 2: Armar grupos con suma de importes
+        $grupos = [];
+        foreach ($gruposPorFolio as $folio => $items) {
+            $importeGrupo = 0;
+
+            foreach ($items as $r) {
+                $importeGrupo += (float) str_replace(',', '.', $r->importe);
+            }
+
+            $grupos[] = [
+                'folio'   => $folio,
+                'importe' => $importeGrupo,
+                'items'   => $items
+            ];
+        }
+
+        // Paso 3: Ordenar por folio ascendente
+        usort($grupos, function ($a, $b) {
+            return $a['folio'] <=> $b['folio'];
+        });
+
+        // Paso 4: Obtener broches ocupados (SOLO los ya bajados, bajado = 's')
+        $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
+
+        $brocheOcupados = $modelo::where('periodo_anio', $anio)
+            ->where('periodo_mes', $mes)
+            ->whereIn('bajado', ['s', 'S'])
+            ->whereNotNull('num_broche')
+            ->pluck('num_broche')
+            ->unique()
+            ->map(fn($n) => (int)$n)
+            ->toArray();
+
+        // Pre-calcular los números libres para cada broche (saltando los ocupados)
+        $numerosLibres = [];
+        $candidato = 1;
+        while (count($numerosLibres) < $cantidadBroches) {
+            if (!in_array($candidato, $brocheOcupados, true)) {
+                $numerosLibres[] = $candidato;
+            }
+            $candidato++;
+        }
+
+        // Inicializar broches
+        $broches = [];
+        for ($i = 0; $i < $cantidadBroches; $i++) {
+            $broches[$i] = [
+                'numero'  => $numerosLibres[$i],
+                'importe' => 0,
+                'items'   => []
+            ];
+        }
+
+        // Asignar secuencialmente
+        $brocheActual = 0;
+        $importeAcumulado = 0;
+
+        foreach ($grupos as $grupo) {
+            if ($brocheActual < $cantidadBroches - 1 && $importeAcumulado >= $topePorBroche) {
+                $brocheActual++;
+                $importeAcumulado = 0;
+            }
+
+            foreach ($grupo['items'] as $registro) {
+                $registro->num_broche = $broches[$brocheActual]['numero'];
+                $importe = (float) str_replace(',', '.', $registro->importe);
+                $broches[$brocheActual]['importe'] += $importe;
+                $broches[$brocheActual]['items'][] = $registro;
+            }
+
+            $importeAcumulado += $grupo['importe'];
+        }
+
+        // Paso 5: Total final
+        $totalFinal = 0;
+        foreach ($broches as $broche) {
+            $totalFinal += $broche['importe'];
+        }
+
+        // Paso 6: Verificar duplicados
+        $idsAsignados = [];
+        foreach ($broches as $broche) {
+            foreach ($broche['items'] as $r) {
+                if (in_array($r->id, $idsAsignados)) {
+                    Log::warning("Registro duplicado: ID {$r->id}");
+                }
+                $idsAsignados[] = $r->id;
+            }
+        }
+
+        return [
+            'broches'            => $broches,
+            'registrosFiltrados' => $registrosFiltrados,
+            'total'              => $totalFinal
+        ];
     }
 
-    public function guardarDistribucionBroches($registrosFiltrados, $impuesto)
+
+
+    public function guardarDistribucionBrochess($registrosFiltrados, $impuesto)
     {
         $usuarioId = auth('api')->id();
         try {
@@ -1246,7 +1393,7 @@ class CargaImpuestoService
             ])
                 ->where('num_broche', $datos['numero_broche'])
                 ->update(['num_broche' => null]);
-                return response()->json(['message' => 'Rechazado correctamente'], 200);
+            return response()->json(['message' => 'Rechazado correctamente'], 200);
         }
     }
 

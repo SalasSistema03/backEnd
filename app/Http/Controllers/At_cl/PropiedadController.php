@@ -488,22 +488,13 @@ class PropiedadController
      */
     public function actualizarPropiedad(Request $request)
     {
-        Log::info('Primer Log sin cleanArray',$request->all());
-        //dd('hola');
         // Decodificar y limpiar datos JSON del request
         $comodidades = $this->cleanArray(json_decode($request->comodidades, true) ?? []);
         $descripcion = $this->cleanArray(json_decode($request->descripcion, true) ?? []);
         $venta = $this->cleanArray(json_decode($request->venta, true) ?? []);
         $alquiler = $this->cleanArray(json_decode($request->alquiler, true) ?? []);
         $condicion_alquiler = $this->cleanArray(json_decode($request->condicion_alquiler, true) ?? []);
-        Log::info($comodidades);
-        Log::info($descripcion);
-        Log::info($venta);
-        Log::info($alquiler);
-        Log::info($condicion_alquiler);
-        //dd('hola');
-        //Log::info('entro', [$request->all()]);
-
+        
         $validator = Validator::make($request->all(), [
             'id' => ['required', 'integer', 'exists:propiedades,id'],
             'comodidades' => ['nullable', 'json'],
