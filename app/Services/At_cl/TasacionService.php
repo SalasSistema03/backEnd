@@ -48,7 +48,7 @@ class TasacionService
          
         
         /* Verifica que el request contenga el valor de tasación de venta */
-        if (!isset($venta['tasacion_venta'])) {
+        if (!array_key_exists('tasacion_venta', $venta) || !array_key_exists('fecha_tasacion_venta', $venta)) {
             return null;
         }
 
@@ -60,7 +60,7 @@ class TasacionService
 
         /* Determina la moneda de la tasación
        Moneda: 1 = Pesos / otro valor = Dólar */
-        if ($venta['moneda_venta'] == '1') {
+        if (($venta['moneda_venta'] ?? '1') == '1') {
 
             /* Tasación expresada en pesos */
             $data['tasacion_pesos_venta'] = $venta['tasacion_venta'];

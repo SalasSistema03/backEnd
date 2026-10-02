@@ -343,7 +343,9 @@ class PropiedadService
         $descripcion_estado_venta,
         $fecha_baja_temporal_alquiler,
         $fecha_baja_temporal_venta,
-        $usuario_id
+        $usuario_id,
+        bool $actualizarVenta = true,
+        bool $actualizarAlquiler = true
     ) {
         // Últimos historiales (pueden ser null si nunca se guardó nada)
         $ultimo_historial_estado_venta = $this->obtenerUltimoHistorialEstadosVenta($id_propiedad);
@@ -357,12 +359,12 @@ class PropiedadService
          * - Cambió el comentario, o
          * - Cambió la fecha de baja temporal
          */
-        if (
+        if ($actualizarVenta && (
             !$ultimo_historial_estado_venta ||
             $ultimo_historial_estado_venta->id_estado_venta != $nuevo_estado_venta ||
             $ultimo_historial_estado_venta->comentario != $descripcion_estado_venta ||
             $ultimo_historial_estado_venta->reactiva_fecha != $fecha_baja_temporal_venta
-        ) {
+        )) {
             $historialEstadoVenta = new HistorialEstadosVenta();
             $historialEstadoVenta->id_propiedad   = $id_propiedad;
             $historialEstadoVenta->id_estado_venta = $nuevo_estado_venta;
@@ -381,12 +383,12 @@ class PropiedadService
          * - Cambió el comentario, o
          * - Cambió la fecha de baja temporal
          */
-        if (
+        if ($actualizarAlquiler && (
             !$ultimo_historial_estado_alquiler ||
             $ultimo_historial_estado_alquiler->id_estado_alquiler != $nuevo_estado_alquiler ||
             $ultimo_historial_estado_alquiler->comentario_alquiler != $descripcion_estado_alquiler ||
             $ultimo_historial_estado_alquiler->reactiva_fecha_alquiler != $fecha_baja_temporal_alquiler
-        ) {
+        )) {
             $historialEstadoAlquiler = new HistorialEstadosAlquiler();
             $historialEstadoAlquiler->id_propiedad          = $id_propiedad;
             $historialEstadoAlquiler->id_estado_alquiler    = $nuevo_estado_alquiler;

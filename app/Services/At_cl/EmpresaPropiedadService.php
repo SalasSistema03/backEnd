@@ -112,8 +112,6 @@ class EmpresaPropiedadService
             ];
 
             $registrosExistentes = Empresas_propiedades::where('propiedad_id', $propiedadId)->get();
-            $empresasAMantener = [];
-
             // Procesar cada folio
             foreach ($folios as $empresaId => $folio) {
                 $empresaId = (int) $empresaId;
@@ -126,8 +124,6 @@ class EmpresaPropiedadService
                     }
                     continue;
                 }
-
-                $empresasAMantener[] = $empresaId;
 
                 $registro = Empresas_propiedades::where('propiedad_id', $propiedadId)
                     ->where('empresa_id', $empresaId)
@@ -159,13 +155,6 @@ class EmpresaPropiedadService
                         'folio' => $folio,
                         'propiedad_id' => $propiedadId,
                     ]);
-                }
-            }
-
-            // Eliminar registros que no están en los nuevos folios
-            foreach ($registrosExistentes as $registroExistente) {
-                if (!in_array($registroExistente->empresa_id, $empresasAMantener)) {
-                    $registroExistente->delete();
                 }
             }
 

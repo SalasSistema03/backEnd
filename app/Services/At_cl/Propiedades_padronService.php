@@ -138,13 +138,20 @@ class Propiedades_padronService
 
     public function modificarPropietario($propiedad_id, $propietarios_modificados){
         foreach($propietarios_modificados as $propietario){
-            Propiedades_padron::where('propiedad_id', $propiedad_id)
-                ->where('padron_id', $propietario['id'])
-                ->update([
-                    'observaciones_baja' => $propietario['observaciones_baja'] ?? '',
-                    'baja' => $propietario['baja'] ?? 'no',
-                    'fecha_baja' => now(),
-                ]);
+            $updates = array_intersect_key(
+                $propietario,
+                array_flip(['observaciones_baja', 'baja'])
+            );
+
+            if (array_key_exists('baja', $updates)) {
+                $updates['fecha_baja'] = now();
+            }
+
+            if ($updates) {
+                Propiedades_padron::where('propiedad_id', $propiedad_id)
+                    ->where('padron_id', $propietario['id'])
+                    ->update($updates);
+            }
         }
     }
 }

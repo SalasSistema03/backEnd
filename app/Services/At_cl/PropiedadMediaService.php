@@ -199,12 +199,10 @@ class PropiedadMediaService
             foreach ($fotos_modificadas as $foto) {
                 $fotoModel = Foto::find($foto['id']);
                 if ($fotoModel) {
-                    $fotoModel->update([
-                        'orden'     => $foto['orden'] ?? null,
-                        'notes'     => $foto['notes'] ?? null,
-                        'archivado' => $foto['archivado'] ?? null,
-                        'updated_at' => now(),
-                    ]);
+                    $updates = array_intersect_key($foto, array_flip(['orden', 'notes', 'archivado']));
+                    if ($updates) {
+                        $fotoModel->update([...$updates, 'updated_at' => now()]);
+                    }
                 }
             }
 
@@ -224,10 +222,12 @@ class PropiedadMediaService
             foreach ($documentos_modificados as $documento) {
                 $documentoModel = Documentacion::find($documento['id']);
                 if ($documentoModel) {
-                    $documentoModel->update([
-                        'notes'      => $documento['notes'] ?? null,
-                        'updated_at' => now(),
-                    ]);
+                    if (array_key_exists('notes', $documento)) {
+                        $documentoModel->update([
+                            'notes' => $documento['notes'],
+                            'updated_at' => now(),
+                        ]);
+                    }
                 }
             }
 
@@ -247,11 +247,10 @@ class PropiedadMediaService
             foreach ($videos_modificados as $video) {
                 $videoModel = Video::find($video['id']);
                 if ($videoModel) {
-                    $videoModel->update([
-                        'notes'      => $video['notes'] ?? null,
-                        'updated_at' => now(),
-                        'archivado' => $video['archivado'] ?? null,
-                    ]);
+                    $updates = array_intersect_key($video, array_flip(['notes', 'archivado']));
+                    if ($updates) {
+                        $videoModel->update([...$updates, 'updated_at' => now()]);
+                    }
                 }
             }
 
