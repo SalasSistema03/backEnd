@@ -94,15 +94,17 @@ class ProcesoDptoTecnicoService
 
     public function actualizarInventario(Request $request, $usuarioId)
     {
-       /*  Log::info([$request->all()]);
-        dd($request->all()); */
+         /* Log::info([$request->all()]);
+        dd($request->all()); */ 
         $data = Historial_estado_dpto::find($request->inventario_id);
 
         if ($data) {
             $dataNuevo = Historial_estado_dpto::create([
                 'id_estado'             => $request->estado_id,
                 'observaciones'         => $request->observaciones ?? 'Modificacion General',
-                'fecha_inventario'      => \Carbon\Carbon::parse($request->fecha_inventario)->setTimeFrom(now()),
+                'fecha_inventario'      => in_array((int) $request->estado_id, [3, 4], true)
+                    ? \Carbon\Carbon::parse($request->fecha_inventario)
+                    : null,
                 'fecha_carga'           => now(),
                 'quien_cargo'           => $usuarioId,
                 'id_proceso_propiedad'  => $request->id_proceso_propiedad,
