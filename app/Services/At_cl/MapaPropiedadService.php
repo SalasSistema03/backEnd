@@ -40,7 +40,9 @@ class MapaPropiedadService
             'latitud',
             'longitud',
             'cod_venta',
-            'cod_alquiler'
+            'cod_alquiler',
+            'id_estado_venta',
+            'id_estado_alquiler'
         ]);
     }
 }

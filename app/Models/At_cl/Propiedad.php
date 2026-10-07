@@ -9,6 +9,7 @@ use App\Models\At_cl\Empresas;
 use App\Models\usuarios_y_permisos\Usuario;
 use App\Models\sys\Propiedades_sys;
 use App\Models\sys\Contratos_detalle_sys;
+use App\Models\agenda\Notas;
 
 
 class Propiedad extends Model
@@ -278,6 +279,12 @@ class Propiedad extends Model
     public function video()
     {
         return $this->hasMany(Video::class);
+    }
+
+    public function Notas()
+    {
+        return $this->hasMany(Notas::class, 'propiedad_id')
+            ->where('activo', 1);
     }
 
     public function documentacion()

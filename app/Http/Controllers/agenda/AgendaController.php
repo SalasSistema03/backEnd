@@ -110,6 +110,16 @@ class AgendaController extends Controller
                         'telefono' => $request->telefono,
                         'usuario_id' => $usuario_id,
                         'ingreso' => 'Agenda',
+                        'id_asesor_alquiler' => $request->usuario
+                    ]);
+                }
+                if ($cliente) {
+                    $cliente->update([
+                        'nombre' => $request->nombreCliente,
+                        'telefono' => $request->telefono,
+                        'usuario_id' => $usuario_id,
+                        'ingreso' => 'Agenda',
+                        //'id_asesor_alquiler' => $request->usuario
                     ]);
                 }
                 //Log::info('cliente', ['cliente' => $cliente]);
@@ -259,6 +269,112 @@ class AgendaController extends Controller
         }
     }
 
+    public function modificar(Request $request)
+    {
+        Log::info('esto es lo que me llega', ['request' => $request->all()]);
+        $cliente = null;
+
+        DB::beginTransaction();
+
+        try {
+            // Buscar la nota existente
+            $nota = Notas::find($request->id);
+            if (!$nota) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'No se encontró la nota a modificar'
+                ], 404);
+            }
+
+            // Buscar la agenda correspondiente al sector y usuario
+            $agenda = Agenda::where('sector_id', $request->sector)
+                ->where('usuario_id', $request->usuario)
+                ->first();
+
+            if (!$agenda) {
+                return response()->json(['error' => 'No se encontró una agenda válida para este sector y usuario'], 404);
+            }
+
+            $horaInicioRedondeada = substr($request->horaInicio, 0, 5);
+            $horaFinRedondeada = substr($request->horaFin, 0, 5);
+
+            if (isset($request->propiedad['id'])) {
+                $propiedadV = $request->propiedad['id'];
+            } else {
+                $propiedadV = $nota->propiedad_id; // Mantener la propiedad existente si no se envía una nueva
+            }
+
+            $usuario_id = auth('api')->id();
+
+            // Manejo de cliente (igual que store)
+            if ($request->telefono) {
+                $cliente = Clientes::where('telefono', $request->telefono)->first();
+                if (!$cliente) {
+                    $cliente = Clientes::create([
+                        'nombre' => $request->nombreCliente,
+                        'telefono' => $request->telefono,
+                        'usuario_id' => $usuario_id,
+                        'ingreso' => 'Agenda',
+                        'id_asesor_alquiler' => $request->usuario
+                    ]);
+                }
+                if ($cliente) {
+                    $cliente->update([
+                        'nombre' => $request->nombreCliente,
+                        'telefono' => $request->telefono,
+                        'usuario_id' => $usuario_id,
+                        'ingreso' => 'Agenda',
+                    ]);
+                }
+            }
+
+            // Validar que no haya otra nota activa en el mismo horario (excluyendo la nota actual)
+            $nuevaHoraInicio = $horaInicioRedondeada . ':00';
+            $repetida = Notas::where('fecha', $request->fecha)
+                ->where('hora_inicio', '<=', $nuevaHoraInicio)
+                ->where('hora_fin', '>', $nuevaHoraInicio)
+                ->where('usuario_id', $request->usuario)
+                ->where('agenda_id', $agenda->id)
+                ->where('activo', 1)
+                ->where('id', '!=', $nota->id) // Excluir la nota que se está modificando
+                ->first();
+
+            if ($repetida) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => "Ya existe una nota en ese horario (de {$repetida->hora_inicio} a {$repetida->hora_fin})"
+                ], 404);
+            }
+
+            // Actualizar la nota
+            $nota->update([
+                'hora_inicio' => $horaInicioRedondeada . ':00',
+                'hora_fin'    => $horaFinRedondeada . ':00',
+                'descripcion' => $request->descripcion,
+                'propiedad_id' => $propiedadV,
+                'cliente_id' => $cliente ? $cliente->id_cliente : null,
+                'usuario_id' => $request->usuario,
+                'agenda_id' => $agenda->id,
+                'fecha' => $request->fecha,
+                'devoluciones' => $request->devolucion ? $request->devolucion : null,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Nota modificada correctamente'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error al modificar la nota. ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     // Desactivar (eliminar lógicamente) una nota
     public function destroy($id, $motivo)
     {
@@ -341,7 +457,7 @@ class AgendaController extends Controller
                         'hora_inicio' => $item->hora_inicio,
                         'hora_fin' => $item->hora_fin,
                         'activo' => $item->activo,
-                        'creado_por' => $item->creado_por,
+                        'creado_por' => \App\Models\usuarios_y_permisos\Usuario::find($item->creado_por)->username ?? '',
 
                         'id_cliente' => $item->cliente->id_cliente ?? '',
                         'nombreCliente' => $item->cliente->nombre ?? '',

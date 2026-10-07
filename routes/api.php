@@ -182,6 +182,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/usuarios-sector/{id_sector}/{fecha}', [AgendaController::class, 'traerUsuarioSector']);
         Route::get('/propiedad/buscar-por-codigo-calle/{codigo_calle}/{sector}', [Propiedad::class, 'buscarPorCodigoCalle']);
         Route::post('/cargar-nota', [AgendaController::class, 'store']);
+        Route::post('/modificar-nota', [AgendaController::class, 'modificar']);
         Route::get('/buscarCliente/{clienteId}', [AgendaController::class, 'buscarClientesPorTelefono']);
         Route::put('/borrar-nota/{id}/{motivo}', [AgendaController::class, 'destroy']);
         Route::get('/api/notificaciones/traer-notificaciones', [NotificacionController::class, 'traerNotificaciones']);

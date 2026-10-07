@@ -47,7 +47,13 @@ class PrecioService
         try {
             DB::beginTransaction();
 
-            $precioData = $this->prepararDatosDesdeRequest($venta, $alquiler, $propiedadId);
+            $precioActual = $this->obtenerUltimoPrecio($propiedadId);
+            $precioData = $this->prepararDatosDesdeRequest(
+                $venta,
+                $alquiler,
+                $propiedadId,
+                $precioActual
+            );
 
             if (empty($precioData)) {
                 return null;
@@ -72,31 +78,56 @@ class PrecioService
      * @param int $propiedadId
      * @return array
      */
-    private function prepararDatosDesdeRequest(array $venta, array $alquiler, int $propiedadId): array
+    private function prepararDatosDesdeRequest(
+        array $venta,
+        array $alquiler,
+        int $propiedadId,
+        ?Precio $precioActual
+    ): array
     {
-        $precioData = ['propiedad_id' => $propiedadId];
+        $precioData = [
+            'propiedad_id' => $propiedadId,
+            ...array_intersect_key(
+                $precioActual?->getAttributes() ?? [],
+                array_flip([
+                    'moneda',
+                    'moneda_alquiler_dolar',
+                    'moneda_alquiler_pesos',
+                    'alquiler_fecha_alta',
+                    'alquiler_fecha_baja',
+                    'moneda_venta_pesos',
+                    'moneda_venta_dolar',
+                    'venta_fecha_alta',
+                    'venta_fecha_baja',
+                ])
+            ),
+        ];
         if ($venta !== null && !empty($venta)) {
             // Procesar datos de venta
-            if (isset($venta['moneda_venta']) && isset($venta['monto_venta']) &&
-                $venta['moneda_venta'] !== null && $venta['monto_venta'] !== null) {
+            if (array_key_exists('moneda_venta', $venta) && array_key_exists('monto_venta', $venta) &&
+                $venta['moneda_venta'] !== null) {
                 $precioData = array_merge($precioData, $this->procesarDatosVenta($venta));
             }
             // Agregar fechas de alta si corresponde
             if (isset($venta['cod_venta'])) {
                 $precioData['venta_fecha_alta'] = now();
+            } elseif (array_key_exists('venta_fecha_alta', $venta)) {
+                $precioData['venta_fecha_alta'] = $venta['venta_fecha_alta'];
             }
         }
 
         //log::info('estos son los datos de venta', $precioData);
         if ($alquiler !== null && !empty($alquiler)) {
             // Procesar datos de alquiler
-            if (isset($alquiler['moneda_alquiler']) && isset($alquiler['monto_alquiler']) &&
-                $alquiler['moneda_alquiler'] !== null && $alquiler['monto_alquiler'] !== null) {
+            if (array_key_exists('moneda_alquiler', $alquiler) && array_key_exists('monto_alquiler', $alquiler) &&
+                $alquiler['moneda_alquiler'] !== null) {
                 $precioData = array_merge($precioData, $this->procesarDatosAlquiler($alquiler));
             }
 
             if (isset($alquiler['cod_alquiler'])) {
                 $precioData['alquiler_fecha_alta'] = now();
+            } elseif (array_key_exists('alquiler_fecha_alta', $alquiler)) {
+                $precioData['alquiler_fecha_alta'] = $alquiler['alquiler_fecha_alta'];
             }
         }
 

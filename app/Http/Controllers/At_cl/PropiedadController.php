@@ -36,6 +36,7 @@ use App\Support\At_cl\PropertyUpdateMapper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Validator;
 
 
@@ -379,7 +380,12 @@ class PropiedadController
                 'historialEstadosAlquiler',
                 'historialEstadosVenta',
                 'localidad',
+                'Notas' => function ($query) {
+                    $query->whereDate('fecha', '>=', now()->toDateString());
+                },
+                'Notas.agenda.sector',
             ])->find($request->id);
+            Log::info($propiedad);
 
             if (!$propiedad) {
                 return response()->json([
@@ -493,7 +499,6 @@ class PropiedadController
         $venta = $this->cleanArray(json_decode($request->venta, true) ?? []);
         $alquiler = $this->cleanArray(json_decode($request->alquiler, true) ?? []);
         $condicion_alquiler = $this->cleanArray(json_decode($request->condicion_alquiler, true) ?? []);
-        //Log::info('entro', [$request->all()]);
 
         $validator = Validator::make($request->all(), [
             'id' => ['required', 'integer', 'exists:propiedades,id'],
@@ -524,6 +529,53 @@ class PropiedadController
                     'success' => false,
                     'message' => 'Propiedad no encontrada',
                 ], 404);
+            }
+
+            $codigosEfectivos = [
+                'cod_venta' => array_key_exists('cod_venta', $venta)
+                    ? $venta['cod_venta']
+                    : $propiedad->cod_venta,
+                'cod_alquiler' => array_key_exists('cod_alquiler', $alquiler)
+                    ? $alquiler['cod_alquiler']
+                    : $propiedad->cod_alquiler,
+            ];
+
+            $validadorCodigos = Validator::make(
+                $codigosEfectivos,
+                [
+                    'cod_venta' => [
+                        'nullable',
+                        'required_without:cod_alquiler',
+                        'integer',
+                        'min:0',
+                        'max:100000',
+                        Rule::unique('propiedades', 'cod_venta')->ignore($propiedad->id),
+                    ],
+                    'cod_alquiler' => [
+                        'nullable',
+                        'required_without:cod_venta',
+                        'integer',
+                        'min:0',
+                        'max:100000',
+                        Rule::unique('propiedades', 'cod_alquiler')->ignore($propiedad->id),
+                    ],
+                ],
+                [
+                    'cod_venta.required_without' => 'Debe ingresar un código de venta o de alquiler.',
+                    'cod_alquiler.required_without' => 'Debe ingresar un código de venta o de alquiler.',
+                    'cod_venta.unique' => 'El código de venta ya se encuentra en uso.',
+                    'cod_alquiler.unique' => 'El código de alquiler ya se encuentra en uso.',
+                ]
+            );
+
+            if ($validadorCodigos->fails()) {
+                DB::rollBack();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => $validadorCodigos->errors()->first(),
+                    'errors' => $validadorCodigos->errors(),
+                ], 422);
             }
 
             // Decodificar y limpiar datos JSON del request
@@ -604,31 +656,90 @@ class PropiedadController
                 PropertyUpdateMapper::map($condicion_alquiler, ['condicion' => 'condicion'])
             );
 
-            if (empty($updates)) {
-                DB::rollBack();
+            $camposColeccion = [
+                'fotos_modificadas',
+                'fotos_eliminadas',
+                'fotos_nuevas_data',
+                'documentos_modificados',
+                'documentos_eliminados',
+                'documentos_nuevos_data',
+                'videos_modificados',
+                'videos_eliminados',
+                'videos_nuevos_data',
+                'propietarios_nuevos',
+                'propietarios_eliminados',
+                'propietarios_modificados',
+            ];
+            $tieneCambiosDeColeccion = collect($camposColeccion)->contains(
+                fn($campo) => $request->has($campo)
+            );
+            $tieneCambiosDeBloque = ! empty($comodidades) || ! empty($descripcion) ||
+                ! empty($venta) || ! empty($alquiler) || ! empty($condicion_alquiler);
+
+            if (empty($updates) && ! $tieneCambiosDeBloque && ! $tieneCambiosDeColeccion) {
+                DB::commit();
 
                 return response()->json([
-                    'success' => false,
-                    'message' => 'No se recibieron datos para actualizar la propiedad.',
-                ], 422);
+                    'success' => true,
+                    'message' => 'No hay cambios para guardar.',
+                ]);
             }
 
-            $propiedad->update([...$updates, 'updated_at' => now()]);
-
-            // Actualizar datos relacionados únicamente cuando el bloque contiene precio/tasación.
-            $tieneTasacion = isset(
-                $venta['tasacion_venta'],
-                $venta['fecha_tasacion_venta'],
-                $venta['moneda_venta']
-            );
-            if ($tieneTasacion) {
-                (new TasacionService)->crearDesdeRequest($venta, $propiedad->id);
+            if (! empty($updates)) {
+                $propiedad->update([...$updates, 'updated_at' => now()]);
             }
 
-            $tienePrecioVenta = isset($venta['moneda_venta'], $venta['monto_venta']);
-            $tienePrecioAlquiler = isset($alquiler['moneda_alquiler'], $alquiler['monto_alquiler']);
-            if ($tienePrecioVenta || $tienePrecioAlquiler) {
-                (new PrecioService)->crearDesdeRequest($venta, $alquiler, $propiedad->id);
+            $precioActual = $propiedad->precioActual;
+            $ventaParaPrecio = $venta;
+            $alquilerParaPrecio = $alquiler;
+            $ventaTieneCambioDePrecio = array_key_exists('moneda_venta', $venta) ||
+                array_key_exists('monto_venta', $venta);
+            $alquilerTieneCambioDePrecio = array_key_exists('moneda_alquiler', $alquiler) ||
+                array_key_exists('monto_alquiler', $alquiler);
+
+            if ($ventaTieneCambioDePrecio || $alquilerTieneCambioDePrecio) {
+                if (! array_key_exists('moneda_venta', $ventaParaPrecio)) {
+                    $ventaParaPrecio['moneda_venta'] =
+                        $precioActual?->moneda_venta_dolar !== null ? '2' : '1';
+                }
+                if (! array_key_exists('monto_venta', $ventaParaPrecio)) {
+                    $ventaParaPrecio['monto_venta'] =
+                        $precioActual?->moneda_venta_dolar ?? $precioActual?->moneda_venta_pesos;
+                }
+                if (! array_key_exists('moneda_alquiler', $alquilerParaPrecio)) {
+                    $alquilerParaPrecio['moneda_alquiler'] =
+                        $precioActual?->moneda_alquiler_pesos !== null ? '1' : '2';
+                }
+                if (! array_key_exists('monto_alquiler', $alquilerParaPrecio)) {
+                    $alquilerParaPrecio['monto_alquiler'] =
+                        $precioActual?->moneda_alquiler_pesos ?? $precioActual?->moneda_alquiler_dolar;
+                }
+
+                (new PrecioService)->crearDesdeRequest(
+                    $ventaParaPrecio,
+                    $alquilerParaPrecio,
+                    $propiedad->id
+                );
+            }
+
+            $tieneCambioDeTasacion = array_key_exists('tasacion_venta', $venta) ||
+                array_key_exists('fecha_tasacion_venta', $venta);
+            if ($tieneCambioDeTasacion) {
+                $tasacionActual = $propiedad->tasaciones()->orderByDesc('id')->first();
+                $ventaParaTasacion = $venta;
+                if (! array_key_exists('tasacion_venta', $ventaParaTasacion)) {
+                    $ventaParaTasacion['tasacion_venta'] = $tasacionActual?->tasacion_dolar_venta ??
+                        $tasacionActual?->tasacion_pesos_venta;
+                }
+                if (! array_key_exists('fecha_tasacion_venta', $ventaParaTasacion)) {
+                    $ventaParaTasacion['fecha_tasacion_venta'] = $tasacionActual?->fecha_tasacion;
+                }
+                if (! array_key_exists('moneda_venta', $ventaParaTasacion)) {
+                    $ventaParaTasacion['moneda_venta'] = $ventaParaPrecio['moneda_venta'] ??
+                        ($precioActual?->moneda_venta_dolar !== null ? '2' : '1');
+                }
+
+                (new TasacionService)->crearDesdeRequest($ventaParaTasacion, $propiedad->id);
             }
 
             // Manejar actualización de fotos
@@ -694,35 +805,63 @@ class PropiedadController
                 (new Propiedades_padronService)->modificarPropietario($propiedad->id, $propietarios_modificados);
             }
 
-            // Guardar historial solo cuando se envió al menos un estado.
-            if (array_key_exists('estado_venta', $venta) || array_key_exists('estado_alquiler', $alquiler)) {
+            $clavesHistorialVenta = [
+                'estado_venta',
+                'descripcion_estado_venta',
+                'fecha_baja_temporal_venta',
+            ];
+            $clavesHistorialAlquiler = [
+                'estado_alquiler',
+                'descripcion_estado_alquiler',
+                'fecha_baja_temporal_alquiler',
+            ];
+            $actualizarHistorialVenta = count(array_intersect(array_keys($venta), $clavesHistorialVenta)) > 0;
+            $actualizarHistorialAlquiler = count(array_intersect(array_keys($alquiler), $clavesHistorialAlquiler)) > 0;
+
+            if ($actualizarHistorialVenta || $actualizarHistorialAlquiler) {
+                $historialVentaActual = $this->propiedadService
+                    ->obtenerUltimoHistorialEstadosVenta($propiedad->id);
+                $historialAlquilerActual = $this->propiedadService
+                    ->obtenerUltimoHistorialEstadosAlquiler($propiedad->id);
+
                 $this->propiedadService->guardarHistorialEstadosSerbive(
                     $propiedad->id,
-                    $venta['estado_venta'] ?? null,
-                    $alquiler['estado_alquiler'] ?? null,
-                    $alquiler['descripcion_estado_alquiler'] ?? null,
-                    $venta['descripcion_estado_venta'] ?? null,
-                    $alquiler['fecha_baja_temporal_alquiler'] ?? null,
-                    $venta['fecha_baja_temporal_venta'] ?? null,
-                    $usuario_id
+                    array_key_exists('estado_venta', $venta)
+                        ? $venta['estado_venta']
+                        : ($historialVentaActual?->id_estado_venta ?? $propiedad->id_estado_venta),
+                    array_key_exists('estado_alquiler', $alquiler)
+                        ? $alquiler['estado_alquiler']
+                        : ($historialAlquilerActual?->id_estado_alquiler ?? $propiedad->id_estado_alquiler),
+                    array_key_exists('descripcion_estado_alquiler', $alquiler)
+                        ? $alquiler['descripcion_estado_alquiler']
+                        : $historialAlquilerActual?->comentario_alquiler,
+                    array_key_exists('descripcion_estado_venta', $venta)
+                        ? $venta['descripcion_estado_venta']
+                        : $historialVentaActual?->comentario,
+                    array_key_exists('fecha_baja_temporal_alquiler', $alquiler)
+                        ? $alquiler['fecha_baja_temporal_alquiler']
+                        : $historialAlquilerActual?->reactiva_fecha_alquiler,
+                    array_key_exists('fecha_baja_temporal_venta', $venta)
+                        ? $venta['fecha_baja_temporal_venta']
+                        : $historialVentaActual?->reactiva_fecha,
+                    $usuario_id,
+                    $actualizarHistorialVenta,
+                    $actualizarHistorialAlquiler
                 );
             }
 
-          // Actualizar folios de empresas
-          // Actualizar folios de empresas
-            $clavesFolios = ['FCentral', 'FCandioti', 'FTribunales'];
-            $foliosEnviados = array_intersect_key($alquiler, array_flip($clavesFolios));
+            $clavesFolios = ['FCentral' => 1, 'FCandioti' => 2, 'FTribunales' => 3];
+            $foliosEnviados = [];
+            foreach ($clavesFolios as $clave => $empresaId) {
+                if (array_key_exists($clave, $alquiler)) {
+                    $foliosEnviados[$empresaId] = $alquiler[$clave];
+                }
+            }
 
             if (!empty($foliosEnviados)) {
-                $folios = [
-                    1 => (isset($alquiler['FCentral']) && $alquiler['FCentral'] !== '-' && $alquiler['FCentral'] !== '') ? $alquiler['FCentral'] : null,
-                    2 => (isset($alquiler['FCandioti']) && $alquiler['FCandioti'] !== '-' && $alquiler['FCandioti'] !== '') ? $alquiler['FCandioti'] : null,
-                    3 => (isset($alquiler['FTribunales']) && $alquiler['FTribunales'] !== '-' && $alquiler['FTribunales'] !== '') ? $alquiler['FTribunales'] : null,
-                ];
-
                 $this->empresaPropiedadService->actualizarFolioExistente(
                     $propiedad->id,
-                    $folios
+                    $foliosEnviados
                 );
             }
 
