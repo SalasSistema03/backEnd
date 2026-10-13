@@ -981,7 +981,7 @@ class ListadoPdfAtcl
     |--------------------------------------------------------------------------
     */
 
-            Log::info('Filtro asesor recibido:', [
+            /* Log::info('Filtro asesor recibido:', [
                 'asesor' => $request->asesor,
                 'consulta' => $request->consulta,
                 'desde' => $request->desde,
@@ -990,7 +990,7 @@ class ListadoPdfAtcl
 
             Log::info('Cantidad de resultados finales:', [
                 'cantidad' => $data->count(),
-            ]);
+            ]); */
 
 
             /*

@@ -15,4 +15,9 @@ class Calle extends Model
     {
         return $this->hasMany(Propiedad::class, 'id_calle');
     }
+
+    public function tasaciones()
+    {
+        return $this->hasMany(Tasaciones::class, 'calle');
+    }
 }

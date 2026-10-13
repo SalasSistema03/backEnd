@@ -2,6 +2,9 @@
 
 namespace App\Services\impuesto\TGI;
 
+use App\Models\impuesto\boton_actualizado;
+use Carbon\Carbon;
+
 
 class ExtraerCodBarra
 {
@@ -16,7 +19,14 @@ class ExtraerCodBarra
         $folio = $this->separarFolio($codigoBarras);
         $partida = $this->separarPartida($codigoBarras);
         $importe = $this->separarImporte($codigoBarras);
-        $fechaVencimiento = $this->separarFechaVencimiento($codigoBarras);
+        $fechaVencimiento = $this->separarFechaVencimiento($codigoBarras);//2026-10-14  
+        $fechatgi = boton_actualizado::query()->firstOrFail()->ultima_fecha_tgi;
+
+        if (Carbon::parse($fechaVencimiento)->month > Carbon::parse($fechatgi)->month) {
+            throw new \Exception('El Padron se encuentra desactualizado');
+        }
+
+        
         $adm = $this->separarAdm($codigoBarras);
        
         // Retornar los valores separados en un array asociativo

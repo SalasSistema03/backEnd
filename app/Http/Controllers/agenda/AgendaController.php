@@ -271,7 +271,7 @@ class AgendaController extends Controller
 
     public function modificar(Request $request)
     {
-        Log::info('esto es lo que me llega', ['request' => $request->all()]);
+        //Log::info('esto es lo que me llega', ['request' => $request->all()]);
         $cliente = null;
 
         DB::beginTransaction();

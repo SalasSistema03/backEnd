@@ -26,11 +26,18 @@ class Usuario_sector extends Model
         'venta',
         'alquiler',
         'contrato_nuevo',
+        'dpto',
+        'tasador'
 
     ];
 
     public function usuario()
     {
         return $this->belongsTo(Usuario::class, 'id_usuario', 'id');
+    }
+
+    public function tasaciones()
+    {
+        return $this->hasMany(\App\Models\At_cl\Tasaciones::class, 'tasador', 'id_usuario');
     }
 }

@@ -6,6 +6,7 @@ use App\Models\At_cl\Calle;
 use App\Models\At_cl\Foto;
 use App\Models\At_cl\Observaciones_propiedades;
 use App\Models\At_cl\Propiedad;
+use App\Models\At_cl\Tasaciones;
 use App\Models\impuesto\Agua_padron;
 use App\Models\impuesto\Agua_carga;
 use App\Models\impuesto\Api_carga;
@@ -116,6 +117,8 @@ class PropiedadController
                 'lote_cubierto' => $comodidades['lote_cubierto'] ?? null,
                 'numero_cochera' => $comodidades['numero_cochera'] ?? null,
                 'monto_venta' => $venta['monto_venta'] ?? null,
+                'tasacion_alquiler' => $alquiler['tasacion_alquiler'] ?? null,
+                'tasacion_id' => $request->tasacion_id,
                 'folio_central' => $alquiler['FCentral'] ?? null,
                 'folio_candioti' => $alquiler['FCandioti'] ?? null,
                 'folio_tribunales' => $alquiler['FTribunales'] ?? null,
@@ -138,6 +141,8 @@ class PropiedadController
                 'lote_cubierto' => ['nullable', 'digits_between:1,11'],
                 'numero_cochera' => ['nullable', 'digits_between:1,11'],
                 'monto_venta' => ['nullable', 'numeric', 'min:0'],
+                'tasacion_alquiler' => ['nullable', 'numeric', 'min:0'],
+                'tasacion_id' => ['nullable', 'integer', 'exists:tasaciones,id'],
                 'folio_central' => ['nullable', 'regex:/^[0-9]+$/'],
                 'folio_candioti' => ['nullable', 'regex:/^[0-9]+$/'],
                 'folio_tribunales' => ['nullable', 'regex:/^[0-9]+$/'],
@@ -185,6 +190,23 @@ class PropiedadController
 
         try {
             DB::beginTransaction();
+
+            $tasacionSeleccionada = null;
+            if ($request->filled('tasacion_id')) {
+                $tasacionSeleccionada = Tasaciones::whereKey($request->tasacion_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$tasacionSeleccionada || (int) $tasacionSeleccionada->asignada !== 0) {
+                    DB::rollBack();
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'La tasación seleccionada ya no está disponible.',
+                    ], 422);
+                }
+            }
+
             //log::info('Payload recibido para guardar:', $request->all());
             // Preparar datos para el servicio
             $datos = [
@@ -216,8 +238,14 @@ class PropiedadController
             // Log::info('Propiedad creada: ' . $propiedad_creada->id);
             // Log::info('DB_DATABASE: ' . config('database.connections.mysql.database'));
             // Log::info('DB_HOST: ' . config('database.connections.mysql.host'));
-            // Crear tasación si hay datos de venta
-            (new TasacionService)->crearDesdeRequest($venta, $propiedad_creada->id);
+            (new TasacionService)->crearDesdeRequest($venta, $propiedad_creada->id, $alquiler);
+
+            if ($tasacionSeleccionada) {
+                $tasacionSeleccionada->update([
+                    'asignada' => 1,
+                    'id_propiedad' => $propiedad_creada->id,
+                ]);
+            }
 
             // Crear registro de precios
             (new PrecioService)->crearDesdeRequest($venta, $alquiler, $propiedad_creada->id);
@@ -385,7 +413,7 @@ class PropiedadController
                 },
                 'Notas.agenda.sector',
             ])->find($request->id);
-            Log::info($propiedad);
+            // Log::info($propiedad);
 
             if (!$propiedad) {
                 return response()->json([
@@ -723,7 +751,8 @@ class PropiedadController
             }
 
             $tieneCambioDeTasacion = array_key_exists('tasacion_venta', $venta) ||
-                array_key_exists('fecha_tasacion_venta', $venta);
+                array_key_exists('fecha_tasacion_venta', $venta) ||
+                array_key_exists('tasacion_alquiler', $alquiler);
             if ($tieneCambioDeTasacion) {
                 $tasacionActual = $propiedad->tasaciones()->orderByDesc('id')->first();
                 $ventaParaTasacion = $venta;
@@ -739,7 +768,7 @@ class PropiedadController
                         ($precioActual?->moneda_venta_dolar !== null ? '2' : '1');
                 }
 
-                (new TasacionService)->crearDesdeRequest($ventaParaTasacion, $propiedad->id);
+                (new TasacionService)->crearDesdeRequest($ventaParaTasacion, $propiedad->id, $alquiler);
             }
 
             // Manejar actualización de fotos
@@ -1398,4 +1427,101 @@ class PropiedadController
             ], 500);
         }
     }
+
+    public function propiedadTasacion(Request $request)
+    {
+        try {
+            $resultado = (new TasacionService)->precargaTasacion($request);
+
+            return response()->json($resultado, 201);
+        } catch (\Throwable $e) {
+            Log::error('Error al guardar tasación precargada: ' . $e->getMessage(), [
+                'exception' => $e,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo guardar la tasación.',
+            ], 500);
+        }
+    }
+
+    public function actualizarTasacion(Request $request, $id)
+    {
+        try {
+            $resultado = (new TasacionService)->actualizarTasacion((int) $id, $request);
+
+            return response()->json($resultado, 200);
+        } catch (\Throwable $e) {
+            Log::error('Error al actualizar tasación: ' . $e->getMessage(), [
+                'exception' => $e,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo actualizar la tasación.',
+            ], 500);
+        }
+    }
+
+    public function eliminarTasacion(int $id)
+    {
+        try {
+            $eliminada = (new TasacionService)->eliminarTasacion($id);
+
+            if (!$eliminada) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'La tasación no existe o no se pudo eliminar.',
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Tasación eliminada correctamente.',
+            ], 200);
+        } catch (\Throwable $e) {
+            Log::error('Error al eliminar tasación: ' . $e->getMessage(), [
+                'exception' => $e,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo eliminar la tasación.',
+            ], 500);
+        }
+    }
+
+
+    public function getTasacionesActivas(Request $request)
+    {
+        try {
+            $tasaciones = Tasaciones::with([
+                'tipoInmueble',
+                'calleRelacion',
+                'propietarioRelacion.telefonos',
+                'localidad',
+                /* 'tasadorUsuario', */
+                'tasadorSector.usuario'
+            ])
+                ->where('asignada', '=', 0)
+                ->orderByDesc('id')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $tasaciones
+            ], 200);
+        } catch (\Throwable $e) {
+            Log::error('Error al obtener tasaciones activas: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener las tasaciones.'
+            ], 500);
+        }
+    }
 }
+

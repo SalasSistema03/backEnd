@@ -118,11 +118,15 @@ Route::prefix('v1')->group(function () {
         Route::get('zonas', [ZonaController::class, 'getZonas']);
         Route::get('provincias', [ProvinciaController::class, 'getProvincias']);
         Route::get('localidades', [PropiedadController::class, 'getLocalidades']);
+        Route::get('/tasaciones/activas', [PropiedadController::class, 'getTasacionesActivas']);
         Route::get('estado-general', [EstadoGeneralController::class, 'getEstadoGeneral']);
         Route::get('estado-venta', [EstadoVentaController::class, 'getEstadoVenta']);
         Route::get('captador-interno', [UsuariosController::class, 'getCaptadorInterno']);
         Route::get('asesor', [UsuariosController::class, 'getAsesor']);
         Route::get('estado-alquiler', [EstadoAlquilerController::class, 'getEstadoAlquiler']);
+        Route::post('/propiedad/tasacion', [PropiedadController::class, 'propiedadTasacion']);
+        Route::post('/propiedad/tasacion/{id}', [PropiedadController::class, 'actualizarTasacion']);
+        Route::delete('/propiedad/tasacion/{id}', [PropiedadController::class, 'eliminarTasacion']);
         Route::post('propiedad/guardar/{id}', [PropiedadController::class, 'guardarPropiedad']);
         Route::get('propiedades/buscar-venta', [PropiedadController::class, 'buscarPropiedadesVenta']);
         Route::get('padron/buscar', [PadronService::class, 'BuscarPadron']);
@@ -250,6 +254,7 @@ Route::prefix('v1')->group(function () {
 
         // --- RUTAS INTEGRADAS DESDE HEAD ---
         Route::get('asesoresAlquiler', [UsuarioSectorService::class, 'getAllUsuarioSector']);
+        Route::get('asesoresTasacion', [UsuarioSectorService::class, 'getAllUsuarioTasacion']);
         Route::get('/propiedad/buscar-por-codigo/{cod_alquiler}', [PropiedadService::class, 'buscarPropiedadesAlquiler']);
         Route::post('/subir-reservas', [ProcesoController::class, 'subirReservas']);
         Route::get('/obtener-reservas', [ProcesoController::class, 'obtenerReservas']);

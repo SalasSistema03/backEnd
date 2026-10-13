@@ -2,6 +2,9 @@
 
 namespace App\Services\impuesto\AGUA;
 
+use App\Models\impuesto\boton_actualizado;
+use Illuminate\Support\Facades\Log;
+
 use Carbon\Carbon;
 
 class ExtraerCodBarraAgua
@@ -17,6 +20,17 @@ class ExtraerCodBarraAgua
         // Extracción correcta según posiciones fijas
         $fechaVencimiento_1 = $this->separarFechaVencimiento($codigoBarras, 8);
         $importe_1 = $this->separarImporte($codigoBarras, 14);
+
+        $fechatgi = boton_actualizado::query()->firstOrFail()->ultima_fecha_agua;
+        //Log::info('fechaagua', [$fechatgi]);
+        //Log::info('fecha_vencimiento_1', [$fechaVencimiento_1]);
+        //dd('hola');
+
+        if (Carbon::parse($fechaVencimiento_1)->month > Carbon::parse($fechatgi)->month) {
+            throw new \Exception('El Padron se encuentra desactualizado');
+        }
+
+
 
         $fechaVencimiento_2 = $this->separarFechaVencimiento($codigoBarras, 24);
         $importe_2 = $this->separarImporte($codigoBarras, 34);
@@ -53,7 +67,7 @@ class ExtraerCodBarraAgua
         return $registro;
     }
 
-   /*  public function separarImporte($codigoBarras, $inicio)
+    /*  public function separarImporte($codigoBarras, $inicio)
     {
         $importe = substr($codigoBarras, $inicio, 10);
 
@@ -75,7 +89,7 @@ class ExtraerCodBarraAgua
 
         // Retorna el formato decimal con 2 decimales (ej: "30164.51")
         return number_format($importeFloat, 2, '.', '');
-    } 
+    }
 
     public function separarFechaVencimiento($codigoBarras, $inicio)
     {
