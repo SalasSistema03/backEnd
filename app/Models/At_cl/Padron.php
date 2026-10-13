@@ -52,4 +52,9 @@ class Padron extends Model
     {
         return $this->belongsTo(Padron::class, 'padron_id');
     }
+
+    public function tasaciones()
+    {
+        return $this->hasMany(Tasaciones::class, 'propietario');
+    }
 }

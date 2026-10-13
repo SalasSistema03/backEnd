@@ -15,4 +15,9 @@ class Localidad extends Model
     {
         return $this->hasMany(Propiedad::class, 'id_localidad');
     }
+
+    public function tasaciones()
+    {
+        return $this->hasMany(Tasaciones::class, 'id_localidad');
+    }
 }

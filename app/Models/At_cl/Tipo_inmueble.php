@@ -20,4 +20,9 @@ class Tipo_inmueble extends Model
     {
         return $this->hasMany(Propiedad::class, 'id_inmueble');
     }
+
+    public function tasaciones()
+    {
+        return $this->hasMany(Tasaciones::class, 'tipo_inmueble');
+    }
 }
