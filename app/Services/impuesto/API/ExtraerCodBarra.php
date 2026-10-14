@@ -2,6 +2,8 @@
 
 namespace App\Services\impuesto\API;
 use Illuminate\Support\Facades\Log;
+use App\Models\impuesto\boton_actualizado;
+use Carbon\Carbon;
 
 
 class ExtraerCodBarra
@@ -16,6 +18,13 @@ class ExtraerCodBarra
     {
         $partida = $this->separarPartida($codigoBarras);
         $fechaVencimiento = $this->separarFechaVencimiento($codigoBarras);
+
+        $fechatgi = boton_actualizado::query()->firstOrFail()->ultima_fecha_api;
+
+        if (Carbon::parse($fechaVencimiento)->month > Carbon::parse($fechatgi)->month) {
+            throw new \Exception('El Padron se encuentra desactualizado');
+        }
+
         
         $importe = $this->separarImporte($codigoBarras);
     

@@ -313,7 +313,7 @@ class Propiedad extends Model
 
 
 
-   public function scopeFiltrar($query, array $filtros)
+    public function scopeFiltrar($query, array $filtros)
     {
         // 1. TIPO DE BÚSQUEDA (Venta o Alquiler)
         if (!empty($filtros['busqueda'])) {
@@ -327,7 +327,7 @@ class Propiedad extends Model
         } else {
             $query->where(function ($q) {
                 $q->whereNotNull('cod_venta')
-                  ->orWhereNotNull('cod_alquiler');
+                    ->orWhereNotNull('cod_alquiler');
             });
         }
 
@@ -354,7 +354,7 @@ class Propiedad extends Model
         // 3. CALLE Y ZONAS
         if (!empty($filtros['calle_id'])) {
             $query->where('id_calle', $filtros['calle_id'])
-                  ->orderBy('numero_calle', 'asc');
+                ->orderBy('numero_calle', 'asc');
         }
 
         if (!empty($filtros['inmuebles'])) {
@@ -369,7 +369,7 @@ class Propiedad extends Model
         if (!empty($filtros['cochera'])) {
             $query->where('cochera', $filtros['cochera']);
         }
-        
+
         if (!empty($filtros['mascotas'])) {
             $query->where('mascota', $filtros['mascotas']);
         }
@@ -420,7 +420,7 @@ class Propiedad extends Model
             });
         }
 
-       // Si el checkbox de ampliar no está marcado, filtrar por estados
+        // Si el checkbox de ampliar no está marcado, filtrar por estados
         if (!isset($filtros['ampliar']) || $filtros['ampliar'] == 0 || $filtros['ampliar'] === false) {
             $estadosVentaExcluidos = Estado_venta::whereIn('id', ['3', '4', '5', '6', '7'])->pluck('id')->toArray();
             $estadosAlquilerExcluidos = Estado_alquiler::whereIn('id', ['3', '4', '5', '6', '7'])->pluck('id')->toArray();
@@ -603,6 +603,18 @@ class Propiedad extends Model
                     $query->where('name', 'like', '%' . $codigo_calle . '%')
                         ->where('cod_alquiler', '!=', null)
                         ->whereIn('id_estado_alquiler', [1, 2]);
+                })
+                    ->get();
+            }
+        }
+
+        if ($sector == 'Depto.Tecnico') {
+            $propiedad = Propiedad::where('cod_alquiler', 'like', '%' . $codigo_calle . '%')
+                ->orWhere('cod_venta', 'like', '%' . $codigo_calle . '%')
+                ->get();
+            if (!$propiedad || $propiedad->isEmpty()) {
+                $propiedad = Propiedad::whereHas('calle', function ($query) use ($codigo_calle) {
+                    $query->where('name', 'like', '%' . $codigo_calle . '%');
                 })
                     ->get();
             }

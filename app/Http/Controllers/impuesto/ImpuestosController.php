@@ -170,7 +170,7 @@ class ImpuestosController extends Controller
         }
 
         if ($request->impuesto === 'gas') {
-            // Log::info('controlador impyuesyo');
+            // Log::info('controlador impuesto');
             $codigoBarras = $request->codigo_barras;
             if (!$codigoBarras) {
                 return response()->json(['error' => 'El campo código de barras es obligatorio'], 400);

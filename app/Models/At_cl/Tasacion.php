@@ -14,8 +14,8 @@ class Tasacion extends Model
         'moneda',
         'tasacion_pesos_venta',
         'tasacion_dolar_venta',
-        /* 'tasacion_dolar_alquiler',
-        'tasacion_pesos_alquiler', */
+        /* 'tasacion_dolar_alquiler',*/
+        'tasacion_pesos_alquiler',
         'fecha_tasacion',
         'propiedad_id',
         'comentario_tasacion'
@@ -24,5 +24,4 @@ class Tasacion extends Model
     {
         return $this->belongsTo(Propiedad::class, 'propiedad_id');
     }
-    
 }

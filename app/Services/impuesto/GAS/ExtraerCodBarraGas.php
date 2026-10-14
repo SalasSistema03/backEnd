@@ -4,6 +4,7 @@ namespace App\Services\impuesto\GAS;
 
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use App\Models\impuesto\boton_actualizado;
 
 class ExtraerCodBarraGas
 {
@@ -14,6 +15,12 @@ class ExtraerCodBarraGas
         $importe = $this->separarImporte($codigoBarras, 17);
         $inicioLiq = $this->separarFechaVencimiento($codigoBarras, 35);
         $finLiq  = $this->separarFechaVencimiento($codigoBarras, 43);
+
+        $fechatgi = boton_actualizado::query()->firstOrFail()->ultima_fecha_gas;
+
+        if (Carbon::parse($fechaVencimiento)->month > Carbon::parse($fechatgi)->month) {
+            throw new \Exception('El Padron se encuentra desactualizado');
+        }
 
         // Retornar los valores separados en un array asociativo
         return [
