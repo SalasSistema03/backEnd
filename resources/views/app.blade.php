@@ -27,11 +27,10 @@
       href="https://cdn.jsdelivr.net/npm/bootstrap-submenu@3.0.1/dist/css/bootstrap-submenu.min.css"
       rel="stylesheet"
     />
-    <!-- Custom CSS -->
     <!-- App -->
     <title>Salas</title>
-    <script type="module" crossorigin src="/assets/index-D5Okpwh0.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-D8e3GNmn.css">
+    <script type="module" crossorigin src="/assets/index-CB2POtfE.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CVrXdy01.css">
   </head>
   <body>
     <!-- App Container -->
