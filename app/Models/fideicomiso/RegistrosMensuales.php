@@ -30,9 +30,14 @@ class RegistrosMensuales extends Model
         'ascensor',
         'internet',
         'honorario',
+        'extraordinaria',
+        'otro',
         'periodo',
         'id_unidad',
-        'pagado'
+        'pagado',
+        'otro_observaciones',
+        'extraordinaria_observaciones',
+        'fondo_reser_observaciones'
     ];
 
 

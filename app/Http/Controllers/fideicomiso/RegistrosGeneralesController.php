@@ -138,7 +138,9 @@ class RegistrosGeneralesController extends Controller
             $this->registrosGeneralesService->procesarCargaMasiva(
                 $request->periodo,
                 $request->servicio,
-                $request->monto_total
+                $request->monto_total,
+                $request->extraordinaria_observaciones ?? null,
+                $request->fondo_reser_observaciones ?? null
             );
 
             return response()->json([

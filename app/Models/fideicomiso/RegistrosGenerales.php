@@ -25,7 +25,11 @@ class RegistrosGenerales extends Model
         'ascensor',
         'internet',
         'honorario',
+        'extraordinaria',
+        'fondo_reserva',
         'periodo',
         'vencimiento',
+        'extraordinaria_observaciones',
+        'fondo_reser_observaciones',
     ];
 }
