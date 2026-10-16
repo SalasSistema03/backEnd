@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use App\Models\At_cl\Empresas_propiedades;
+use App\Models\At_cl\Observaciones_propiedades;
 use App\Models\cliente\Usuario_sector;
 use App\Notifications\RecordatorioNotificacion;
 use App\Models\proceso\Historial_estado_dpto;
@@ -34,7 +35,8 @@ class ProcesoService
      */
     public function subirReserva(array $data, $usuarioId)
     {
-        //Log::info([$data]);
+        /*  Log::info([$data]);
+        dd('hola'); */
         try {
             $comprobantePath = null;
 
@@ -72,6 +74,19 @@ class ProcesoService
                 'quien_cargo' => $usuarioId,
                 'precio_alquiler' => $data['precioFolio'] ?? null,
                 'meses_contrato' => $data['mesesContrato'] ?? null,
+            ]);
+
+            $propiedad = Propiedad::where('id', $data['idPropiedad'])->get();
+            $nombreComercial = Usuario::where('id', $data['asesor'])
+                ->value('username');
+
+            $observacion = Observaciones_propiedades::create([
+                'propiedad_id' => $data['idPropiedad'],
+                'notes' => 'Alquiló el usuario ' . $nombreComercial
+                    . ' el ' . now()->format('d/m/Y H:i')
+                    . ' por ' . $data['precioFolio'],
+                'tipo_ofera' => 'A',
+                'last_modified_by' => $data['asesor'],
             ]);
 
             // Actualizar historial con el ID del proceso
@@ -405,6 +420,15 @@ class ProcesoService
                     'last_modified_by' => $usuarioId,
                 ]);
             }
+
+            $nombreComercial = Usuario::where('id', $usuarioId)->value('username');
+            $observacion = Observaciones_propiedades::create([
+                'propiedad_id' => $propiedad->id,
+                'notes' => 'Vuelve a Ofrecimiento por reserva Caida - ' . $nombreComercial
+                    . ' el ' . now()->format('d/m/Y H:i'),
+                'tipo_ofera' => 'A',
+                'last_modified_by' => $usuarioId,
+            ]);
         }
     }
 
