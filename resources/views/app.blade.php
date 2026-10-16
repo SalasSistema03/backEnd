@@ -29,7 +29,7 @@
     />
     <!-- App -->
     <title>Salas</title>
-    <script type="module" crossorigin src="/assets/index-CB2POtfE.js"></script>
+    <script type="module" crossorigin src="/assets/index-Ba0IOzAN.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-CVrXdy01.css">
   </head>
   <body>

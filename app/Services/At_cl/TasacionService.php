@@ -81,6 +81,8 @@ class TasacionService
 
     public function precargaTasacion(Request $request): array
     {
+         /* Log::info($request);
+        dd('hola');  */
         DB::beginTransaction();
 
         try {
@@ -89,7 +91,7 @@ class TasacionService
                 'calle' => $request->id_calle,
                 'numero_calle' => $request->numeroCalle,
                 'propietario' => $request->propietarioId,
-                'fecha' => now(),
+                'fecha' => $request->fecha,
                 'tasacion_venta' => $request->tasacionVenta,
                 'tipo_tasacion' => $request->tipoTasacion,
                 'tasacion_alquiler' => $request->tasacionAlquiler,
