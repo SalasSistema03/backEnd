@@ -30,7 +30,7 @@ class RegistrosMensualesService
     }
 
     // POST
-    public function postRegistroMensualService(Request $request)
+   public function postRegistroMensualService(Request $request)
     {
         $registro = new RegistrosMensuales();
         $registro->tgi = $request->tgi;
@@ -42,14 +42,25 @@ class RegistrosMensualesService
         $registro->ascensor = $request->ascensor;
         $registro->internet = $request->internet;
         $registro->honorario = $request->honorario;
+        
+        // --- NUEVOS CAMPOS INCORPORADOS AQUÍ ---
+        $registro->extraordinaria = $request->extraordinaria;
+        $registro->otro = $request->otro;
+        $registro->otro_observaciones = $request->otro_observaciones;
+        // ---------------------------------------
+
         $registro->periodo = $request->periodo;
         $registro->id_unidad = $request->id_unidad;
+        
+        // Si tu base de datos no tiene valor por defecto, asegurate de mandar el estado 'pagado'
+        // $registro->pagado = $request->pagado ?? 'N'; 
+        
         $registro->save();
 
         return $registro;
     }
 
-    // PUT
+  // PUT
     public function modificarRegistroMensualService(int $id, array $datos)
     {
         $registro = $this->registros->findOrFail($id);

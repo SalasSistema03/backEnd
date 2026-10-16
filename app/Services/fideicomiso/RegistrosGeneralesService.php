@@ -38,6 +38,7 @@ class RegistrosGeneralesService
         $registro->honorario = $request->honorario;
         $registro->periodo = $request->periodo;
         $registro->vencimiento = $request->vencimiento;
+        $registro->extraordinaria = $request->extraordinaria;
         $registro->save();
 
         return $registro;
@@ -59,18 +60,27 @@ class RegistrosGeneralesService
     }
 
 
-    public function procesarCargaMasiva($periodo, $servicio, $montoTotal)
+    public function procesarCargaMasiva($periodo, $servicio, $montoTotal, $extraordinaria_observaciones, $fondo_reser_observaciones)
     {
         // Iniciamos la transacción para asegurar la integridad de los datos
         DB::beginTransaction();
 
         try {
             // 1. REGISTRO GENERAL: Buscamos si existe el período, si no, lo instanciamos
-            // Usamos firstOrNew para no tener que hacer un if gigante
             $registroGeneral = RegistrosGenerales::firstOrNew(['periodo' => $periodo]);
-            
-            // Asignamos el monto al campo dinámico (ej: $registroGeneral->tgi = 150000)
+
+            // Asignamos el monto al campo dinámico
             $registroGeneral->$servicio = $montoTotal;
+
+            // Mantenemos la observación existente si la nueva viene nula
+            if (!is_null($extraordinaria_observaciones)) {
+                $registroGeneral->extraordinaria_observaciones = $extraordinaria_observaciones;
+            }
+
+            if (!is_null($fondo_reser_observaciones)) {
+                $registroGeneral->fondo_reser_observaciones = $fondo_reser_observaciones;
+            }
+
             $registroGeneral->save();
 
             // 2. UNIDADES: Traemos todas las unidades para sacar sus porcentajes
@@ -78,6 +88,7 @@ class RegistrosGeneralesService
 
             // 3. REGISTROS MENSUALES: Recorremos cada unidad y repartimos
             foreach ($unidades as $unidad) {
+                // Sintaxis corregida para la multiplicación
                 $montoProporcional = $montoTotal * ($unidad->porcentual / 100);
 
                 // Buscamos si ya tiene registro para ese período, si no lo creamos
@@ -88,13 +99,23 @@ class RegistrosGeneralesService
 
                 // Asignamos el monto y guardamos
                 $registroMensual->$servicio = $montoProporcional;
+
+
+                // Evaluamos las variables que entran por parámetro, no las del modelo!
+                if (!is_null($extraordinaria_observaciones)) {
+                    $registroMensual->extraordinaria_observaciones = $extraordinaria_observaciones;
+                }
+
+                if (!is_null($fondo_reser_observaciones)) {
+                    $registroMensual->fondo_reser_observaciones = $fondo_reser_observaciones;
+                }
+
                 $registroMensual->save();
             }
 
             // Si todo salió bien, confirmamos los cambios en la DB
             DB::commit();
             return true;
-
         } catch (\Exception $e) {
             // Si algo falla, revertimos todos los inserts/updates
             DB::rollBack();

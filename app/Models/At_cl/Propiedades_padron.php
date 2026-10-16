@@ -12,7 +12,18 @@ class Propiedades_padron extends Model
 {
     use HasFactory;
     protected $table = 'propiedades_padron';
-    protected $fillable = ['padron_id', 'propiedad_id', 'last_modified_by','observaciones', 'baja', 'fecha_baja', 'observaciones_baja'];
+    protected $fillable = [
+        'padron_id',
+        'propiedad_id',
+        'last_modified_by',
+        'observaciones',
+        'baja',
+        'fecha_baja',
+        'observaciones_baja',
+        'porcentaje_titularidad',
+        'madre_cabecera_id'
+
+    ];
 
     public function propiedad()
     {

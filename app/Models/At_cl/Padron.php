@@ -25,6 +25,8 @@ class Padron extends Model
         'ciudad',
         'provincia',
         'notes',
+        'prioridad_pago',
+        'agrupar_transferencias',
         'last_modified_by'
     ];
 
