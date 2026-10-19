@@ -249,17 +249,8 @@ class SelladoController extends Controller
                 ]);
             //tiene que verificar el mes y anio con respecto a fecha_carga, este campo es tipo DATE
             if ($request->filled('mes') && $request->filled('anio')) {
-                /* Log::info('FILTRANDO FECHA', [
-                    'mes' => $request->mes,
-                    'anio' => $request->anio,
-                ]); */
                 $query->whereMonth('fecha_carga', (int) $request->mes)
                     ->whereYear('fecha_carga', (int) $request->anio);
-
-                /* Log::info('SQL', [
-                    'sql' => $query->toSql(),
-                    'bindings' => $query->getBindings(),
-                ]); */
             }
 
             if ($request->filled('folio')) {

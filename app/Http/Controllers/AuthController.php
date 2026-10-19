@@ -363,8 +363,8 @@ class AuthController extends Controller
             /*
              * Se invalida el token anterior
              */
-            JWTAuth::invalidate($token);
-
+           /*  JWTAuth::invalidate($token);
+ */
             /*
              * Se retorna el nuevo token en formato estándar
              */
@@ -381,4 +381,14 @@ class AuthController extends Controller
             return response()->json(['error' => 'No se pudo cerrar sesion'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+    /**
+ * Respuesta para peticiones sin autenticación
+ */
+public function unauthorized()
+{
+    return response()->json([
+        'message' => 'No autenticado o token inválido'
+    ], response::HTTP_UNAUTHORIZED);
+}
 }
