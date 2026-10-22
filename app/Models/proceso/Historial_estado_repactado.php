@@ -2,6 +2,7 @@
 
 namespace App\Models\proceso;
 
+use App\Models\At_cl\Propiedad;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\proceso\Estado_reserva;
 
@@ -48,12 +49,14 @@ class Historial_estado_repactado extends Model
         'condicion',
         'situacion',
         'total',
-        'porcentaje_2_ano',
-        'total_2_ano',
         'comentario_inq',
         'comentario_prop',
-        'aviso_prop',
-        'quien_guardo'
+        'quien_guardo',
+        'propiedad_id',
+        'periodo_cargado',
+        'monto_alquiler_viejo',
+        'inicio_contrato',
+        'vencimiento_contrato'
     ];
 
     /**
@@ -78,5 +81,13 @@ class Historial_estado_repactado extends Model
     public function proceso_propiedad()
     {
         return $this->belongsTo(Proceso_propiedad::class, 'id', 'id_historial_estado_repactado');
+    }
+
+
+
+    public function propiedad()
+    {
+        return $this->belongsTo(Propiedad::class, 'propiedad_id', 'id');
+        // O simplemente: return $this->belongsTo(Propiedad::class, 'propiedad_id');
     }
 }

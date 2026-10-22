@@ -299,6 +299,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/ActualizarEstadoContrato', [ProcesoController::class, 'ActualizarEstadoContrato']);
         Route::get('/getObservacionesContratoNuevo', [ProcesoController::class, 'getObservacionesContratoNuevo']);
         Route::get('/getSelladoPrecargado', [ProcesoContratoService::class, 'getSelladoPrecargado']);
+        //Proceso Repactado
+        Route::get('/getRepactadoDelMes', [ProcesoController::class, 'getRepactadoDelMes']);
+        Route::get('/getRepactadoFiltrado', [ProcesoController::class, 'getRepactadoFiltrado']);
+
 
 
         //Mapa de propiedades
@@ -346,6 +350,8 @@ Route::prefix('v1')->group(function () {
             Route::post('carga-masiva', [RegistrosGeneralesController::class, 'cargaMasivaController'])->name('carga-masiva');
             Route::post('comprobantes-pdf', [RegistrosMensualesController::class, 'comprobantesPdfController'])->name('comprobantes-pdf');
         });
+
+
 
         Route::get('/usuarios/{id}/permisos/pdf', [PermisosController::class, 'exportarPermisosPdf']);
     });

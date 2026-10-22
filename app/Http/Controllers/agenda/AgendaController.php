@@ -19,6 +19,14 @@ use Carbon\Carbon;
 use App\Models\usuarios_y_permisos\Usuario;
 
 
+/**
+ * Controlador de la agenda comercial.
+ *
+ * Gestiona la consulta de clientes por teléfono, la creación y modificación
+ * de notas, la baja lógica de eventos y la carga de agendas por sector y
+ * usuario. Las operaciones de escritura se ejecutan dentro de transacciones
+ * para mantener consistentes la nota y los historiales comerciales asociados.
+ */
 class AgendaController extends Controller
 {
     // Atributos protegidos para el ID y los datos del usuario autenticado
@@ -33,6 +41,13 @@ class AgendaController extends Controller
 
 
 
+    /**
+     * Busca clientes por coincidencia parcial de teléfono y devuelve su
+     * historial de notas con la propiedad y el asesor asociados.
+     *
+     * @param string $telefono Fragmento o número completo de teléfono.
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function buscarClientesPorTelefono($telefono)
     {
         // Cargar clientes con sus notas en una sola consulta
@@ -71,7 +86,24 @@ class AgendaController extends Controller
         return response()->json($resultado);
     }
 
-    // Método para guardar una nueva nota en la agenda
+    /**
+     * Registra una nota en la agenda y, según el sector y el criterio
+     * recibido, deja el registro correspondiente en los historiales
+     * comerciales.
+     *
+     * El proceso se ejecuta dentro de una transacción. Primero valida que
+     * exista la agenda del sector y usuario, luego crea o actualiza el cliente
+     * cuando se envía un teléfono, verifica que no haya otra nota activa en el
+     * mismo horario y finalmente crea la nota.
+     *
+     * Si llega `criterioSeleccionado`, exige una propiedad, registra la muestra
+     * en `HistorialCodMuestra` y vincula la nota al cliente del criterio. Para
+     * el sector 2 (Ventas), también registra la conversación o la muestra
+     * cuando la nota se carga con teléfono.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request)
     {
         //Log::info('llego la informacion', $request->all());
@@ -87,10 +119,10 @@ class AgendaController extends Controller
                 ->first();
 
             if (!$agenda) {
-                // Si no se encuentra la agenda, redirigir con error
+                // Si no existe la agenda, se responde con error 404.
                 return response()->json(['error' => 'No se encontró una agenda válida para este sector y usuario'], 404);
             }
-            // Redondear horas de inicio y fin
+            // Normaliza las horas recibidas para almacenarlas como HH:mm:ss.
             $horaInicioRedondeada = $request->horaInicio;
             $horaFinRedondeada = $request->horaFin;
 
@@ -125,9 +157,11 @@ class AgendaController extends Controller
                 //Log::info('cliente', ['cliente' => $cliente]);
             }
 
-            // Crear la nota con horas redondeadas
+            // Crea la nota con las horas normalizadas.
             try {
                 $nuevaHoraInicio = $horaInicioRedondeada . ':00';
+                // La nota existente ocupa el intervalo [hora_inicio, hora_fin).
+                // Hay conflicto si la nueva hora de inicio cae dentro de ese intervalo.
                 $repetida = Notas::where('fecha', $request->fecha)
                     ->where('hora_inicio', '<=', $nuevaHoraInicio)
                     ->where('hora_fin',    '>',  $nuevaHoraInicio)
@@ -179,7 +213,7 @@ class AgendaController extends Controller
 
 
                 //Log::info('despues de buscar cliente');
-                // Buscar la propiedad correspondiente al sector y usuario
+                // Busca la propiedad por su ID para registrar la muestra.
                 $propiedadNC = Propiedad::where('id', $propiedadV)->first();
                 //Log::info('despues de buscar propiedad');
                 // Buscar el nombre de la calle
@@ -202,11 +236,12 @@ class AgendaController extends Controller
                 ]);
 
                 //Log::info('despues de crear historial');
+                // El criterio ya tiene un cliente asociado; se vincula la nota a ese cliente.
                 $notas->update([
                     'cliente_id' => $busca_cliente->id_cliente
                 ]);
 
-                // Si es petición AJAX, responder con JSON
+                // Respuesta exitosa después de registrar la muestra.
                 return response()->json([
                     'success' => true,
                     //'evento' => $evento
@@ -222,11 +257,12 @@ class AgendaController extends Controller
                         'message' => 'No se encontró un cliente con ese teléfono'
                     ], 404);
                 }
-                //necesito tomar el id_criterio_venta mas grande del cliente
+                // Se toma el criterio de venta más reciente del cliente.
                 $criterio_venta = CriterioBusquedaVenta::where('id_cliente', $cliente->id_cliente)
                     ->orderBy('id_criterio_venta', 'desc')
                     ->first();
 
+                // Se registra la conversación sobre el criterio de venta más reciente.
                 HistorialCriteriosConversacion::create([
                     'id_criterio_venta' => $criterio_venta->id_criterio_venta,
                     'mensaje' => $request->descripcion ?? 'conversacion generada por agenda',
@@ -269,6 +305,17 @@ class AgendaController extends Controller
         }
     }
 
+    /**
+     * Actualiza una nota existente y, si se envía un teléfono, crea o
+     * actualiza el cliente asociado.
+     *
+     * Conserva la propiedad actual cuando la solicitud no incluye una nueva y
+     * valida el solapamiento horario excluyendo la propia nota para permitir
+     * guardar sin cambiar el horario.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function modificar(Request $request)
     {
         //Log::info('esto es lo que me llega', ['request' => $request->all()]);
@@ -328,7 +375,8 @@ class AgendaController extends Controller
                 }
             }
 
-            // Validar que no haya otra nota activa en el mismo horario (excluyendo la nota actual)
+            // Valida que no haya otra nota activa en el mismo intervalo. Se
+            // excluye la nota actual para permitir guardar sin cambiar la hora.
             $nuevaHoraInicio = $horaInicioRedondeada . ':00';
             $repetida = Notas::where('fecha', $request->fecha)
                 ->where('hora_inicio', '<=', $nuevaHoraInicio)
@@ -375,7 +423,16 @@ class AgendaController extends Controller
         }
     }
 
-    // Desactivar (eliminar lógicamente) una nota
+    /**
+     * Desactiva lógicamente una nota sin eliminarla de la base de datos.
+     *
+     * Conserva el motivo de la baja y el usuario que la realizó, y marca
+     * `activo = 0` para que deje de mostrarse en la agenda.
+     *
+     * @param int|string $id
+     * @param string $motivo
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy($id, $motivo)
     {
         // Log::info('entro', ['id' => $id, 'motivo' => $motivo]);
@@ -399,7 +456,7 @@ class AgendaController extends Controller
                     'message' => 'Evento desactivado correctamente'
                 ]);
             }
-            DB::rollBack(); // Revertir cambios ante error
+            DB::rollBack(); // La nota no existe; se revierte la transacción.
             return response()->json([
                 'success' => false,
                 'message' => 'No se encontró el evento'
@@ -415,23 +472,39 @@ class AgendaController extends Controller
 
 
 
+    /**
+     * Devuelve los sectores disponibles para asignar una agenda.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
     public function buscarSectores()
     {
         return Sectores::select('id', 'nombre')->get();
     }
 
 
+    /**
+     * Obtiene las agendas de un sector con las notas activas de una fecha y
+     * los datos del cliente y la propiedad necesarios para el tablero.
+     *
+     * Además de la nota consultada, incluye todas las notas del cliente para
+     * que el frontend pueda mostrar su historial completo.
+     *
+     * @param int|string $id_sector
+     * @param string $fecha Fecha en formato Y-m-d.
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function traerUsuarioSector($id_sector, $fecha)
     {
         $agendas = Agenda::with([
             'usuario:id,username',
 
-            // NOTAS DEL USUARIO → SOLO ACTIVAS
+            // Notas del usuario: solo las activas de la fecha consultada.
             'notas' => function ($q) use ($fecha) {
                 $q->where('fecha', $fecha)
                     ->where('activo', 1)
                     ->with([
-                        //  CLIENTE CON TODAS SUS NOTAS (SIN FILTRO)
+                        // Se incluye el cliente con todas sus notas para mostrar su historial.
                         'cliente.notas',
                         'propiedad.calle',
                         'propiedad.estadoVenta',
@@ -457,6 +530,7 @@ class AgendaController extends Controller
                         'hora_inicio' => $item->hora_inicio,
                         'hora_fin' => $item->hora_fin,
                         'activo' => $item->activo,
+                        // Se resuelve el nombre del usuario que creó la nota.
                         'creado_por' => \App\Models\usuarios_y_permisos\Usuario::find($item->creado_por)->username ?? '',
 
                         'id_cliente' => $item->cliente->id_cliente ?? '',
@@ -473,7 +547,7 @@ class AgendaController extends Controller
                         'fecha' => $item->fecha,
                         'realizado' => $item->realizado,
 
-                        //  TODAS LAS NOTAS DEL CLIENTE (activas + inactivas) ordenados por fecha mas reciente arriba
+                        // Todas las notas del cliente (activas e inactivas), de la más reciente a la más antigua.
                         'notas_cliente' => $item->cliente
                             ? $item->cliente->notas->sortByDesc(fn($n) => $n->fecha . ' ' . $n->hora_inicio)->values()->map(function ($n) {
                                 return [
@@ -496,6 +570,14 @@ class AgendaController extends Controller
         return response()->json($resultado);
     }
 
+    /**
+     * Devuelve las notas activas de las agendas del usuario autenticado.
+     *
+     * `diarias` contiene las notas de la fecha actual y `semanales` las notas
+     * posteriores; ambas incluyen la propiedad y su calle.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function traerAgendaDiaria()
     {
         $data = [];
@@ -503,13 +585,13 @@ class AgendaController extends Controller
         $fecha = now()->toDateString();
         //Log::info('fecha', ['fecha' => $fecha]);
 
-        // Obtenemos todos los sectores a los que pertenece el usuario
+        // Se obtienen las agendas del usuario para consultar sus notas por agenda_id.
         $sectores = Agenda::where('usuario_id', $usuario_id)
             ->whereNotNull('sector_id')
             ->pluck('id');
         //Log::info('sectores', ['sectores' => $sectores]);
 
-        // No necesitas un foreach. Puedes buscar todas las notas que pertenezcan a "cualquiera" de esos sectores usando whereIn.
+        // Se consultan todas las notas de cualquiera de las agendas del usuario.
         $notas = Notas::whereIn('agenda_id', $sectores)
             ->where('activo', 1)
             ->where('fecha', $fecha)
@@ -519,6 +601,7 @@ class AgendaController extends Controller
 
         $data = $notas;
 
+        // Notas futuras de las mismas agendas.
         $notasSemanales = Notas::whereIn('agenda_id', $sectores)
             ->where('activo', 1)
             ->where('fecha', '>', $fecha)

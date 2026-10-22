@@ -10,8 +10,20 @@ use App\Models\usuarios_y_permisos\Usuario;
 use App\Models\sys\Propiedades_sys;
 use App\Models\sys\Contratos_detalle_sys;
 use App\Models\agenda\Notas;
+use App\Models\proceso\Historial_estado_repactado;
 
 
+
+/**
+ * Propiedad inmobiliaria.
+ *
+ * Representa una unidad publicada para venta o alquiler. Concentra los datos
+ * físicos, la ubicación, los estados de venta y alquiler, los precios,
+ * los propietarios, las empresas asociadas y los historiales de estado.
+ *
+ * Utiliza la conexión `mysql`, correspondiente a la base de datos del sistema
+ * inmobiliario (`sistema_atcl`).
+ */
 class Propiedad extends Model
 {
     use HasFactory;
@@ -139,20 +151,53 @@ class Propiedad extends Model
         return $this->belongsTo(Calle::class, 'id_calle');
     }
 
+    /**
+     * Asesor responsable de la propiedad.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function usuarioAsesor()
     {
         return $this->belongsTo(Usuario::class, 'asesor', 'id');
     }
+
+    /**
+     * Captador interno asociado mediante el campo `captador_int`.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function usuarioCaptadorInt()
     {
         return $this->belongsTo(Usuario::class, 'captador_int', 'id');
     }
 
+    /**
+     * Historiales de estado repactado asociados a la propiedad.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function historiales_estado_repactado()
+    {
+        // hasMany(RelatedModel::class, 'foreign_key', 'local_key')
+        return $this->hasMany(Historial_estado_repactado::class, 'propiedad_id', 'id');
+    }
+
+
+    /**
+     * Captador interno de venta asociado mediante `captador_int_v`.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function usuarioCaptadorIntV()
     {
         return $this->belongsTo(Usuario::class, 'captador_int_v', 'id');
     }
 
+    /**
+     * Captador interno de alquiler asociado mediante `captador_int_a`.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function usuarioCaptadorIntA()
     {
         return $this->belongsTo(Usuario::class, 'captador_int_a', 'id');
@@ -172,10 +217,9 @@ class Propiedad extends Model
     }
 
     /**
-     * Relación con el modelo `EstadoAlquiler`.
+     * Relación con el modelo `Estado_alquiler`.
      *
-     * Establece la relación con el modelo `Estado_alquiler`, indicando que cada propiedad
-     * tiene un estado general asociado.
+     * Indica el estado de alquiler asociado a la propiedad.
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
@@ -185,10 +229,9 @@ class Propiedad extends Model
     }
 
     /**
-     * Relación con el modelo `EstadoAlquiler`.
+     * Relación con el modelo `Estado_venta`.
      *
-     * Establece la relación con el modelo `Estado_alquiler`, indicando que cada propiedad
-     * tiene un estado general asociado.
+     * Indica el estado de venta asociado a la propiedad.
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
@@ -235,6 +278,14 @@ class Propiedad extends Model
         return $this->belongsTo(Provincia::class, 'id_provincia');
     }
 
+    /**
+     * Empresas asociadas a la propiedad a través de `empresa_propiedad`.
+     *
+     * Cada vínculo incluye el folio que identifica la propiedad dentro de la
+     * empresa.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
     public function empresas()
     {
         return $this->belongsToMany(Empresas::class, 'empresa_propiedad', 'propiedad_id', 'empresa_id')
@@ -254,6 +305,11 @@ class Propiedad extends Model
         return $this->belongsTo(Zona::class, 'id_zona');
     }
 
+    /**
+     * Obtiene el precio más reciente según `created_at`.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
     public function precio()
     {
 
@@ -261,36 +317,82 @@ class Propiedad extends Model
         return $this->hasOne(Precio::class, 'propiedad_id')
             ->latest();
     }
+
+    /**
+     * Obtiene el último precio registrado según la clave primaria.
+     *
+     * `latestOfMany()` usa `id` por defecto para determinar cuál es el
+     * registro más reciente de la relación.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
     public function precioActual()
     {
-        return $this->hasOne(Precio::class, 'propiedad_id')->latestOfMany(); // ahora sí es el último según created_at
+        return $this->hasOne(Precio::class, 'propiedad_id')->latestOfMany();
     }
+
+    /**
+     * Obtiene el último precio usando la clave foránea convencional.
+     *
+     * Se utiliza para ordenar por precio y validar que la propiedad tenga un
+     * precio válido.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
     public function ultimoPrecio()
     {
         return $this->hasOne(Precio::class)->latestOfMany();
     }
 
 
+    /**
+     * Fotos asociadas a la propiedad.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function fotos()
     {
         return $this->hasMany(Foto::class);
     }
 
+    /**
+     * Videos asociados a la propiedad.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function video()
     {
         return $this->hasMany(Video::class);
     }
 
+    /**
+     * Notas activas de la agenda vinculadas a la propiedad.
+     *
+     * La tabla de notas pertenece a la conexión `mysql6`.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function Notas()
     {
         return $this->hasMany(Notas::class, 'propiedad_id')
             ->where('activo', 1);
     }
 
+    /**
+     * Documentación asociada a la propiedad.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function documentacion()
     {
         return $this->hasMany(Documentacion::class);
     }
+
+    /**
+     * Tasaciones de la propiedad, ordenadas de la más reciente a la más antigua.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function tasaciones()
     {
         return $this->hasMany(Tasacion::class, 'propiedad_id')->latest();
@@ -313,9 +415,21 @@ class Propiedad extends Model
 
 
 
+    /**
+     * Aplica los filtros de búsqueda usados por el listado y el mapa de
+     * propiedades.
+     *
+     * El valor de `busqueda` identifica el tipo de operación: 1 venta,
+     * 2 alquiler y 3 folio. Los demás filtros se combinan sobre la misma
+     * consulta.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param array $filtros
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
     public function scopeFiltrar($query, array $filtros)
     {
-        // 1. TIPO DE BÚSQUEDA (Venta o Alquiler)
+        // Filtra por tipo de operación: venta, alquiler o folio.
         if (!empty($filtros['busqueda'])) {
             if ($filtros['busqueda'] == 1) {
                 $query->whereNotNull('cod_venta');
@@ -331,7 +445,7 @@ class Propiedad extends Model
             });
         }
 
-        // 2. CÓDIGO
+        // Filtra por código según el tipo de operación.
         if (!empty($filtros['codigo'])) {
             if (!empty($filtros['busqueda'])) {
                 if ($filtros['busqueda'] == 1) {
@@ -351,7 +465,7 @@ class Propiedad extends Model
             }
         }
 
-        // 3. CALLE Y ZONAS
+        // Filtra por calle, tipo de inmueble y zona.
         if (!empty($filtros['calle_id'])) {
             $query->where('id_calle', $filtros['calle_id'])
                 ->orderBy('numero_calle', 'asc');
@@ -365,7 +479,7 @@ class Propiedad extends Model
             $query->whereIn('id_zona', $filtros['zonas']);
         }
 
-        // 4. HABITACIONES, COCHERA, MASCOTAS, CARTEL, MONEDA
+        // Filtra por cochera, mascota y cantidad de dormitorios.
         if (!empty($filtros['cochera'])) {
             $query->where('cochera', $filtros['cochera']);
         }
@@ -378,7 +492,7 @@ class Propiedad extends Model
             $query->where('cantidad_dormitorios', $filtros['habitaciones']);
         }
 
-        // NUEVOS FILTROS
+        // Filtra por cartel y moneda.
         if (isset($filtros['cartel']) && $filtros['cartel'] !== '') {
             $query->where('cartel', $filtros['cartel']);
         }
@@ -387,7 +501,7 @@ class Propiedad extends Model
             $query->where('moneda', $filtros['moneda']);
         }
 
-        // 5. RANGO DE PRECIOS
+        // Filtra por rango de precios del precio actual: venta en dólares o alquiler en pesos.
         if (!empty($filtros['desde']) || !empty($filtros['hasta'])) {
             $query->whereHas('precioActual', function ($q) use ($filtros) {
                 $q->where(function ($subQ) use ($filtros) {
@@ -420,17 +534,17 @@ class Propiedad extends Model
             });
         }
 
-        // Si el checkbox de ampliar no está marcado, filtrar por estados
+        // Si no se solicitó ampliar, se excluyen los estados finalizados o de baja.
         if (!isset($filtros['ampliar']) || $filtros['ampliar'] == 0 || $filtros['ampliar'] === false) {
             $estadosVentaExcluidos = Estado_venta::whereIn('id', ['3', '4', '5', '6', '7'])->pluck('id')->toArray();
             $estadosAlquilerExcluidos = Estado_alquiler::whereIn('id', ['3', '4', '5', '6', '7'])->pluck('id')->toArray();
 
             if (!empty($filtros['busqueda'])) {
                 if ($filtros['busqueda'] == 1) {
-                    // Para venta, excluir vendidas y baja temporal
+                    // Se excluyen los estados finalizada, baja temporal, reset, retirada y baja.
                     $query->whereNotIn('id_estado_venta', $estadosVentaExcluidos);
                 } elseif ($filtros['busqueda'] == 2) {
-                    // Para alquiler, excluir alquiladas y baja temporal
+                    // Se excluyen los estados alquilada, baja temporal, reset, pendiente y baja.
                     $query->whereNotIn('id_estado_alquiler', $estadosAlquilerExcluidos);
                 }
             } else {
@@ -444,12 +558,27 @@ class Propiedad extends Model
         return $query;
     }
 
+    /**
+     * Obtiene una propiedad con sus relaciones de ubicación, tipo y precio.
+     *
+     * @param string $id
+     * @return self
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
+     */
     public static function getPropertyDetails(string $id)
     {
         return self::with(['calle', 'zona', 'tipoInmueble', 'precio'])
             ->findOrFail($id);
     }
 
+    /**
+     * Propietarios registrados en el padrón y vinculados a la propiedad.
+     *
+     * El vínculo conserva los datos de baja y observaciones, y carga los
+     * teléfonos de cada propietario.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
     public function propietarios()
     {
         return $this->belongsToMany(Padron::class, 'propiedades_padron', 'propiedad_id', 'padron_id')
@@ -458,25 +587,55 @@ class Propiedad extends Model
             ->with('telefonos');
     }
 
+    /**
+     * Registros de la tabla `empresa_propiedad` de la propiedad.
+     *
+     * Cada registro contiene el folio y la empresa asociada.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function empresasPropiedad()
     {
         return $this->hasMany(Empresas_propiedades::class, 'propiedad_id');
     }
-    // App\Models\At_cl\Propiedad.php
+
+    /**
+     * Folios de la propiedad.
+     *
+     * Es la misma relación que `empresasPropiedad()` y se utiliza para
+     * recorrer los folios en las búsquedas de contratos.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function folios()
     {
         return $this->hasMany(Empresas_propiedades::class, 'propiedad_id');
     }
 
+    /**
+     * Observaciones asociadas a la propiedad.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function observacionesPropiedades()
     {
         return $this->hasMany(Observaciones_propiedades::class, 'propiedad_id');
     }
 
+    /**
+     * Busca las casas del sistema de contratos que coinciden con los folios
+     * de la propiedad.
+     *
+     * Por cada folio se consulta la conexión `mysql2` y se exige que la
+     * carpeta de la casa y la empresa del contrato coincidan con el vínculo.
+     *
+     * @return array
+     */
     public function buscarCasa()
     {
         $datos = [];
 
+        // Se recorren los folios cargados desde empresa_propiedad.
         foreach ($this->folios as $folio) {
             if ($folio->folio != null) {
 
@@ -487,6 +646,7 @@ class Propiedad extends Model
                     ->distinct()
                     ->get();
 
+                // Solo se agregan los folios que tienen al menos un contrato.
                 if ($casasConContrato->count() > 0) {
                     $datos[] = [
                         'id_casa' => $casasConContrato->pluck('id_casa')->toArray(),
@@ -500,6 +660,14 @@ class Propiedad extends Model
         return $datos;
     }
 
+    /**
+     * Obtiene el contrato con el id más alto entre todos los folios.
+     *
+     * En cada folio se toma el contrato con el id más alto y luego se
+     * conserva el mayor de todos.
+     *
+     * @return array
+     */
     public function buscarContratoMasReciente()
     {
         $datos = [];
@@ -507,7 +675,7 @@ class Propiedad extends Model
 
         foreach ($this->folios as $folio) {
             if ($folio->folio != null) {
-                // Obtener el contrato más alto para este folio
+                // Obtiene el contrato con el id más alto para este folio.
                 $contrato = Propiedades_sys::select('propiedades.id_casa', 'c.id_contrato_cabecera', 'c.comienza', 'c.rescicion')
                     ->join('contratos_cabecera as c', 'propiedades.id_casa', '=', 'c.id_casa')
                     ->where('propiedades.carpeta', $folio->folio)
@@ -516,7 +684,7 @@ class Propiedad extends Model
                     ->first();
 
                 if ($contrato) {
-                    // Si es el primer contrato o es más alto que el actual
+                    // Si es el primer contrato o tiene un id mayor, se reemplaza el resultado.
                     if ($contratoMasAlto === null || $contrato->id_contrato_cabecera > $contratoMasAlto->id_contrato_cabecera) {
                         $contratoMasAlto = $contrato;
                         $datos = [
@@ -535,8 +703,15 @@ class Propiedad extends Model
         return $datos;
     }
 
+    /**
+     * Obtiene el detalle con mayor monto de alquiler de un contrato.
+     *
+     * @param int|string $id_contrato_cabecera
+     * @return array|null
+     */
     public function buscarDetalleContratoMasAlto($id_contrato_cabecera)
     {
+        // Se ordena por monto para quedarse con el detalle de mayor alquiler.
         $detalle = Contratos_detalle_sys::select('monto_alquiler', 'hasta_fecha')
             ->where('id_contrato_cabecera', $id_contrato_cabecera)
             ->orderBy('monto_alquiler', 'desc')
@@ -549,8 +724,9 @@ class Propiedad extends Model
     }
 
     /**
-     * Relación con el modelo HistorialEstadosAlquiler.
-     * Una propiedad puede tener un historial de alquiler.
+     * Obtiene el último historial de estado de alquiler.
+     *
+     * `latestOfMany('id')` selecciona el registro con el id más alto.
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasOne
      */
@@ -561,8 +737,10 @@ class Propiedad extends Model
     }
 
     /**
-     * Relación con el modelo HistorialEstadosVenta.
-     * Una propiedad puede tener un historial de venta.
+     * Obtiene un registro del historial de estados de venta.
+     *
+     * La relación no define un orden, por lo que no garantiza el registro
+     * más reciente.
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasOne
      */
@@ -571,17 +749,27 @@ class Propiedad extends Model
         return $this->hasOne(HistorialEstadosVenta::class, 'id_propiedad');
     }
 
+    /**
+     * Busca propiedades por código o por nombre de calle según el sector.
+     *
+     * En Ventas se consideran los estados 1, 2 y 5; en Alquiler, los estados
+     * 1 y 2. Si el código no devuelve resultados, la búsqueda se repite por
+     * nombre de calle. En Depto.Tecnico se busca por cualquiera de los dos
+     * códigos sin filtrar por estado.
+     *
+     * @param string $codigo_calle
+     * @param string $sector
+     * @return \Illuminate\Support\Collection
+     */
     public function buscarPorCodigoCalle($codigo_calle, $sector)
     {
-        //Log::info("entro al modelo");
-        // Primero busca por código de venta exacto
         if ($sector == 'Ventas') {
+            // Busca por coincidencia parcial del código de venta.
             $propiedad = Propiedad::where('cod_venta', 'like', '%' . $codigo_calle . '%')
-                //->where('id_estado_venta', '=', 1 || 2 || 5)
                 ->whereIn('id_estado_venta', [1, 2, 5])
                 ->get();
 
-            // Si no encuentra por código, busca por nombre de calle
+            // Si no hay resultados, busca por nombre de calle.
             if (!$propiedad || $propiedad->isEmpty()) {
                 $propiedad = Propiedad::whereHas('calle', function ($query) use ($codigo_calle) {
                     $query->where('name', 'like', '%' . $codigo_calle . '%')
@@ -593,11 +781,12 @@ class Propiedad extends Model
         }
 
         if ($sector == 'Alquiler') {
+            // Busca por coincidencia parcial del código de alquiler.
             $propiedad = Propiedad::where('cod_alquiler', 'like', '%' . $codigo_calle . '%')
                 ->whereIn('id_estado_alquiler', [1, 2])
                 ->get();
 
-            // Si no encuentra por código, busca por nombre de calle
+            // Si no hay resultados, busca por nombre de calle.
             if (!$propiedad || $propiedad->isEmpty()) {
                 $propiedad = Propiedad::whereHas('calle', function ($query) use ($codigo_calle) {
                     $query->where('name', 'like', '%' . $codigo_calle . '%')
@@ -609,9 +798,12 @@ class Propiedad extends Model
         }
 
         if ($sector == 'Depto.Tecnico') {
+            // Busca por código de alquiler o de venta, sin filtro de estado.
             $propiedad = Propiedad::where('cod_alquiler', 'like', '%' . $codigo_calle . '%')
                 ->orWhere('cod_venta', 'like', '%' . $codigo_calle . '%')
                 ->get();
+
+            // Si no hay resultados, busca por nombre de calle.
             if (!$propiedad || $propiedad->isEmpty()) {
                 $propiedad = Propiedad::whereHas('calle', function ($query) use ($codigo_calle) {
                     $query->where('name', 'like', '%' . $codigo_calle . '%');
@@ -620,6 +812,7 @@ class Propiedad extends Model
             }
         }
 
+        // Normaliza los datos que se devuelven al frontend.
         $propiedad = $propiedad->map(function ($prop) {
             return [
                 'id' => $prop->id,
