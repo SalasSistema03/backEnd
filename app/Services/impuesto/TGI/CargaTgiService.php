@@ -42,7 +42,7 @@ class CargaTgiService
             //valida si el folio es compartido
             $foliosCompartidos = (new CargaImpuestoService)->detectarFoliosCompartidos($tgi_padron->partida, $tgi_padron->clave, 'tgi');
 
-            // Validación: ¿Ya existe un registro con misma partida, mes y año?
+            // Validación: ¿Ya existe un registro con la misma partida, mes y año?
 
             if ((new CargaImpuestoService)->yaFueCargado($listaCargaCompleta, $tgi_padron->id, $fecha->month, $fecha->year, 'tgi')) {
                 throw new \Exception("Ya existe un registro cargado para esta partida en el periodo {$fecha->month}/{$fecha->year}.");

@@ -34,8 +34,8 @@ class CargaGasService
         //valida si el folio es compartido
         $foliosCompartidos = (new CargaImpuestoService)->detectarFoliosCompartidos($gas_padron->partida, $gas_padron->clave, 'gas');
 
-        if ((new CargaImpuestoService)->yaFueCargado($listaCargaCompleta, $gas_padron->id, $fecha->month, $fecha->year, 'gas')) {
-            throw new \Exception("Ya existe un registro cargado para esta partida en el periodo {$fecha->month}/{$fecha->year}.");
+        if ((new CargaImpuestoService)->yaFueCargado($listaCargaCompleta, $gas_padron->id, $fecha->month, $fecha->year, 'gas', $codigoBarras)) {
+            throw new \Exception("Ya existe un registro con el mismo código de barra para esta partida en el periodo {$fecha->month}/{$fecha->year}.");
         }
 
         $vencimientoContratos = (new CargaImpuestoService)->consultaVencimientoContratos($gas_padron->folio, $gas_padron->empresa, 'gas');

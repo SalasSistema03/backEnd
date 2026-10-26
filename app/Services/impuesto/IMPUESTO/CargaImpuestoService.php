@@ -178,7 +178,7 @@ class CargaImpuestoService
     }
 
     //Esta función busca si ya se ha cargado un registro con el mismo padrón, mes y año (dentro de la tabla tgi_carga)
-    public function yaFueCargado($lista, int $idPadron, int $mes, int $anio, string $impuesto): bool
+    public function yaFueCargado($lista, int $idPadron, int $mes, int $anio, string $impuesto, ?string $codigoBarra = null): bool
     {
         if ($lista->isEmpty()) {
             return false; // no hay nada, no hace nada
@@ -192,6 +192,7 @@ class CargaImpuestoService
                     $item->periodo_anio == $anio;
             });
         }
+
         if ($impuesto === 'agua') {
             $registroExistente = $lista->first(function ($item) use ($idPadron, $mes, $anio) {
                 return $item->id_aguaPadron == $idPadron &&
@@ -200,10 +201,11 @@ class CargaImpuestoService
             });
         }
         if ($impuesto === 'gas') {
-            $registroExistente = $lista->first(function ($item) use ($idPadron, $mes, $anio) {
+            $registroExistente = $lista->first(function ($item) use ($idPadron, $mes, $anio, $codigoBarra) {
                 return $item->id_gasPadron == $idPadron &&
                     $item->periodo_mes == $mes &&
-                    $item->periodo_anio == $anio;
+                    $item->periodo_anio == $anio &&
+                    ($codigoBarra === null || $item->codigo_barra == $codigoBarra);
             });
         }
 
