@@ -30,6 +30,8 @@
                     Listado de Conversaciones
                 @elseif($pertenece === 'informeNovedades')
                     Informe Novedades
+                @elseif($pertenece === 'listadoTasaciones')
+                    Listado de Tasaciones
                 @else
                     Listado {{ $sector }}
                 @endif
@@ -66,6 +68,9 @@
 
                 @isset($contadorPropiedades)
                     <div>Total de Propiedades: {{ $contadorPropiedades }}</div>
+                @endisset
+                @isset($contadorTasaciones)
+                    <div>Total de Tasaciones: {{ $contadorTasaciones }}</div>
                 @endisset
                 @isset($conteoPorTipoArray)
                     @foreach ($conteoPorTipoArray as $tipo => $cantidad)
@@ -1085,6 +1090,68 @@
                         </tbody>
                     </table>
                 </div>
+
+        @elseif($pertenece === 'listadoTasaciones')
+            <div class="col-md-12">
+                <table class="table table-striped w-100">
+                    <thead class="listado_tabla_titulo">
+                        <tr>
+                            <th>Inmueble</th>
+                            <th>Calle</th>
+                            <th>Nº</th>
+                            <th>Piso / Depto</th>
+                            <th>Folio</th>
+                            <th>Propietario</th>
+                            <th>Ingreso</th>
+                            <th>Tipo Tasación</th>
+                            <th>Tasación Venta</th>
+                            <th>Tasación Alquiler</th>
+                            <th>Costo Tasación</th>
+                            <th>Tasador</th>
+                            <th>Tasación Informada Prop</th>
+                            <th>Fecha</th>
+                            <th>Observaciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="listado_tabla">
+                        @foreach ($tasaciones as $tasacion)
+                            <tr>
+                                <td>{{ $tasacion->tipoInmueble->inmueble ?? '-' }}</td>
+                                <td>{{ $tasacion->calleRelacion->name ?? '-' }}</td>
+                                <td>{{ $tasacion->numero_calle ?? '-' }}</td>
+                                <td>
+                                    @if ($tasacion->piso || $tasacion->departamento)
+                                        {{ $tasacion->piso ?? '' }}
+                                        @if ($tasacion->piso && $tasacion->departamento)
+                                            /
+                                        @endif
+                                        {{ $tasacion->departamento ?? '' }}
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                                <td>{{ $tasacion->folio ?? '-' }}</td>
+                                <td>
+                                    @if ($tasacion->propietarioRelacion)
+                                        {{ trim(($tasacion->propietarioRelacion->apellido ?? '') . ', ' . ($tasacion->propietarioRelacion->nombre ?? ''), ', ') }}
+                                    @else
+                                        {{ $tasacion->propietario ?? '-' }}
+                                    @endif
+                                </td>
+                                <td>{{ $tasacion->origen ?? '-' }}</td>
+                                <td>{{ $tasacion->tipo_tasacion ?? '-' }}</td>
+                                <td>{{ $tasacion->tasacion_venta ? 'U$S ' . number_format((float) $tasacion->tasacion_venta, 0, ',', '.') : '-' }}</td>
+                                <td>{{ $tasacion->tasacion_alquiler ? '$ ' . number_format((float) $tasacion->tasacion_alquiler, 0, ',', '.') : '-' }}</td>
+                                <td>{{ $tasacion->costo_tasacion ? '$ ' . number_format((float) $tasacion->costo_tasacion, 0, ',', '.') : '-' }}</td>
+                                <td>{{ $tasacion->tasadorSector->usuario->username ?? '-' }}</td>
+                                <td>{{ $tasacion->tasacion_informada_prop ?? '-' }}</td>
+                                <td>{{ $tasacion->fecha ? \Carbon\Carbon::parse($tasacion->fecha)->format('d/m/Y') : '-' }}</td>
+                                <td>{{ $tasacion->observaciones ?? '-' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
 
         @endif
     </div>

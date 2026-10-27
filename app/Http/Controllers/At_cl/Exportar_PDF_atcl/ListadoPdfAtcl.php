@@ -7,6 +7,7 @@ use App\Models\At_cl\Estado_alquiler;
 use App\Models\At_cl\Observaciones_propiedades;
 use App\Models\At_cl\Propiedad;
 use App\Models\At_cl\Propiedades_padron;
+use App\Models\At_cl\Tasaciones;
 use App\Models\usuarios_y_permisos\Usuario;
 use App\Services\At_cl\FiltrosPdfService;
 use Illuminate\Http\Request;
@@ -1196,6 +1197,75 @@ class ListadoPdfAtcl
                 'sector',
                 'contadorPropiedades',
                 'conteoPorTipoArray'
+            ))->render();
+        }
+
+        if ($pertenece === 'listadoTasaciones') {
+            $query = Tasaciones::with([
+                'tipoInmueble',
+                'calleRelacion',
+                'propietarioRelacion',
+                'localidad',
+                'tasadorSector.usuario',
+            ]);
+
+            if ($request->filled('calle')) {
+                $query->where('calle', $request->calle);
+            } elseif ($request->filled('calle_busqueda')) {
+                $calleBusqueda = $request->calle_busqueda;
+                $query->whereHas('calleRelacion', function ($q) use ($calleBusqueda) {
+                    $q->where('name', 'like', '%' . $calleBusqueda . '%');
+                });
+            }
+
+            if ($request->filled('propietario')) {
+                $query->where('propietario', $request->propietario);
+            } elseif ($request->filled('propietario_busqueda')) {
+                $propietarioBusqueda = $request->propietario_busqueda;
+                $query->whereHas('propietarioRelacion', function ($q) use ($propietarioBusqueda) {
+                    $q->where('nombre', 'like', '%' . $propietarioBusqueda . '%')
+                        ->orWhere('apellido', 'like', '%' . $propietarioBusqueda . '%')
+                        ->orWhere('documento', 'like', '%' . $propietarioBusqueda . '%');
+                });
+            }
+
+            if ($request->filled('tipo_inmueble')) {
+                $query->where('tipo_inmueble', $request->tipo_inmueble);
+            }
+
+            if ($request->filled('tipo_tasacion')) {
+                $query->where('tipo_tasacion', $request->tipo_tasacion);
+            }
+
+            if ($request->filled('tasador')) {
+                $query->where('tasador', $request->tasador);
+            }
+
+            if ($request->filled('tasacion_informada_prop')) {
+                $query->where('tasacion_informada_prop', $request->tasacion_informada_prop);
+            }
+
+            if ($request->filled('fecha_desde')) {
+                $query->whereDate('fecha', '>=', $request->fecha_desde);
+            }
+
+            if ($request->filled('fecha_hasta')) {
+                $query->whereDate('fecha', '<=', $request->fecha_hasta);
+            }
+
+            $tasaciones = $query->orderByDesc('fecha')->orderByDesc('id')->get();
+            $contadorTasaciones = $tasaciones->count();
+
+            $usuario_id = auth('api')->id();
+            $authUser = $usuario_id ? Usuario::find($usuario_id) : null;
+            $username = $authUser->username ?? '-';
+
+            $html = view('pdfs.atcl.listadoPropiedad', compact(
+                'tasaciones',
+                'username',
+                'pertenece',
+                'sector',
+                'contadorTasaciones'
             ))->render();
         }
 
