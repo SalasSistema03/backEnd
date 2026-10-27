@@ -44,7 +44,6 @@ class Historial_estado_repactado extends Model
         'nuevo_valor_alquiler',
         'fecha_cierre',
         'gestor',
-        'nombre',
         'observaciones_estado',
         'condicion',
         'situacion',
@@ -55,8 +54,11 @@ class Historial_estado_repactado extends Model
         'propiedad_id',
         'periodo_cargado',
         'monto_alquiler_viejo',
+        'monto_documento',
+        'reconocimiento',
         'inicio_contrato',
         'vencimiento_contrato'
+
     ];
 
     /**

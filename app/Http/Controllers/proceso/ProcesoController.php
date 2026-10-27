@@ -498,4 +498,58 @@ class ProcesoController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Estados de repactado (GET /getEstadosRepactado).
+     *
+     * Devuelve el catálogo estado_repactado para el select del modal.
+     */
+    public function getEstadosRepactado()
+    {
+        try {
+            return response()->json([
+                'success' => true,
+                'data' => (new RepactadoService())->getEstados(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error getEstadosRepactado: ' . $e->getMessage(), ['exception' => $e]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error al obtener los estados de repactado.',
+                'error' => 'Ocurrió un error al obtener los estados de repactado.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Actualiza un repactado (PUT /updateRepactado).
+     *
+     * Delega en RepactadoService la actualización de los campos editables y el
+     * cálculo del total y de la fecha de cierre.
+     */
+    public function updateRepactado(Request $request)
+    {
+        try {
+            $resultado = (new RepactadoService())->updateRepactado($request);
+
+            return response()->json($resultado);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'error' => $e->getMessage(),
+            ], 400);
+        } catch (\Exception $e) {
+            Log::error('Error updateRepactado: ' . $e->getMessage(), ['exception' => $e]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error al actualizar el repactado.',
+                'error' => 'Ocurrió un error al actualizar el repactado.',
+            ], 500);
+        }
+    }
 }

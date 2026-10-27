@@ -302,6 +302,8 @@ Route::prefix('v1')->group(function () {
         //Proceso Repactado
         Route::get('/getRepactadoDelMes', [ProcesoController::class, 'getRepactadoDelMes']);
         Route::get('/getRepactadoFiltrado', [ProcesoController::class, 'getRepactadoFiltrado']);
+        Route::get('/getEstadosRepactado', [ProcesoController::class, 'getEstadosRepactado']);
+        Route::put('/updateRepactado', [ProcesoController::class, 'updateRepactado']);
 
 
 
