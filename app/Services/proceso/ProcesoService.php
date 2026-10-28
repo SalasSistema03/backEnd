@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use App\Models\At_cl\Empresas_propiedades;
 use App\Models\At_cl\Observaciones_propiedades;
 use App\Models\cliente\Usuario_sector;
@@ -114,8 +115,10 @@ class ProcesoService
     {
         $extension = strtolower($file->getClientOriginalExtension());
 
-        if (!in_array($extension, ['pdf', 'jpg', 'jpeg'])) {
-            throw new \InvalidArgumentException('Formato de comprobante no válido.');
+        if (!in_array($extension, ['pdf', 'jpg', 'jpeg', 'png'])) {
+            throw ValidationException::withMessages([
+                'comprobante' => 'El comprobante debe ser un archivo PDF, JPG, JPEG o PNG.',
+            ]);
         }
 
         $year = date('Y', strtotime($fechaReserva ?? now()));

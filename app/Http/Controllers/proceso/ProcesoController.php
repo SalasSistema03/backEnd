@@ -52,6 +52,56 @@ class ProcesoController extends Controller
      */
     public function subirReservas(Request $request)
     {
+        $request->validate([
+            'asesor' => 'required|integer',
+            'fechaReserva' => 'required|date',
+            'fechaFinReserva' => 'required|date|after_or_equal:fechaReserva',
+            'idCliente' => 'nullable|integer',
+            'telefono' => 'required|string|max:50',
+            'nombreCliente' => 'nullable|string',
+            'nombreReservante' => 'nullable|string|max:255',
+            'idPropiedad' => 'required|integer',
+            'codigo' => 'required|string|max:100',
+            'direccion' => 'nullable|string',
+            'folio' => 'nullable',
+            'tipo' => 'required|in:EFECTIVO,TRANSFERENCIA',
+            'moneda' => 'required|in:$,U$D',
+            'montoReserva' => 'required|numeric|min:0',
+            'precioFolio' => 'nullable|numeric',
+            'mesesContrato' => 'nullable|integer|min:1|max:120',
+            'comprobante' => 'nullable|required_if:tipo,TRANSFERENCIA|file|mimes:pdf,jpg,jpeg,png|max:10240',
+        ], [
+            'asesor.required' => 'Debe seleccionar un asesor.',
+            'asesor.integer' => 'El asesor seleccionado no es válido.',
+            'fechaReserva.required' => 'La fecha de reserva es obligatoria.',
+            'fechaReserva.date' => 'La fecha de reserva no tiene un formato válido.',
+            'fechaFinReserva.required' => 'La fecha de fin de reserva es obligatoria.',
+            'fechaFinReserva.date' => 'La fecha de fin de reserva no tiene un formato válido.',
+            'fechaFinReserva.after_or_equal' => 'La fecha de fin de reserva debe ser posterior o igual a la fecha de reserva.',
+            'idCliente.integer' => 'El cliente seleccionado no es válido.',
+            'telefono.required' => 'El teléfono es obligatorio.',
+            'telefono.max' => 'El teléfono no puede superar los 50 caracteres.',
+            'nombreReservante.max' => 'El nombre del reservante no puede superar los 255 caracteres.',
+            'idPropiedad.required' => 'Debe seleccionar una propiedad.',
+            'idPropiedad.integer' => 'La propiedad seleccionada no es válida.',
+            'codigo.required' => 'El código de propiedad es obligatorio.',
+            'codigo.max' => 'El código de propiedad no puede superar los 100 caracteres.',
+            'tipo.required' => 'Debe seleccionar el tipo de reserva.',
+            'tipo.in' => 'El tipo de reserva debe ser EFECTIVO o TRANSFERENCIA.',
+            'moneda.required' => 'Debe seleccionar la moneda.',
+            'moneda.in' => 'La moneda debe ser $ o U$D.',
+            'montoReserva.required' => 'El monto de reserva es obligatorio.',
+            'montoReserva.numeric' => 'El monto de reserva debe ser un número.',
+            'montoReserva.min' => 'El monto de reserva no puede ser negativo.',
+            'precioFolio.numeric' => 'El precio del alquiler debe ser un número.',
+            'mesesContrato.integer' => 'Los meses de contrato deben ser un número entero.',
+            'mesesContrato.min' => 'Los meses de contrato deben ser al menos 1.',
+            'comprobante.required_if' => 'El comprobante es obligatorio para reservas por transferencia.',
+            'comprobante.file' => 'El comprobante no es un archivo válido.',
+            'comprobante.mimes' => 'El comprobante debe ser un archivo PDF, JPG, JPEG o PNG.',
+            'comprobante.max' => 'El comprobante no puede superar los 10 MB.',
+        ]);
+
         DB::beginTransaction();
         try {
 
@@ -71,6 +121,9 @@ class ProcesoController extends Controller
                 'success' => true,
                 'path' => $result['comprobantePath']
             ], 201);
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            throw $e;
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error subirReservas: ' . $e->getMessage(), ['exception' => $e]);
