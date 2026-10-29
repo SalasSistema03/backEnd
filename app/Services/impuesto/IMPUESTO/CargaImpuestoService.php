@@ -230,11 +230,44 @@ class CargaImpuestoService
             ->get();
     }
 
+    //Normaliza y valida el motivo de una carga manual
+    private function normalizarOrigenCarga($origen): ?string
+    {
+        if ($origen === null || $origen === '') {
+            return null;
+        }
+
+        $origen = strtoupper(trim((string) $origen));
+
+        if (!in_array($origen, ['NORMAL', 'VENCIDA', 'FUERA_BROCHE'], true)) {
+            throw new \Exception('Motivo de carga no válido.');
+        }
+
+        return $origen;
+    }
+
+    //Excluye de los flujos normales los registros que van a broches especiales
+    private function aplicarFiltroOrigenComun($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNull('origen_carga')
+                ->orWhereNotIn('origen_carga', ['VENCIDA', 'FUERA_BROCHE']);
+        });
+    }
+
+    //Indica si una etiqueta de num_broche pertenece a un broche especial
+    private function esBrocheEspecial($numeroBroche): bool
+    {
+        return is_string($numeroBroche) &&
+            (str_starts_with($numeroBroche, 'VENCIDAS') || str_starts_with($numeroBroche, 'FUERA BROCHE'));
+    }
+
     //Este metodo carga un nuevo registro de la tabla tgi_carga manual
     public function cargarNuevoImpuestoManual(Request $request)
     {
 
         try {
+            $origenCarga = $this->normalizarOrigenCarga($request->origen_carga);
             $listaCargaCompleta = $this->obtenerRegistros($request->impuesto)->get();
             $padron = $this->buscarImpuestoPorPartida($request->partida, $request->impuesto);
             $fecha = Carbon::parse($request->fecha_vencimiento);
@@ -271,6 +304,8 @@ class CargaImpuestoService
                     'periodo_anio' => $fecha->year,
                     'periodo_mes' => $fecha->month,
                     'num_broche' => null,
+                    'origen_carga' => $origenCarga,
+                    'bajado' => 'N',
                     'comienza' => $vencimientoContratos[0]->comienza,
                     'rescicion' => $vencimientoContratos[0]->rescicion,
                     'id_tgiPadron' => $padron->id,
@@ -287,6 +322,8 @@ class CargaImpuestoService
                         'periodo_anio' => $fecha->year,
                         'periodo_mes' => $fecha->month,
                         'num_broche' => null,
+                        'origen_carga' => $origenCarga,
+                        'bajado' => 'N',
                         'comienza' => $vencimientoContratos[0]->comienza,
                         'rescicion' => $vencimientoContratos[0]->rescicion,
                         'id_gasPadron' => $padron->id,
@@ -309,6 +346,8 @@ class CargaImpuestoService
                     'periodo_anio' => $fecha->year,
                     'periodo_mes' => $fecha->month,
                     'num_broche' => null,
+                    'origen_carga' => $origenCarga,
+                    'bajado' => 'N',
                     'comienza' => $vencimientoContratos[0]->comienza,
                     'rescicion' => $vencimientoContratos[0]->rescicion,
                     'id_aguaPadron' => $padron->id,
@@ -323,11 +362,30 @@ class CargaImpuestoService
                     'periodo_anio' => $fecha2->year,
                     'periodo_mes' => $fecha2->month,
                     'num_broche' => null,
+                    'origen_carga' => $origenCarga,
+                    'bajado' => 'N',
                     'comienza' => $vencimientoContratos[0]->comienza,
                     'rescicion' => $vencimientoContratos[0]->rescicion,
                     'id_aguaPadron' => $padron->id,
                 ];
                 $nuevoRegistro = Agua_carga::create($registro2);
+            }
+            if ($request->impuesto === 'api') {
+                $registro = [
+                    'codigo_barra' => null,
+                    'importe' => $request->importe,
+                    'compartidos' => json_encode($foliosCompartidos),
+                    'fecha_vencimiento' => $request->fecha_vencimiento,
+                    'periodo_anio' => $fecha->year,
+                    'periodo_mes' => $fecha->month,
+                    'num_broche' => null,
+                    'origen_carga' => $origenCarga,
+                    'bajado' => 'N',
+                    'comienza' => $vencimientoContratos[0]->comienza,
+                    'rescicion' => $vencimientoContratos[0]->rescicion,
+                    'id_apiPadron' => $padron->id,
+                ];
+                $nuevoRegistro = Api_carga::create($registro);
             }
 
 
@@ -505,9 +563,10 @@ class CargaImpuestoService
         $fechaFiltro = Carbon::createFromDate((int) $anio, (int) $mes, (int) $dia)->format('Y-m-d');
         //obtenemos el modelo
         $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
-        //traemos los datos que coinciden con la fecha
-        $registros = $modelo::whereDate('fecha_vencimiento', $fechaFiltro)
-            ->get();
+        //traemos los datos que coinciden con la fecha (sin los broches especiales)
+        $registros = $this->aplicarFiltroOrigenComun(
+            $modelo::whereDate('fecha_vencimiento', $fechaFiltro)
+        )->get();
 
         // Filtrar registros que:
         // - NO tengan folios 50xxx
@@ -559,13 +618,14 @@ class CargaImpuestoService
     public function sumarMontosService($anio, $mes, $impuesto)
     {
 
-        // Obtener registros del período
+        // Obtener registros del período (sin los broches especiales)
         $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
-        $registros = $modelo::where('periodo_anio', $anio)
-            ->where('periodo_mes', $mes)
-            //->where('num_broche', null)
-            ->where('bajado', 'N')
-            ->get();
+        $registros = $this->aplicarFiltroOrigenComun(
+            $modelo::where('periodo_anio', $anio)
+                ->where('periodo_mes', $mes)
+                //->where('num_broche', null)
+                ->where('bajado', 'N')
+        )->get();
 
 
 
@@ -625,11 +685,12 @@ class CargaImpuestoService
     public function sumarMontosSalasService($anio, $mes, $impuesto)
     {
 
-        // Obtener registros del período
+        // Obtener registros del período (sin los broches especiales)
         $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
-        $registros = $modelo::where('periodo_anio', $anio)
-            ->where('periodo_mes', $mes)
-            ->get();
+        $registros = $this->aplicarFiltroOrigenComun(
+            $modelo::where('periodo_anio', $anio)
+                ->where('periodo_mes', $mes)
+        )->get();
 
 
         $total = $registros->filter(function ($registro) {
@@ -665,13 +726,14 @@ class CargaImpuestoService
 
     public function sumarMontosSeguirPagandoService($anio, $mes, $impuesto)
     {
-        // Obtener registros del período
+        // Obtener registros del período (sin los broches especiales)
         $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
-        $registros = $modelo::where('periodo_anio', $anio)
-            ->where('periodo_mes', $mes)
-            //->where('num_broche', null)
-            ->where('bajado', 'N')
-            ->get();
+        $registros = $this->aplicarFiltroOrigenComun(
+            $modelo::where('periodo_anio', $anio)
+                ->where('periodo_mes', $mes)
+                //->where('num_broche', null)
+                ->where('bajado', 'N')
+        )->get();
 
         // Filtrar registros que:
         // - NO tengan folios 50xxx
@@ -804,6 +866,8 @@ class CargaImpuestoService
             ->whereDay('fecha_vencimiento', $dia)
             ->where('bajado', 'S')
             ->whereNotNull('num_broche')
+            ->where('num_broche', 'not like', 'VENCIDAS%')
+            ->where('num_broche', 'not like', 'FUERA BROCHE%')
             ->orderByRaw("CAST(SUBSTRING_INDEX(num_broche, '°', -1) AS UNSIGNED) DESC")
             ->value('num_broche');
 
@@ -1187,6 +1251,90 @@ class CargaImpuestoService
         }
     }
 
+    //Arma un broche especial (VENCIDA o FUERA_BROCHE) por período.
+    //No divide por importe: todas las boletas del motivo y período van al mismo broche.
+    public function armarBrocheEspecial($anio, $mes, $impuesto, $motivo)
+    {
+        $motivo = strtoupper(trim((string) $motivo));
+
+        if (!in_array($motivo, ['VENCIDA', 'FUERA_BROCHE'], true)) {
+            throw new \Exception('Motivo de broche especial no válido.');
+        }
+
+        $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
+
+        $registros = $modelo::where('periodo_anio', $anio)
+            ->where('periodo_mes', $mes)
+            ->where('origen_carga', $motivo)
+            ->where(function ($q) {
+                $q->whereNull('bajado')->orWhere('bajado', '!=', 'S');
+            })
+            ->get();
+
+        if ($registros->isEmpty()) {
+            return [
+                'status' => 'success',
+                'num_broche' => null,
+                'cantidad' => 0,
+                'total' => 0,
+                'message' => 'No hay boletas para armar con ese motivo.',
+            ];
+        }
+
+        $prefijo = $motivo === 'VENCIDA' ? 'VENCIDAS' : 'FUERA BROCHE';
+
+        // Si ya existe un broche especial no bajado para el período, se reutiliza su etiqueta.
+        $etiquetaExistente = $modelo::where('periodo_anio', $anio)
+            ->where('periodo_mes', $mes)
+            ->where('origen_carga', $motivo)
+            ->whereNotNull('num_broche')
+            ->where(function ($q) {
+                $q->whereNull('bajado')->orWhere('bajado', '!=', 'S');
+            })
+            ->value('num_broche');
+
+        if ($etiquetaExistente) {
+            $etiqueta = $etiquetaExistente;
+        } else {
+            // Numerar a partir de los broches especiales ya bajados.
+            $etiquetasBajadas = $modelo::where('periodo_anio', $anio)
+                ->where('periodo_mes', $mes)
+                ->where('origen_carga', $motivo)
+                ->where('bajado', 'S')
+                ->whereNotNull('num_broche')
+                ->pluck('num_broche');
+
+            $maximo = 0;
+            foreach ($etiquetasBajadas as $etiquetaBajada) {
+                if (preg_match('/N°(\d+)/', $etiquetaBajada, $coincidencias)) {
+                    $maximo = max($maximo, (int) $coincidencias[1]);
+                }
+            }
+
+            $etiqueta = $prefijo . ' - N°' . ($maximo + 1);
+        }
+
+        $usuarioId = auth('api')->id();
+
+        foreach ($registros as $registro) {
+            $modelo::where('id', $registro->id)->update([
+                'num_broche' => $etiqueta,
+                'armado' => $usuarioId,
+            ]);
+        }
+
+        $total = round($registros->sum(function ($registro) {
+            return (float) str_replace(',', '.', $registro->importe);
+        }), 2);
+
+        return [
+            'status' => 'success',
+            'num_broche' => $etiqueta,
+            'cantidad' => $registros->count(),
+            'total' => $total,
+        ];
+    }
+
     //Este servicio guarda el valor "salas" en la columna num_broche de tgi_carga
     // SOLO PARA REGISTROS QUE TENGAN FOLIOS 50000 EN ADELANTE
     //Si el registro está bajado en "S", lo descartamos
@@ -1194,9 +1342,10 @@ class CargaImpuestoService
     {
         $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
 
-        $registros = $modelo::where('periodo_anio', $anio)
-            ->where('periodo_mes', $mes)
-            ->get();
+        $registros = $this->aplicarFiltroOrigenComun(
+            $modelo::where('periodo_anio', $anio)
+                ->where('periodo_mes', $mes)
+        )->get();
 
         $registrosFiltrados = $registros->filter(function ($registro) {
             $compartidos = json_decode($registro->compartidos, true);
@@ -1238,10 +1387,11 @@ class CargaImpuestoService
     {
         $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
 
-        $registros = $modelo::where('periodo_anio', $anio)
-            ->where('periodo_mes', $mes)
-            ->with('padron')
-            ->get();
+        $registros = $this->aplicarFiltroOrigenComun(
+            $modelo::where('periodo_anio', $anio)
+                ->where('periodo_mes', $mes)
+                ->with('padron')
+        )->get();
 
         $registrosFiltrados = $registros->filter(function ($registro) {
             // Descartar si ya fue bajado
@@ -1377,6 +1527,13 @@ class CargaImpuestoService
         //Log::info($datos);
         //dd('hola');
         $modelo = $this->obtenerModeloCargaPorImpuesto($datos['impuesto']);
+
+        if ($this->esBrocheEspecial($datos['numero_broche'] ?? null)) {
+            $modelo::where('num_broche', $datos['numero_broche'])
+                ->update(['num_broche' => null]);
+            return response()->json(['message' => 'Broche especial rechazado correctamente'], 200);
+        }
+
         if ($datos['impuesto'] === 'api' || $datos['impuesto'] === 'gas') {
             $modelo::where('fecha_vencimiento', $datos['fecha_vencimiento'])
                 ->update(['num_broche' => null]);
@@ -1403,6 +1560,12 @@ class CargaImpuestoService
     {
         $modelo = $this->obtenerModeloCargaPorImpuesto($datos['impuesto']);
         $usuarioId = auth('api')->id();
+
+        if ($this->esBrocheEspecial($datos['numero_broche'] ?? null)) {
+            $modelo::where('num_broche', $datos['numero_broche'])
+                ->update(['bajado' => 'S', 'controlado' => $usuarioId]);
+            return response()->json(['message' => 'Broche especial bajado correctamente'], 200);
+        }
 
         if ($datos['impuesto'] === 'api' || $datos['impuesto'] === 'gas') {
 

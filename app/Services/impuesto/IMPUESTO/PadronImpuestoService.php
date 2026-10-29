@@ -25,19 +25,41 @@ class PadronImpuestoService
 
     public function actualizarPadronImpuesto($impuesto)
     {
-        $this->actualizarPadron($impuesto);
+        return $this->actualizarPadron($impuesto);
     }
 
     public function actualizarPadron($impuesto)
     {
         if ($impuesto === 'tgi' || $impuesto === 'agua' || $impuesto === 'api') {
             $this->obtenerPadron($impuesto);
-            return response()->json(['message' => 'Padrón ' . strtoupper($impuesto) . ' actualizado correctamente.']);
+            return response()->json([
+                'message' => 'Padrón ' . strtoupper($impuesto) . ' actualizado correctamente.',
+                'ultimo_periodo' => $this->obtenerUltimoPeriodo($impuesto),
+            ]);
         }
         if ($impuesto === 'gas') {
             $this->obtenerPadronServicio($impuesto);
-            return response()->json(['message' => 'Padrón ' . strtoupper($impuesto) . ' actualizado correctamente.']);
+            return response()->json([
+                'message' => 'Padrón ' . strtoupper($impuesto) . ' actualizado correctamente.',
+                'ultimo_periodo' => $this->obtenerUltimoPeriodo($impuesto),
+            ]);
         }
+    }
+
+    public function obtenerUltimoPeriodo($impuesto)
+    {
+        $columna = [
+            'tgi' => 'ultima_fecha_tgi',
+            'agua' => 'ultima_fecha_agua',
+            'gas' => 'ultima_fecha_gas',
+            'api' => 'ultima_fecha_api',
+        ][$impuesto] ?? null;
+
+        if (!$columna) {
+            return null;
+        }
+
+        return boton_actualizado::query()->value($columna);
     }
 
     private function calcularEstadoGas($rescicion, $hoy)
@@ -293,7 +315,7 @@ class PadronImpuestoService
 
             boton_actualizado::query()->update([
                 'ultima_fecha_api' => Carbon::parse($fechapi)
-                    ->addMonthNoOverflow()
+                    ->addMonthsNoOverflow(2)
                     ->toDateString(),
             ]);
         }

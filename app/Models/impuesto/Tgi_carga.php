@@ -28,6 +28,7 @@ class Tgi_carga extends Model
         'periodo_anio',
         'periodo_mes',
         'num_broche',
+        'origen_carga',
         'comienza',
         'rescicion',
         'bajado',

@@ -42,6 +42,26 @@ class PdfImpuestoController
         return response()->json($data);
     }
 
+    //Exportación de broches especiales (VENCIDA / FUERA_BROCHE)
+    public function PDF_BrocheEspecial(Request $request)
+    {
+        try {
+            $data = (new PdfImpuesto)->obtenerRegistrosPorMotivo(
+                $request->anio,
+                $request->mes,
+                $request->impuesto,
+                $request->motivo
+            );
+
+            return response()->json($data);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
     public function descargaPdf(Request $request)
     {
         // Log::info('entro');
@@ -50,23 +70,27 @@ class PdfImpuestoController
         $anio = $request->input('anio');
         $mes = $request->input('mes');
         $impuesto = $request->input('impuesto');
+        $motivo = $request->input('motivo');
         $usuario_id = auth('api')->id();
         $username = Usuario::where('id', $usuario_id)->first()->username;
         //Log::info('informacion del broche', ['broches' => $broches, 'anio' => $anio, 'mes' => $mes, 'impuesto' => $impuesto, 'request' => $request->all()]);
 
+        $tituloPdf = $motivo ? 'Broches ' . str_replace('_', ' ', $motivo) : 'Broches de Impuestos';
+        $nombreArchivo = ($motivo ? strtolower($motivo) . '_' : 'broches_') . "{$anio}_{$mes}.pdf";
+
         // Generamos el HTML usando una vista de Blade limpia
         $html = view('pdfs.broches', compact('broches', 'anio', 'mes', 'impuesto'))->render();
 
-        return response()->streamDownload(function () use ($html, $username) {
+        return response()->streamDownload(function () use ($html, $username, $tituloPdf) {
             echo \Spatie\Browsershot\Browsershot::html($html)
                 ->format('A4')
                 ->margins(10, 10, 10, 10)
                 ->emulateMedia('screen')
                 ->showBackground()
                 ->setOption('displayHeaderFooter', true)
-                ->setOption('headerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Broches de Impuestos</span><span style="text-align:right;" class="date"></span></div>')
+                ->setOption('headerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">' . $tituloPdf . '</span><span style="text-align:right;" class="date"></span></div>')
                 ->setOption('footerTemplate', '<div style="font-size:10px; color:#666; width:100%; display:flex; justify-content:space-between; padding:0 20px;"><span style="text-align:left;">Salas Inmobiliaria</span><span style="text-align:right;">' . $username . '</span></div>')
                 ->pdf();
-        }, "broches_{$anio}_{$mes}.pdf");
+        }, $nombreArchivo);
     }
 }

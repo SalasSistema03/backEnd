@@ -18,6 +18,12 @@ use Carbon\Carbon;
 class PdfImpuesto
 {
 
+    //Indica si el registro pertenece a un broche especial (no debe salir en los PDFs comunes)
+    private function esRegistroEspecial($registro): bool
+    {
+        return in_array($registro->origen_carga ?? null, ['VENCIDA', 'FUERA_BROCHE'], true);
+    }
+
     //Este servicio se consume en la EXPORTACION DE PDF
     //Este servicio obtiene todos los registros por, año, mes y ordenado por folio separados por grupos de num_broche
     //  -- IMPORTANTE  --  SOLO ARMA BROCHE PARA REGISTROS QUE NO TENGAN FOLIOS 50000 EN ADELANTE
@@ -35,6 +41,9 @@ class PdfImpuesto
         //    - NO tengan folios >= 50000 en compartidos
         //    - Y tengan num_broche distinto de null
         $registrosFiltrados = $registros->filter(function ($registro) {
+            if ($this->esRegistroEspecial($registro)) {
+                return false; // Los broches especiales tienen su propia exportación
+            }
             if (is_null($registro->num_broche)) {
                 return false; // Excluir si num_broche es null
             }
@@ -156,6 +165,10 @@ class PdfImpuesto
 
         // 2️⃣ Filtrar registros que tengan al menos un folio >= 50000
         $registrosFiltrados = $registros->filter(function ($registro) {
+            if ($this->esRegistroEspecial($registro)) {
+                return false; // Los broches especiales tienen su propia exportación
+            }
+
             $compartidos = json_decode($registro->compartidos, true);
 
             if (!is_array($compartidos)) return false;
@@ -236,6 +249,10 @@ class PdfImpuesto
             ->get();
 
         $registrosFiltrados = $registros->filter(function ($registro) {
+            if ($this->esRegistroEspecial($registro)) {
+                return false; // Los broches especiales tienen su propia exportación
+            }
+
             // Descartar si ya fue bajado
             if (isset($registro->bajado) && $registro->bajado === 'S') {
                 return false;
@@ -325,6 +342,102 @@ class PdfImpuesto
         $totalGeneral = array_sum(array_column($grupos, 'total'));
 
         // 8️⃣ Retornar estructura final
+        return [
+            'total_general' => round($totalGeneral, 2),
+            'broches' => array_values($grupos)
+        ];
+    }
+
+    //Obtiene los registros de un broche especial (VENCIDA o FUERA_BROCHE) para un período.
+    //Se agrupan por num_broche; si todavía no se armó, se usa una etiqueta fallback.
+    public function obtenerRegistrosPorMotivo($anio, $mes, $impuesto, $motivo)
+    {
+        $motivo = strtoupper(trim((string) $motivo));
+
+        if (!in_array($motivo, ['VENCIDA', 'FUERA_BROCHE'], true)) {
+            throw new \Exception('Motivo de broche especial no válido.');
+        }
+
+        $modelo = (new CargaImpuestoService())->obtenerModeloCargaPorImpuesto($impuesto);
+
+        $registros = $modelo::where('periodo_anio', $anio)
+            ->where('periodo_mes', $mes)
+            ->where('origen_carga', $motivo)
+            ->where(function ($q) {
+                $q->whereNull('bajado')->orWhere('bajado', '!=', 'S');
+            })
+            ->with('padron')
+            ->get();
+
+        $prefijo = $motivo === 'VENCIDA' ? 'VENCIDAS' : 'FUERA BROCHE';
+        $etiquetaFallback = $prefijo . ' - N°1';
+
+        $etiquetaExistente = $registros->pluck('num_broche')->filter()->first();
+        if ($etiquetaExistente) {
+            $etiquetaFallback = $etiquetaExistente;
+        }
+
+        // Agregar folio y ordenar por empresa y folio igual que el PDF común.
+        $registrosOrdenados = $registros
+            ->map(function ($registro) {
+                $compartidos = json_decode($registro['compartidos'], true);
+
+                if (is_array($compartidos)) {
+                    $activos = collect($compartidos)
+                        ->where('estado', 'ACTIVO')
+                        ->sortBy('folio')
+                        ->values();
+
+                    if ($activos->isNotEmpty()) {
+                        $primero = $activos->first();
+                        $registro['compartidos'] = [$primero];
+                        $registro['folio'] = $primero['folio'];
+                        $registro['empresa_para_ordenar'] = $primero['empresa'] ?? 99;
+                    } else {
+                        $registro['compartidos'] = [];
+                        $registro['folio'] = null;
+                        $registro['empresa_para_ordenar'] = 99;
+                    }
+                } else {
+                    $registro['compartidos'] = [];
+                    $registro['folio'] = null;
+                    $registro['empresa_para_ordenar'] = 99;
+                }
+
+                return $registro;
+            })
+            ->filter(fn($registro) => !empty($registro['compartidos']))
+            ->sort(function ($a, $b) {
+                if ($a['empresa_para_ordenar'] != $b['empresa_para_ordenar']) {
+                    return $a['empresa_para_ordenar'] <=> $b['empresa_para_ordenar'];
+                }
+
+                return $a['folio'] <=> $b['folio'];
+            })
+            ->values();
+
+        $grupos = [];
+
+        foreach ($registrosOrdenados as $registro) {
+            $numBroche = $registro->num_broche ?: $etiquetaFallback;
+
+            if (!isset($grupos[$numBroche])) {
+                $grupos[$numBroche] = [
+                    'num_broche' => $numBroche,
+                    'total' => 0,
+                    'items' => []
+                ];
+            }
+
+            $importe = floatval(str_replace(',', '.', $registro->importe));
+            $grupos[$numBroche]['total'] += $importe;
+            $grupos[$numBroche]['items'][] = $registro;
+        }
+
+        ksort($grupos);
+
+        $totalGeneral = array_sum(array_column($grupos, 'total'));
+
         return [
             'total_general' => round($totalGeneral, 2),
             'broches' => array_values($grupos)

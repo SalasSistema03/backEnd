@@ -59,10 +59,12 @@ class ImpuestosController extends Controller
         }
 
         if ($impuesto === 'tgi' || $impuesto === 'agua' || $impuesto === 'gas' || $impuesto === 'api') {
-            $resultado = (new PadronImpuestoService())->ObtenerPadronFiltrado($impuesto, $request);
+            $service = new PadronImpuestoService();
+            $resultado = $service->ObtenerPadronFiltrado($impuesto, $request);
             return response()->json([
                 'resultado' => $resultado,
                 'botones' => $botones,
+                'ultimo_periodo' => $service->obtenerUltimoPeriodo($impuesto),
             ]);
         }
     }
@@ -122,7 +124,7 @@ class ImpuestosController extends Controller
     public function cargaManual(Request $request)
     {
         //Log::info('cargaManual', $request->all());
-        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
+        if (in_array($request->impuesto, ['tgi', 'agua', 'gas', 'api'], true)) {
             return app(CargaImpuestoService::class)->obtenerRegistroPadronManual($request->folio, $request->empresa, $request->impuesto);
         }
     }
@@ -130,7 +132,7 @@ class ImpuestosController extends Controller
 
     public function cargaNuevoManual(Request $request)
     {
-        if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'gas') {
+        if (in_array($request->impuesto, ['tgi', 'agua', 'gas', 'api'], true)) {
             return app(CargaImpuestoService::class)->cargarNuevoImpuestoManual($request);
         }
     }
@@ -337,6 +339,25 @@ class ImpuestosController extends Controller
         }
     }
 
+    public function armarBrocheEspecial(Request $request)
+    {
+        try {
+            $resultado = app(CargaImpuestoService::class)->armarBrocheEspecial(
+                $request->anio,
+                $request->mes,
+                $request->impuesto,
+                $request->motivo
+            );
+
+            return response()->json($resultado);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
     public function guardarBrocheSeguirPagando(Request $request)
     {
         if ($request->impuesto === 'tgi' || $request->impuesto === 'agua' || $request->impuesto === 'api') {
@@ -366,7 +387,7 @@ class ImpuestosController extends Controller
     {
         $data = $request->data ?? $request->all()[0]['data'] ?? null;
 
-        if ($data['impuesto'] === 'tgi' || $data['impuesto'] === 'agua' || $data['impuesto'] === 'gas') {
+        if (in_array($data['impuesto'], ['tgi', 'agua', 'gas', 'api'], true)) {
 
             $estado = $data['estado'];
             $id = $data['padron'] ?? $data['id'] ?? null;

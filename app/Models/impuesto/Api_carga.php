@@ -28,10 +28,13 @@ class Api_carga extends Model
         'periodo_anio',
         'periodo_mes',
         'num_broche',
+        'origen_carga',
         'comienza',
         'rescicion',
         'id_apiPadron',
-        'bajado'
+        'bajado',
+        'armado',
+        'controlado'
     ];
 
 
