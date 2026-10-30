@@ -37,6 +37,7 @@ use App\Http\Controllers\fideicomiso\UnidadesController;
 use App\Services\At_cl\PropiedadService;
 use App\Services\clientes\UsuarioSectorService;
 use App\Http\Controllers\proceso\ProcesoController;
+use App\Http\Controllers\proceso\RepactadoConversacionController;
 use App\Http\Controllers\impuesto\Expensas\ExpensasController;
 use App\Models\At_cl\Zona;
 use App\Models\At_cl\Tipo_inmueble;
@@ -306,6 +307,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/getRepactadoFiltrado', [ProcesoController::class, 'getRepactadoFiltrado']);
         Route::get('/getEstadosRepactado', [ProcesoController::class, 'getEstadosRepactado']);
         Route::put('/updateRepactado', [ProcesoController::class, 'updateRepactado']);
+        Route::get('/repactado/{id}/conversacion', [RepactadoConversacionController::class, 'index']);
+        Route::post('/repactado/{id}/conversacion', [RepactadoConversacionController::class, 'store']);
 
 
 
