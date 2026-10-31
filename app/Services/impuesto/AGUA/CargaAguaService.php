@@ -51,6 +51,8 @@ class CargaAguaService
 
 
             $vencimientoContratos = (new CargaImpuestoService())->consultaVencimientoContratos($agua_padron->folio, $agua_padron->empresa, 'agua');
+            // Usar las fechas del registro ACTIVO del folio (no del MODIFICADO)
+            $contratoActivo = $vencimientoContratos->firstWhere('estado', 'ACTIVO') ?? $vencimientoContratos->first();
 
 
 
@@ -62,8 +64,8 @@ class CargaAguaService
                 'periodo_anio' =>  $fecha_1->year,
                 'periodo_mes' => $fecha_1->month,
                 'num_broche' => null,
-                'comienza' => $vencimientoContratos[0]->comienza,
-                'rescicion' => $vencimientoContratos[0]->rescicion,
+                'comienza' => $contratoActivo->comienza,
+                'rescicion' => $contratoActivo->rescicion,
                 'id_aguaPadron' => $agua_padron->id,
             ];
 
@@ -78,8 +80,8 @@ class CargaAguaService
                 'periodo_anio' =>  $fecha_2->year,
                 'periodo_mes' => $fecha_2->month,
                 'num_broche' => null,
-                'comienza' => $vencimientoContratos[0]->comienza,
-                'rescicion' => $vencimientoContratos[0]->rescicion,
+                'comienza' => $contratoActivo->comienza,
+                'rescicion' => $contratoActivo->rescicion,
                 'id_aguaPadron' => $agua_padron->id,
             ];
 
