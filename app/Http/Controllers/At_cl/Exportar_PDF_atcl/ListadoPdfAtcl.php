@@ -1171,4 +1171,22 @@ class ListadoPdfAtcl
 
         return implode(' ', $partes) ?: '0 días';
     }
+
+    /**
+     * Devuelve en JSON los datos de conversación de un criterio puntual.
+     * Usado por el modal del front en lugar del PDF.
+     */
+    public function conversacionesJson(Request $request)
+    {
+        $clientes = (new PdfVentaService())->ObtenerClientesAsesor($request->asesor_id);
+
+        if ($request->filled('id_criterio_venta')) {
+            $clientes = $clientes->where('id_criterio_venta', (int) $request->id_criterio_venta)->values();
+        }
+
+        $historialConversacion = (new PdfVentaService())->ObtenerHistorialConversacion($clientes);
+        $datosTotales = (new PdfVentaService())->CombinarDatos($clientes, $historialConversacion);
+
+        return response()->json($datosTotales);
+    }
 }
