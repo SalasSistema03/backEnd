@@ -31,6 +31,12 @@ class PropiedadService
             ->findOrFail($id);
     }
 
+    /**
+     * Obtiene los registros de empresa_propiedad (folio por empresa) de una propiedad.
+     *
+     * @param int|string $id ID de la propiedad.
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
     public function obtenerEmpresaPropiedad($id)
     {
         return Empresas_propiedades::where('propiedad_id', $id)->get();
@@ -38,10 +44,14 @@ class PropiedadService
 
 
     /**
-     * Obtiene el folio con el vencimiento de contrato más grande y su fecha de inicio
+     * Obtiene el contrato de la empresa 1 con la fecha de rescisión más lejana
+     * entre los inmuebles asociados a los folios de la propiedad.
      *
-     * @param int|string $id ID de la propiedad
-     * @return object|null Objeto con folio, inicio_contrato y vencimiento_contrato
+     * Los folios se buscan en empresa_propiedad. Cada folio corresponde a la
+     * columna carpeta de propiedades_sys, que aporta el id_casa del contrato.
+     *
+     * @param int|string $id ID de la propiedad.
+     * @return object|null Objeto con folio, inicio_contrato, vencimiento_contrato e id_casa, o null si no hay folios o contratos.
      */
     public function obtenerContratoMasReciente($id)
     {
@@ -83,9 +93,14 @@ class PropiedadService
     /**
      * Obtiene el monto de alquiler del contrato activo (documentos = 'N').
      *
-     * Si no encuentra historial vigente, devuelve 0.
+     * La empresa se determina a partir del folio en empresa_propiedad. Se toma
+     * la cabecera de contrato con el id_contrato_cabecera más alto y el detalle
+     * cuyo rango de fechas incluye la fecha actual.
      *
-     * @param array|Collection $idCasas
+     * Si no encuentra detalle vigente, devuelve 0.
+     *
+     * @param array|\Illuminate\Support\Collection $idCasas IDs de casa de la propiedad.
+     * @param int|string $folio Folio de la propiedad.
      * @return float|int
      */
     public function obtenerAlquiler($idCasas, $folio)
@@ -110,12 +125,13 @@ class PropiedadService
     }
 
     /**
-     * Obtiene el monto de alquiler del contrato activo (documentos = 'S').
+     * Obtiene el monto de alquiler del contrato activo de la empresa 1 (documentos = 'S').
      *
-     * A diferencia de obtenerAlquiler(), este método **no valida vacío**.
-     * Asume que siempre habrá un contrato vigente.
+     * A diferencia de obtenerAlquiler(), este método no valida si el resultado
+     * está vacío: si no hay detalle vigente, first() devuelve null y el acceso
+     * a monto_alquiler produce un error.
      *
-     * @param array|Collection $idCasas
+     * @param array|\Illuminate\Support\Collection $idCasas IDs de casa de la propiedad.
      * @return float|int|null
      */
     public function obtenerAlquilerN($idCasas)
@@ -147,13 +163,13 @@ class PropiedadService
 
     /**
      * Busca propiedades por:
-     *  - Código de alquiler/venta
+     *  - Código exacto de alquiler o venta
      *  - Coincidencia parcial en nombre de calle o número
      *
      * Devuelve una colección con datos ya transformados para mostrar en la vista.
      *
      * @param string $codigo
-     * @param string $calle
+     * @param string $calle Texto parcial del nombre de calle o del número.
      * @return \Illuminate\Support\Collection
      */
     public function buscarPropiedades(string $codigo = '', string $calle = '')
@@ -192,6 +208,21 @@ class PropiedadService
         });
     }
 
+    /**
+     * Busca propiedades en venta.
+     *
+     * Si se envía un código, devuelve solo la propiedad con ese cod_venta exacto,
+     * sin aplicar el resto de los filtros. Si no, aplica calle, dormitorios,
+     * baños y cochera, y descarta en PHP las propiedades sin cod_venta o con
+     * id_estado_venta 3 (FINALIZADA), 4 (BAJA TEMPORAL), 6 (RETIRADA) o 7 (BAJA).
+     *
+     * @param string $codigo Código de venta exacto.
+     * @param string $calle Texto parcial del nombre de calle o del número.
+     * @param int|null $dormitorios Cantidad de dormitorios exacta.
+     * @param int|null $banios Cantidad de baños exacta.
+     * @param string $cochera Valor del campo cochera.
+     * @return \Illuminate\Support\Collection Arrays con los datos de cada propiedad.
+     */
     public function buscarPropiedadesVenta(string $codigo = '', string $calle = '', int $dormitorios = null, int $banios = null, string $cochera = '')
     {
         $query = Propiedad::with(['calle', 'barrio', 'zona', 'tipoInmueble']);
@@ -258,8 +289,19 @@ class PropiedadService
     }
 
     /**
-     * Busca propiedades de alquiler con los mismos filtros que buscarPropiedadesVenta.
-     * Filtra por cod_alquiler y estados de alquiler activos (1, 2).
+     * Busca propiedades en alquiler con los mismos parámetros que buscarPropiedadesVenta.
+     *
+     * Si se envía un código, devuelve solo la propiedad con ese cod_alquiler exacto,
+     * sin aplicar el resto de los filtros. Si no, aplica calle, dormitorios,
+     * baños y cochera, y conserva solo las propiedades con cod_alquiler y
+     * id_estado_alquiler 1 (EN ALQUILER) o 2 (EN ALQUILER COMPARTIDO).
+     *
+     * @param string $codigo Código de alquiler exacto.
+     * @param string $calle Texto parcial del nombre de calle o del número.
+     * @param int|null $dormitorios Cantidad de dormitorios exacta.
+     * @param int|null $banios Cantidad de baños exacta.
+     * @param string $cochera Valor del campo cochera.
+     * @return \Illuminate\Support\Collection Arrays con los datos de cada propiedad.
      */
     public function buscarPropiedadesAlquilerCompleto(string $codigo = '', string $calle = '', int $dormitorios = null, int $banios = null, string $cochera = '')
     {
@@ -334,7 +376,26 @@ class PropiedadService
         return Propiedad::find($id);
     }
 
-    // Este servicio guarda el historial de estados cuando se realiza SOLO UN CAMBIO EN EL ESTADO de venta o alquiler de una propiedad
+    /**
+     * Registra en el historial de venta y/o alquiler de una propiedad, solo si
+     * cambió respecto del último registro guardado.
+     *
+     * Compara el estado, el comentario y la fecha de baja temporal con el último
+     * historial de cada tipo. Si no hay cambios, no inserta nada. Cada bloque se
+     * puede omitir con sus flags.
+     *
+     * @param int $id_propiedad ID de la propiedad.
+     * @param int|null $nuevo_estado_venta Nuevo id_estado_venta.
+     * @param int|null $nuevo_estado_alquiler Nuevo id_estado_alquiler.
+     * @param string|null $descripcion_estado_alquiler Comentario del estado de alquiler.
+     * @param string|null $descripcion_estado_venta Comentario del estado de venta.
+     * @param string|null $fecha_baja_temporal_alquiler Fecha de reactivación del alquiler; null si no aplica.
+     * @param string|null $fecha_baja_temporal_venta Fecha de reactivación de la venta; null si no aplica.
+     * @param int $usuario_id Usuario que realiza el cambio.
+     * @param bool $actualizarVenta Si es false, no se evalúa el historial de venta.
+     * @param bool $actualizarAlquiler Si es false, no se evalúa el historial de alquiler.
+     * @return void
+     */
     public function guardarHistorialEstadosSerbive(
         $id_propiedad,
         $nuevo_estado_venta,
@@ -351,14 +412,8 @@ class PropiedadService
         $ultimo_historial_estado_venta = $this->obtenerUltimoHistorialEstadosVenta($id_propiedad);
         $ultimo_historial_estado_alquiler = $this->obtenerUltimoHistorialEstadosAlquiler($id_propiedad);
 
-        /**
-         * BLOQUE VENTA
-         * Guardamos un nuevo historial de venta si:
-         * - No existe historial previo, o
-         * - Cambió el estado, o
-         * - Cambió el comentario, o
-         * - Cambió la fecha de baja temporal
-         */
+        // Bloque venta: inserta un historial nuevo si no hay registros previos o si
+        // cambió el estado, el comentario o la fecha de baja temporal.
         if ($actualizarVenta && (
             !$ultimo_historial_estado_venta ||
             $ultimo_historial_estado_venta->id_estado_venta != $nuevo_estado_venta ||
@@ -375,14 +430,8 @@ class PropiedadService
             $historialEstadoVenta->save();
         }
 
-        /**
-         * BLOQUE ALQUILER
-         * Guardamos un nuevo historial de alquiler si:
-         * - No existe historial previo, o
-         * - Cambió el estado, o
-         * - Cambió el comentario, o
-         * - Cambió la fecha de baja temporal
-         */
+        // Bloque alquiler: inserta un historial nuevo si no hay registros previos o si
+        // cambió el estado, el comentario o la fecha de baja temporal.
         if ($actualizarAlquiler && (
             !$ultimo_historial_estado_alquiler ||
             $ultimo_historial_estado_alquiler->id_estado_alquiler != $nuevo_estado_alquiler ||
@@ -400,22 +449,51 @@ class PropiedadService
         }
     }
 
-    // Obtengo el último historial de estados por el id de la propiedad (Se consume en el controlador de propiedad llamando "edit") - SOLO DE VENTA
+    /**
+     * Obtiene el último registro del historial de estados de venta de una propiedad.
+     *
+     * Lo usa guardarHistorialEstadosSerbive() para comparar con el nuevo estado, y
+     * PropiedadController::actualizarPropiedad() para completar los valores que no cambian.
+     *
+     * @param int|string $id_propiedad ID de la propiedad.
+     * @return \App\Models\At_cl\HistorialEstadosVenta|null Último registro por id, o null si no hay historial.
+     */
     public function obtenerUltimoHistorialEstadosVenta($id_propiedad)
     {
         return HistorialEstadosVenta::where('id_propiedad', $id_propiedad)
             ->orderBy('id', 'desc')
-            ->first(); // devuelve el último registro guardado
+            ->first();
     }
 
-    // Obtengo el último historial de estados por el id de la propiedad (Se consume en el controlador de propiedad llamando "edit") - SOLO DE ALQUILER
+    /**
+     * Obtiene el último registro del historial de estados de alquiler de una propiedad.
+     *
+     * Lo usa guardarHistorialEstadosSerbive() para comparar con el nuevo estado, y
+     * PropiedadController::actualizarPropiedad() para completar los valores que no cambian.
+     *
+     * @param int|string $id_propiedad ID de la propiedad.
+     * @return \App\Models\At_cl\HistorialEstadosAlquiler|null Último registro por id, o null si no hay historial.
+     */
     public function obtenerUltimoHistorialEstadosAlquiler($id_propiedad)
     {
         return HistorialEstadosAlquiler::where('id_propiedad', $id_propiedad)
             ->orderBy('id', 'desc')
-            ->first(); // devuelve el último registro guardado
+            ->first();
     }
 
+    /**
+     * Crea una propiedad con los datos del formulario de alta, dentro de una transacción.
+     *
+     * Los datos vienen agrupados por secciones: comodidades, descripcion, venta,
+     * alquiler y condicionAlquiler. Las claves ausentes se guardan como null.
+     * El usuario de la operación queda registrado en last_modified_by.
+     *
+     * @param array $datos Datos del formulario de alta.
+     * @param int $userId ID del usuario que crea la propiedad.
+     * @return Propiedad Propiedad creada.
+     *
+     * @throws \Exception Si la inserción falla; la transacción se revierte.
+     */
     public function crearPropiedad(array $datos, int $userId): Propiedad
     {
 
@@ -479,8 +557,8 @@ class PropiedadService
                 'flyer_a' => $datos['alquiler']['flyer_a'] ?? null,
                 'reel_a' => $datos['alquiler']['reel_a'] ?? null,
                 'web_a' => $datos['alquiler']['web_a'] ?? null,
-                'latitud' => $datos['latitud'] ?? null,   // <--- NUEVO
-                'longitud' => $datos['longitud'] ?? null, // <--- NUEVO
+                'latitud' => $datos['latitud'] ?? null,
+                'longitud' => $datos['longitud'] ?? null,
 
             ]);
 
@@ -492,6 +570,17 @@ class PropiedadService
         }
     }
 
+    /**
+     * Busca propiedades en alquiler para el autocompletado de reservas.
+     *
+     * El término se compara con cod_alquiler (coincidencia parcial) o, por cada
+     * palabra, con el nombre de la calle o con el número (ej: "san lorenzo 3245").
+     * Solo incluye propiedades con id_estado_alquiler 1 (EN ALQUILER) o 2 (EN
+     * ALQUILER COMPARTIDO), ordenadas por cod_alquiler y limitadas a 30 resultados.
+     *
+     * @param string $cod_alquiler Código de alquiler o texto de dirección.
+     * @return \Illuminate\Http\JsonResponse Lista de propiedades con id, cod_alquiler, calle, numero, piso, departamento, folio, estado y precio.
+     */
     public function buscarPropiedadesAlquiler($cod_alquiler)
     {
 
@@ -499,19 +588,34 @@ class PropiedadService
         $codigo = $cod_alquiler;
 
 
-        // Si no viene código, devolvés vacío
+        // Sin término de búsqueda devuelve una respuesta vacía
         if (!$codigo) {
             return response()->json([]);
         }
 
+        // Cada palabra debe coincidir con el nombre de la calle o con el número (ej: "san lorenzo 3245")
+        $palabras = preg_split('/\s+/', trim((string) $codigo), -1, PREG_SPLIT_NO_EMPTY);
+
         $propiedades = Propiedad::with(['calle', 'empresas', 'precioActual'])
-            ->whereIn('id_estado_alquiler', [1, 2])
+            ->whereIn('id_estado_alquiler', [1, 2]) // Solo EN ALQUILER y EN ALQUILER COMPARTIDO
             ->whereNotNull('cod_alquiler')
-            ->where('cod_alquiler', 'like', "%{$codigo}%")  // <--- FILTRO CLAVE
+            ->where(function ($q) use ($codigo, $palabras) {
+                $q->where('cod_alquiler', 'like', "%{$codigo}%")
+                    ->orWhere(function ($dir) use ($palabras) {
+                        foreach ($palabras as $palabra) {
+                            $dir->where(function ($w) use ($palabra) {
+                                $w->whereHas('calle', fn($c) => $c->where('name', 'like', "%{$palabra}%"))
+                                    ->orWhere('numero_calle', 'like', "%{$palabra}%");
+                            });
+                        }
+                    });
+            })
+            ->orderBy('cod_alquiler')
+            ->limit(30)
             ->get();
 
 
-        // Formateás la salida para el front
+        // Formatea la salida para el front
         $resultado = $propiedades->map(function ($prop) {
             $folios = $prop->empresas->map(function ($empresa) {
                 $folio = optional($empresa->pivot)->folio;
