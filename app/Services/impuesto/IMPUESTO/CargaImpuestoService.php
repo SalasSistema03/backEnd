@@ -294,6 +294,8 @@ class CargaImpuestoService
             }
 
             $vencimientoContratos = $this->consultaVencimientoContratos($padron->folio, $padron->empresa, $request->impuesto);
+            // Usar las fechas del registro ACTIVO del folio (no del MODIFICADO)
+            $contratoActivo = $vencimientoContratos->firstWhere('estado', 'ACTIVO') ?? $vencimientoContratos->first();
 
             if ($request->impuesto === 'tgi') {
                 $registro = [
@@ -306,8 +308,8 @@ class CargaImpuestoService
                     'num_broche' => null,
                     'origen_carga' => $origenCarga,
                     'bajado' => 'N',
-                    'comienza' => $vencimientoContratos[0]->comienza,
-                    'rescicion' => $vencimientoContratos[0]->rescicion,
+                    'comienza' => $contratoActivo->comienza,
+                    'rescicion' => $contratoActivo->rescicion,
                     'id_tgiPadron' => $padron->id,
                 ];
                 $nuevoRegistro = Tgi_carga::create($registro);
@@ -324,8 +326,8 @@ class CargaImpuestoService
                         'num_broche' => null,
                         'origen_carga' => $origenCarga,
                         'bajado' => 'N',
-                        'comienza' => $vencimientoContratos[0]->comienza,
-                        'rescicion' => $vencimientoContratos[0]->rescicion,
+                        'comienza' => $contratoActivo->comienza,
+                        'rescicion' => $contratoActivo->rescicion,
                         'id_gasPadron' => $padron->id,
                     ];
                     $nuevoRegistro = Gas_carga::create($registro);
@@ -348,8 +350,8 @@ class CargaImpuestoService
                     'num_broche' => null,
                     'origen_carga' => $origenCarga,
                     'bajado' => 'N',
-                    'comienza' => $vencimientoContratos[0]->comienza,
-                    'rescicion' => $vencimientoContratos[0]->rescicion,
+                    'comienza' => $contratoActivo->comienza,
+                    'rescicion' => $contratoActivo->rescicion,
                     'id_aguaPadron' => $padron->id,
                 ];
                 $nuevoRegistro = Agua_carga::create($registro);
@@ -364,8 +366,8 @@ class CargaImpuestoService
                     'num_broche' => null,
                     'origen_carga' => $origenCarga,
                     'bajado' => 'N',
-                    'comienza' => $vencimientoContratos[0]->comienza,
-                    'rescicion' => $vencimientoContratos[0]->rescicion,
+                    'comienza' => $contratoActivo->comienza,
+                    'rescicion' => $contratoActivo->rescicion,
                     'id_aguaPadron' => $padron->id,
                 ];
                 $nuevoRegistro = Agua_carga::create($registro2);
@@ -381,8 +383,8 @@ class CargaImpuestoService
                     'num_broche' => null,
                     'origen_carga' => $origenCarga,
                     'bajado' => 'N',
-                    'comienza' => $vencimientoContratos[0]->comienza,
-                    'rescicion' => $vencimientoContratos[0]->rescicion,
+                    'comienza' => $contratoActivo->comienza,
+                    'rescicion' => $contratoActivo->rescicion,
                     'id_apiPadron' => $padron->id,
                 ];
                 $nuevoRegistro = Api_carga::create($registro);

@@ -50,6 +50,9 @@ class CargaTgiService
 
             $vencimientoContratos = (new CargaImpuestoService)->consultaVencimientoContratos($tgi_padron->folio, $tgi_padron->empresa, 'tgi');
 
+            // Usar las fechas del registro ACTIVO del folio (no del MODIFICADO)
+            $contratoActivo = $vencimientoContratos->firstWhere('estado', 'ACTIVO') ?? $vencimientoContratos->first();
+
             $registro = [
                 'codigo_barra' => $codigoBarras,
                 'importe' => $cod_separado['importe'],
@@ -58,8 +61,8 @@ class CargaTgiService
                 'periodo_anio' => $fecha->year,
                 'periodo_mes' => $fecha->month,
                 'num_broche' => null,
-                'comienza' => $vencimientoContratos[0]->comienza,
-                'rescicion' => $vencimientoContratos[0]->rescicion,
+                'comienza' => $contratoActivo->comienza,
+                'rescicion' => $contratoActivo->rescicion,
                 'id_tgiPadron' => $tgi_padron->id,
             ];
 

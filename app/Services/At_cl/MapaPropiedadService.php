@@ -18,6 +18,20 @@ class MapaPropiedadService
 
         // 2. Reutilizamos tu scope existente para aplicar todos los filtros dinámicos[cite: 1].
         // Esto cubre: inmuebles, cochera, habitaciones, mascotas, zonas y precios[cite: 1].
+        // Si se eligió un estado específico de venta o alquiler, se filtra por ese estado
+        // y se desactiva la exclusión de estados finalizados/baja que aplica el scope.
+        $operacion = $filtros['busqueda'] ?? null;
+        $estado = $filtros['estado_operacion'] ?? null;
+        if ($estado !== null && $estado !== '') {
+            if ((string) $operacion === '1') {
+                $query->where('id_estado_venta', (int) $estado);
+                $filtros['ampliar'] = 1;
+            } elseif ((string) $operacion === '2') {
+                $query->where('id_estado_alquiler', (int) $estado);
+                $filtros['ampliar'] = 1;
+            }
+        }
+
         $query->filtrar($filtros);
 
         // 3. Cargamos las relaciones necesarias para el Popup del mapa (Eager Loading)[cite: 1].

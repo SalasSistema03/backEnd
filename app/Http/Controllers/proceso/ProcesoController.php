@@ -96,6 +96,7 @@ class ProcesoController extends Controller
             'precioFolio.numeric' => 'El precio del alquiler debe ser un número.',
             'mesesContrato.integer' => 'Los meses de contrato deben ser un número entero.',
             'mesesContrato.min' => 'Los meses de contrato deben ser al menos 1.',
+            'mesesContrato.max' => 'Los meses de contrato no pueden superar los 120 meses.',
             'comprobante.required_if' => 'El comprobante es obligatorio para reservas por transferencia.',
             'comprobante.file' => 'El comprobante no es un archivo válido.',
             'comprobante.mimes' => 'El comprobante debe ser un archivo PDF, JPG, JPEG o PNG.',

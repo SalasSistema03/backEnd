@@ -20,19 +20,25 @@ class RepactadoConversacionController extends Controller
     /**
      * Lista los mensajes de un repactado en orden cronológico.
      *
+     * La conversación es de la propiedad: se traen los mensajes de todos los
+     * historiales de repactado que compartan el mismo propiedad_id.
+     *
      * GET /v1/repactado/{id}/conversacion
      */
     public function index(int $id): JsonResponse
     {
         try {
-            if (!Historial_estado_repactado::whereKey($id)->exists()) {
+            $historial = Historial_estado_repactado::find($id);
+            if (!$historial) {
                 return response()->json([
                     'success' => false,
                     'message' => 'El repactado no existe.',
                 ], 404);
             }
 
-            $mensajes = Historial_conversacion_repactado::where('id_historial_estado_repactado', $id)
+            $idsHistoriales = $this->idsHistorialesDeLaPropiedad($historial);
+
+            $mensajes = Historial_conversacion_repactado::whereIn('id_historial_estado_repactado', $idsHistoriales)
                 ->orderBy('fecha_hora')
                 ->orderBy('id')
                 ->get();
@@ -51,6 +57,24 @@ class RepactadoConversacionController extends Controller
                 'message' => 'No se pudo obtener la conversación.',
             ], 500);
         }
+    }
+
+    /**
+     * Ids de todos los historiales de repactado de la misma propiedad, incluido el actual.
+     *
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    private function idsHistorialesDeLaPropiedad(Historial_estado_repactado $historial)
+    {
+        if (empty($historial->propiedad_id)) {
+            return collect([$historial->id]);
+        }
+
+        return Historial_estado_repactado::where('propiedad_id', $historial->propiedad_id)
+            ->pluck('id')
+            ->push($historial->id)
+            ->unique()
+            ->values();
     }
 
     /**

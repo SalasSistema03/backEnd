@@ -39,6 +39,8 @@ class CargaGasService
         }
 
         $vencimientoContratos = (new CargaImpuestoService)->consultaVencimientoContratos($gas_padron->folio, $gas_padron->empresa, 'gas');
+        // Usar las fechas del registro ACTIVO del folio (no del MODIFICADO)
+        $contratoActivo = $vencimientoContratos->firstWhere('estado', 'ACTIVO') ?? $vencimientoContratos->first();
 
         $registro = [
             'codigo_barra' => $codigoBarras,
@@ -48,8 +50,8 @@ class CargaGasService
             'periodo_anio' => $fecha->year,
             'periodo_mes' => $fecha->month,
             'num_broche' => null,
-            'comienza' => $vencimientoContratos[0]->comienza,
-            'rescicion' => $vencimientoContratos[0]->rescicion,
+            'comienza' => $contratoActivo->comienza,
+            'rescicion' => $contratoActivo->rescicion,
             'id_gasPadron' => $gas_padron->id,
             'inicio_liquidacion' => $cod_separado['inicio_liquidacion'],
             'fin_liquidacion' => $cod_separado['fin_liquidacion'],

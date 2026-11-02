@@ -49,6 +49,8 @@ class CargaApiService
         }
 
         $vencimientoContratos = (new CargaImpuestoService)->consultaVencimientoContratos($api_padron->folio, $api_padron->empresa, 'api');
+        // Usar las fechas del registro ACTIVO del folio (no del MODIFICADO)
+        $contratoActivo = $vencimientoContratos->firstWhere('estado', 'ACTIVO') ?? $vencimientoContratos->first();
 
         $registro = [
             'codigo_barra' => $codigoBarras,
@@ -58,8 +60,8 @@ class CargaApiService
             'periodo_anio' => $fecha->year,
             'periodo_mes' => $fecha->month,
             'num_broche' => null,
-            'comienza' => $vencimientoContratos[0]->comienza,
-            'rescicion' => $vencimientoContratos[0]->rescicion,
+            'comienza' => $contratoActivo->comienza,
+            'rescicion' => $contratoActivo->rescicion,
             'id_apiPadron' => $api_padron->id,
         ];
 
