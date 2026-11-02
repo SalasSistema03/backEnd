@@ -253,6 +253,8 @@ Route::prefix('v1')->group(function () {
 
         //LISTADO ATCL
         Route::post('/broches/pdf/listadoPropiedad', [ListadoPdfAtcl::class, 'listadoPropiedad']);
+        Route::post('/broches/listado/criterios-activos', [ListadoPdfAtcl::class, 'criteriosActivosListado']);
+        Route::post('/broches/conversaciones/criterio', [ListadoPdfAtcl::class, 'conversacionesJson']);
         Route::get('propietarios/activos', [PadronController::class, 'padronActivos']);
 
         // --- RUTAS INTEGRADAS DESDE HEAD ---
