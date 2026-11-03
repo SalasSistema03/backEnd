@@ -211,6 +211,7 @@ class ImpuestosController extends Controller
     {
         $registros = app(CargaImpuestoService::class)->exportarFaltantesService($request->anio, $request->mes, $request->impuesto);
 
+
         $encabezados = [
             'Folio',
             'Partida',
