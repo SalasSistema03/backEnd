@@ -40,6 +40,7 @@ use App\Http\Controllers\proceso\ProcesoController;
 use App\Http\Controllers\proceso\RepactadoConversacionController;
 use App\Http\Controllers\proceso\FotoInventarioController;
 use App\Http\Controllers\proceso\DocumentoInventarioController;
+use App\Http\Controllers\Dpto\InventarioVideoController;
 use App\Http\Controllers\impuesto\Expensas\ExpensasController;
 use App\Models\At_cl\Zona;
 use App\Models\At_cl\Tipo_inmueble;
@@ -333,6 +334,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/getEstadoDpto', [ProcesoController::class, 'getEstadoDpto']);
         Route::post('/ActualizarInventario', [ProcesoController::class, 'ActualizarInventario']);
         Route::get('/getComentariosInventario', [ProcesoController::class, 'getComentarios']);
+        Route::post('/dpto/inventario/videos', [InventarioVideoController::class, 'store']);
         // Fotos de inventario (Dpto Técnico)
         Route::get('/fotosInventario', [FotoInventarioController::class, 'index']);
         Route::post('/fotosInventario', [FotoInventarioController::class, 'store']);
