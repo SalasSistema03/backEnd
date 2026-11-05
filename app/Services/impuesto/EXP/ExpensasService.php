@@ -19,8 +19,7 @@ class ExpensasService
     {
         $unidades = Exp_unidades_sys::all();
 
-        // Usamos ->values() después de ordenar para resetear los índices numéricos,
-        // garantizando que en el JSON se exporte como un Array y no como un Objeto.
+        // Normaliza los índices después del ordenamiento para serializar la colección como un arreglo JSON.
         $edificios = Exp_edificio::all()->sortBy('nombre_consorcio')->values();
 
         $unidadesPadron = Exp_Unidades::all();
@@ -39,14 +38,10 @@ class ExpensasService
 
     public function filtrarUnidadesCompleto(string $search, array $filtros): array
     {
-        // 1. Ejecución del servicio interno tal como estaba en tu monolito
-        /* $unidadesServices = new UnidadesServices();
-        $unidadesServices->PadronUnidadesSyS(); */
-
-        // 2. Inicialización de la Query dinámica
+        // Construye la consulta base para aplicar los filtros de forma condicional.
         $query = Exp_unidades_sys::query();
 
-        // Filtros de Estado
+        // Aplica el estado solo cuando se selecciona una de las opciones de forma exclusiva.
         $activos = in_array('ACTIVO', $filtros, true);
         $inactivos = in_array('INACTIVO', $filtros, true);
 
@@ -56,13 +51,13 @@ class ExpensasService
             $query->where('estado', '=', 'Inactivo');
         }
 
-        // Filtros de Administración
+        // Limita la consulta a los códigos de administración seleccionados.
         $adminFilters = array_values(array_intersect($filtros, ['L', 'P', 'I']));
         if (!empty($adminFilters)) {
             $query->whereIn('administra', $adminFilters);
         }
 
-        // Motor de búsqueda por texto (Búsqueda global)
+        // Busca el texto en los campos que identifican una unidad y su estado.
         if ($search !== '') {
             $needle = "%{$search}%";
             $query->where(function ($q) use ($needle) {
@@ -75,16 +70,14 @@ class ExpensasService
             });
         }
 
-        // Obtención de las unidades filtradas y ordenadas
+        // Ejecuta la consulta después de aplicar los filtros y ordena por folio.
         $unidades = $query->orderBy('folio')->get();
 
-        // 3. Carga de datos contextuales necesarios para el Frontend
-        /* $edificios = Exp_edificio::all()
-            ->orderBy('nombre_consorcio', 'ASC'); */
+        // Carga los catálogos que el frontend necesita para mostrar filtros y relaciones.
         $edificios = Exp_edificio::orderBy('nombre_consorcio', 'ASC')->get();
         $administradores = Exp_administrador_consorcio::all();
 
-        // keyBy('id') transforma la colección en un diccionario/objeto asociativo por ID
+        // Indexa los administradores por ID para facilitar su búsqueda en la respuesta.
         $adminsById = $administradores->keyBy('id');
 
         $unidadesPadron = Exp_Unidades::all();
@@ -101,12 +94,14 @@ class ExpensasService
 
 
     /**
-     * Procesa y guarda la carga masiva de unidades de forma transaccional.
+     * Guarda las unidades del padrón y actualiza su estado en una única transacción.
      *
+     * @param array $data Datos de la carga masiva, incluyendo casa, edificio, estado y unidades.
+     * @return void
+     * @throws \Throwable Si alguna operación falla y la transacción debe revertirse.
      */
     public function completarCargaUnidadesService(array $data): void
     {
-        //Log::info('Completar carga unidades', $data);
         $repetir   = $data['repetir'];
         $idCasa    = $data['id'];
         $edificio  = $data['edificio'];
@@ -123,18 +118,18 @@ class ExpensasService
                     'depto'         => $rep['depto'] ?? null,
                     'unidad'        => $rep['unidad'] ?? null,
                     'tipo'          => $rep['tipo'] ?? null,
-                    'observaciones' => $rep['comentario'] ?? null, // Mapeo de 'comentario' a 'observaciones'
+                    'observaciones' => $rep['comentario'] ?? null,
                     'estado'        => $rep['estado'] ?? null
                 ];
 
-                // Si viene un ID válido, actualiza; de lo contrario, crea un nuevo registro
+                // Reutiliza el registro existente cuando llega su ID; si no, crea una nueva unidad.
                 if (isset($rep['id']) && $rep['id']) {
                     Exp_unidades::where('id', $rep['id'])->update($payload);
                 } else {
                     Exp_unidades::create($payload);
                 }
             }
-            // Actualizar el estado en las unidades del sistema principal
+            // Sincroniza el estado de las unidades del sistema principal para la misma casa.
             Exp_unidades_sys::where('casa', $idCasa)->update([
                 'estado' => $estadoSys
             ]);
@@ -142,7 +137,7 @@ class ExpensasService
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();
-            // Re-lanzamos la excepción para que el controlador se entere del fallo
+            // Propaga el error para que el controlador informe el fallo al cliente.
             throw $e;
         }
     }
@@ -154,17 +149,17 @@ class ExpensasService
 
 
 
-    /* BROCHES */
+    // Operaciones de consulta, creación, actualización y eliminación de broches.
     public function getBrochesService(?int $mes = null, ?int $anio = null): array
     {
-        // Si no nos pasan mes/año desde Vue, usamos el mes y año actual por defecto
+        // Usa el período actual cuando la consulta no recibe mes o año.
         $mes = $mes ?? now()->month;
         $anio = $anio ?? now()->year;
 
         $edificios = Exp_edificio::all();
         $empresas = Exp_administrador_consorcio::orderBy('nombre', 'asc')->get();
 
-        // Mantenemos tu consulta a mysql9 intacta, pero usando las variables dinámicas
+        // Consulta la conexión mysql9 con el período recibido o con el período actual.
         $broches = DB::connection('mysql9')
             ->table('exp_broche')
             ->leftJoin('exp_unidades', 'exp_broche.unidad', '=', 'exp_unidades.id')
@@ -174,7 +169,7 @@ class ExpensasService
             ->select(
                 'exp_broche.*',
                 'exp_broche.id as id_broche',
-                'exp_broche.vencimiento as vencimientobroche', // <-- ¡EL SALVAVIDAS!
+                'exp_broche.vencimiento as vencimientobroche',
                 'exp_unidades.*',
                 'exp_unidades.id as id_unidad',
                 'exp_administrador_consorcio.*',
@@ -188,7 +183,7 @@ class ExpensasService
             ->whereYear('exp_broche.vencimiento', $anio)
             ->get();
 
-        // Retornamos todo empaquetado para el controlador
+        // Devuelve los catálogos, broches y período para que el controlador arme la respuesta.
         return [
             'edificios' => $edificios,
             'empresas'  => $empresas,
@@ -207,16 +202,18 @@ class ExpensasService
             ->join('exp_edificios', 'exp_unidades.id_edificio', '=', 'exp_edificios.id')
             ->join('exp_administrador_consorcio', 'exp_edificios.id_administrador_consorcio', '=', 'exp_administrador_consorcio.id')
             ->select(
-                // ¡OJO ACÁ! Como te mencioné antes, usar .* con joins es peligroso.
-                // Trata de pedir solo lo que necesitas, pero por ahora lo mantenemos.
-                'exp_unidades_sys.*',
-                'exp_unidades.*',
+                'exp_unidades_sys.id as id_unidades_sys',
+                'exp_unidades_sys.folio',
                 'exp_unidades.id as id_unidad',
-                'exp_edificios.*',
+                'exp_unidades.unidad',
+                'exp_unidades.piso',
+                'exp_unidades.depto',
+                'exp_edificios.id as id_edificio',
                 'exp_edificios.direccion as direccion_edificio',
                 'exp_edificios.altura as altura_edificio',
-                'exp_administrador_consorcio.*',
-                'exp_administrador_consorcio.id as id_administrador'
+                'exp_edificios.nombre_consorcio',
+                'exp_administrador_consorcio.id as id_administrador',
+                'exp_administrador_consorcio.nombre'
             );
 
         $query->when($filtros['empresa'] ?? null, function ($q, $empresa) {
@@ -241,24 +238,23 @@ class ExpensasService
 
     public function guardarBrocheExpensa(array $data)
     {
-        // Extraemos el año y mes usando Carbon (es más limpio que explode)
+        // Carbon interpreta la fecha y expone sus componentes sin depender de separadores textuales.
         $fechaVencimiento = Carbon::parse($data['vencimiento']);
         $anioNuevo = $fechaVencimiento->year;
         $mesNuevo = $fechaVencimiento->month;
 
-        // CONSULTA OPTIMIZADA: Buscamos directamente en la Base de Datos
+        // Comprueba la existencia de un broche para la misma unidad y período sin cargar registros completos.
         $existeDuplicado = Exp_broche::where('unidad', $data['id_unidad'])
             ->whereYear('vencimiento', $anioNuevo)
             ->whereMonth('vencimiento', $mesNuevo)
             ->exists();
 
         if ($existeDuplicado) {
-            // Lanzamos una excepción con código 409 (Conflicto - Duplicado)
-            // (404 es para "No encontrado", 409 es el correcto para datos duplicados)
-            throw new Exception('Esta unidad ya se encuentra cargada para este mes y año.', 409); // 409 Conflicto - Duplicado
+            // El controlador puede traducir este conflicto de duplicidad a una respuesta HTTP 409.
+            throw new Exception('Esta unidad ya se encuentra cargada para este mes y año.', 409);
         }
 
-        // Si no existe, lo creamos
+        // Persiste el broche solo después de comprobar que no existe otro para el período.
         return Exp_broche::create([
             'vencimiento'    => $data['vencimiento'],
             'extraordinaria' => $data['importe_extraordinaria'],
@@ -274,14 +270,14 @@ class ExpensasService
 
     public function eliminarBroche(int $id)
     {
-        // Buscamos explícitamente en la conexión mysql9
+        // Consulta mysql9 de forma explícita para localizar el broche solicitado.
         $broche = DB::connection('mysql9')->table('exp_broche')->where('id', $id)->first();
 
         if (!$broche) {
             throw new Exception('El broche no existe o ya fue eliminado.', 404);
         }
 
-        // Si existe, lo eliminamos
+        // Elimina el registro únicamente después de confirmar que existe.
         return DB::connection('mysql9')->table('exp_broche')->where('id', $id)->delete();
     }
 
@@ -317,7 +313,7 @@ class ExpensasService
             )
             ->whereMonth('exp_broche.vencimiento', $mes)
             ->whereYear('exp_broche.vencimiento', $anio)
-            // Usamos when() igual que hicimos en el buscador para mantenerlo limpio
+            // Agrega el filtro del administrador solo cuando se recibe un valor.
             ->when($administrador, function ($query) use ($administrador) {
                 return $query->where('exp_administrador_consorcio.id', $administrador);
             })
@@ -331,21 +327,20 @@ class ExpensasService
 
     public function actualizarBroche($id, array $datos)
     {
-        // 1. Verificamos que el registro exista antes de tocarlo
+        // Confirma que el broche exista antes de intentar actualizarlo.
         $broche = DB::connection('mysql9')->table('exp_broche')->where('id', $id)->first();
 
         if (!$broche) {
             throw new \Exception("El broche con ID {$id} no fue encontrado.");
         }
 
-        // 2. Hacemos el UPDATE mapeando los datos de Vue a las columnas de SQL
+        // Traduce los nombres del payload del frontend a las columnas persistidas del broche.
         DB::connection('mysql9')->table('exp_broche')
             ->where('id', $id)
             ->update([
                 'vencimiento' => $datos['vencimiento'],
                 'periodo'     => $datos['periodo'],
                 'anio'        => $datos['anio'],
-                // Vue nos mandó esto como 'importe_...', lo guardamos en la columna real de tu DB
                 'extraordinaria' => $datos['importe_extraordinaria'],
                 'ordinaria'      => $datos['importe_ordinaria'],
                 'total'          => $datos['total']

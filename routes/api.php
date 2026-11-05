@@ -335,6 +335,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/ActualizarInventario', [ProcesoController::class, 'ActualizarInventario']);
         Route::get('/getComentariosInventario', [ProcesoController::class, 'getComentarios']);
         Route::post('/dpto/inventario/videos', [InventarioVideoController::class, 'store']);
+        Route::get('/dpto/inventario/videos/{idProcesoPropiedad}', [InventarioVideoController::class, 'index']);
+        Route::delete('/dpto/inventario/videos/{id}', [InventarioVideoController::class, 'destroy']);
         // Fotos de inventario (Dpto Técnico)
         Route::get('/fotosInventario', [FotoInventarioController::class, 'index']);
         Route::post('/fotosInventario', [FotoInventarioController::class, 'store']);
