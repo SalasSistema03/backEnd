@@ -1576,8 +1576,12 @@ class CargaImpuestoService
                 ->update(['bajado' => 'S', 'controlado' => $usuarioId]);
             return response()->json(['message' => 'Gas bajado correctamente'], 200);
         } elseif ($datos['impuesto'] === 'agua' || $datos['impuesto'] === 'tgi') {
+            $fecha = Carbon::parse($datos['fecha_vencimiento']);
 
-            $modelo::where('fecha_vencimiento', $datos['fecha_vencimiento'])
+            $modelo::whereBetween('fecha_vencimiento', [
+                $fecha->copy()->startOfMonth(),
+                $fecha->copy()->endOfMonth(),
+            ])
                 ->where('num_broche', '!=', null)
                 ->where('num_broche', $datos['numero_broche'])
                 ->update(['bajado' => 'S', 'controlado' => $usuarioId]);
