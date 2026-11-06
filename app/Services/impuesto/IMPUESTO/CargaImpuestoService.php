@@ -1493,17 +1493,32 @@ class CargaImpuestoService
         return $map[$impuesto];
     }
 
-    public function SinControlar($impuesto)
+    /**
+     * Aplica el filtro de período (año y mes) cuando ambos valores están disponibles.
+     */
+    private function aplicarFiltroPeriodo($query, $anio, $mes)
+    {
+        if ($anio !== null && $anio !== '' && $mes !== null && $mes !== '') {
+            $query->where('periodo_anio', $anio)
+                ->where('periodo_mes', $mes);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Obtiene los broches pendientes de control para el impuesto y período indicados.
+     */
+    public function SinControlar($impuesto, $anio = null, $mes = null)
     {
         // Log::info($impuesto);
         $modelo = $this->obtenerModeloCargaPorImpuesto($impuesto);
-        $datos = $modelo::select('num_broche', 'fecha_vencimiento')
-            ->where('bajado', 'N')
-            ->distinct()
-            ->get();
+        $query = $modelo::select('num_broche', 'fecha_vencimiento')
+            ->where('bajado', 'N');
 
+        $query = $this->aplicarFiltroPeriodo($query, $anio, $mes);
 
-        return $datos;
+        return $query->distinct()->get();
     }
 
     public function obtenerModeloPadronPorImpuesto($impuesto)
@@ -1524,73 +1539,112 @@ class CargaImpuestoService
 
 
 
+    /**
+     * Rechaza un broche del impuesto indicado.
+     * Si se informan año y mes, la actualización se limita a ese período; de lo contrario
+     * se conserva el criterio anterior por fecha (agua) o por mes de vencimiento (tgi).
+     */
     public function gasRechazar($datos)
     {
         //Log::info($datos);
         //dd('hola');
         $modelo = $this->obtenerModeloCargaPorImpuesto($datos['impuesto']);
+        $anio = $datos['anio'] ?? null;
+        $mes = $datos['mes'] ?? null;
+        // El período distingue broches con el mismo número en distintos meses.
+        $tienePeriodo = $anio !== null && $anio !== '' && $mes !== null && $mes !== '';
 
         if ($this->esBrocheEspecial($datos['numero_broche'] ?? null)) {
-            $modelo::where('num_broche', $datos['numero_broche'])
-                ->update(['num_broche' => null]);
+            $query = $modelo::where('num_broche', $datos['numero_broche']);
+            $query = $this->aplicarFiltroPeriodo($query, $anio, $mes);
+
+            $query->update(['num_broche' => null]);
             return response()->json(['message' => 'Broche especial rechazado correctamente'], 200);
         }
 
         if ($datos['impuesto'] === 'api' || $datos['impuesto'] === 'gas') {
-            $modelo::where('fecha_vencimiento', $datos['fecha_vencimiento'])
-                ->update(['num_broche' => null]);
+            $query = $modelo::where('fecha_vencimiento', $datos['fecha_vencimiento']);
+            $query = $this->aplicarFiltroPeriodo($query, $anio, $mes);
+
+            $query->update(['num_broche' => null]);
             return response()->json(['message' => 'Gas rechazado correctamente'], 200);
         } elseif ($datos['impuesto'] === 'agua') {
-            $modelo::where('fecha_vencimiento', $datos['fecha_vencimiento'])
-                ->where('num_broche', $datos['numero_broche'])
-                ->update(['num_broche' => null]);
+            $query = $modelo::where('num_broche', $datos['numero_broche']);
+
+            if ($tienePeriodo) {
+                $query = $this->aplicarFiltroPeriodo($query, $anio, $mes);
+            } else {
+                // Compatibilidad: sin período se conserva el criterio anterior por fecha.
+                $query->where('fecha_vencimiento', $datos['fecha_vencimiento']);
+            }
+
+            $query->update(['num_broche' => null]);
             return response()->json(['message' => 'Gas rechazado correctamente'], 200);
         } elseif ($datos['impuesto'] === 'tgi') {
-            $fecha = Carbon::parse($datos['fecha_vencimiento']);
+            $query = $modelo::where('num_broche', $datos['numero_broche']);
 
-            $modelo::whereBetween('fecha_vencimiento', [
-                $fecha->copy()->startOfMonth(),
-                $fecha->copy()->endOfMonth(),
-            ])
-                ->where('num_broche', $datos['numero_broche'])
-                ->update(['num_broche' => null]);
+            if ($tienePeriodo) {
+                $query = $this->aplicarFiltroPeriodo($query, $anio, $mes);
+            } else {
+                // Compatibilidad: sin período se conserva el criterio anterior por mes de vencimiento.
+                $fecha = Carbon::parse($datos['fecha_vencimiento']);
+                $query->whereBetween('fecha_vencimiento', [
+                    $fecha->copy()->startOfMonth(),
+                    $fecha->copy()->endOfMonth(),
+                ]);
+            }
+
+            $query->update(['num_broche' => null]);
             return response()->json(['message' => 'Rechazado correctamente'], 200);
         }
     }
 
+    /**
+     * Marca como bajado un broche del impuesto y registra el usuario que lo controló.
+     * Si se informan año y mes, la actualización se limita a ese período para no afectar
+     * broches con el mismo número pertenecientes a otros meses.
+     */
     public function gasBajado($datos)
     {
         $modelo = $this->obtenerModeloCargaPorImpuesto($datos['impuesto']);
         $usuarioId = auth('api')->id();
+        $anio = $datos['anio'] ?? null;
+        $mes = $datos['mes'] ?? null;
+        // El período distingue broches con el mismo número en distintos meses.
+        $tienePeriodo = $anio !== null && $anio !== '' && $mes !== null && $mes !== '';
 
         if ($this->esBrocheEspecial($datos['numero_broche'] ?? null)) {
-            $modelo::where('num_broche', $datos['numero_broche'])
-                ->update(['bajado' => 'S', 'controlado' => $usuarioId]);
+            $query = $modelo::where('num_broche', $datos['numero_broche']);
+            $query = $this->aplicarFiltroPeriodo($query, $anio, $mes);
+
+            $query->update(['bajado' => 'S', 'controlado' => $usuarioId]);
             return response()->json(['message' => 'Broche especial bajado correctamente'], 200);
         }
 
         if ($datos['impuesto'] === 'api' || $datos['impuesto'] === 'gas') {
+            $query = $modelo::where('fecha_vencimiento', $datos['fecha_vencimiento'])
+                ->where('num_broche', '!=', null);
+            $query = $this->aplicarFiltroPeriodo($query, $anio, $mes);
 
-            $modelo::where('fecha_vencimiento', $datos['fecha_vencimiento'])
-                ->where('num_broche', '!=', null)
-                ->update(['bajado' => 'S', 'controlado' => $usuarioId]);
+            $query->update(['bajado' => 'S', 'controlado' => $usuarioId]);
             return response()->json(['message' => 'Gas bajado correctamente'], 200);
         } elseif ($datos['impuesto'] === 'agua' || $datos['impuesto'] === 'tgi') {
-            $fecha = Carbon::parse($datos['fecha_vencimiento']);
+            $query = $modelo::where('num_broche', '!=', null)
+                ->where('num_broche', $datos['numero_broche']);
 
-            $modelo::whereBetween('fecha_vencimiento', [
-                $fecha->copy()->startOfMonth(),
-                $fecha->copy()->endOfMonth(),
-            ])
-                ->where('num_broche', '!=', null)
-                ->where('num_broche', $datos['numero_broche'])
-                ->update(['bajado' => 'S', 'controlado' => $usuarioId]);
+            if ($tienePeriodo) {
+                $query = $this->aplicarFiltroPeriodo($query, $anio, $mes);
+            } else {
+                // Compatibilidad: sin período se conserva el criterio anterior por mes de vencimiento.
+                $fecha = Carbon::parse($datos['fecha_vencimiento']);
+                $query->whereBetween('fecha_vencimiento', [
+                    $fecha->copy()->startOfMonth(),
+                    $fecha->copy()->endOfMonth(),
+                ]);
+            }
+
+            $query->update(['bajado' => 'S', 'controlado' => $usuarioId]);
             return response()->json(['message' => 'Gas bajado correctamente'], 200);
         }
-
-        //$modelo = $this->obtenerModeloCargaPorImpuesto($datos['impuesto']);
-
-
-
     }
 }
