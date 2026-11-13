@@ -9,7 +9,7 @@ class BuscadorPdfController
 {
     public function verPDF(Request $request)
     {
-        $rutaBase = '\\\\10.10.10.190\\Compartido\\PDF AFIP-WSAFIPFE\\Inmobiliaria Salas\\';
+        $rutaBase = '\\\\10.10.10.184\\Compartido\\PDF AFIP-WSAFIPFE\\Inmobiliaria Salas\\';
 
         $empresa = $request->input('empresa');
         $comprobante = $request->input('comprobante');
