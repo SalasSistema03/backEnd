@@ -19,6 +19,8 @@ class InventarioVideoService
     public function guardar(Proceso_propiedad $proceso, UploadedFile $file, ?string $notes = null): InventarioVideo
     {
         $carpeta = InventarioRutas::carpeta($proceso);
+        /* Log::info($carpeta);
+        dd('hoola'); */
 
         if (!File::exists($carpeta)) {
             File::makeDirectory($carpeta, 0777, true);

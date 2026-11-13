@@ -53,6 +53,7 @@ class FotoInventarioService
                 throw new \RuntimeException("No se pudo guardar la foto en {$destino}");
             }
 
+
             $creadas[] = Foto_inventario::create([
                 'id_proceso_propiedad' => $proceso->id,
                 'propiedad_id'         => $proceso->id_propiedad,
