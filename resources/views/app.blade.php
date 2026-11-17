@@ -29,8 +29,8 @@
     />
     <!-- App -->
     <title>Salas</title>
-    <script type="module" crossorigin src="/assets/index-C4x3RYV-.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BRF4_Ozt.css">
+    <script type="module" crossorigin src="/assets/index-DT24JWVe.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Dyi7gF-Z.css">
   </head>
   <body>
     <!-- App Container -->
