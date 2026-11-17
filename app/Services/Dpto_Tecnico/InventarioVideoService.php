@@ -38,6 +38,8 @@ class InventarioVideoService
             throw new \RuntimeException("No se pudo guardar el video en {$destino}");
         }
 
+
+
         return InventarioVideo::create([
             'id_proceso_propiedad' => $proceso->id,
             'url' => InventarioRutas::url($proceso, $nombre),

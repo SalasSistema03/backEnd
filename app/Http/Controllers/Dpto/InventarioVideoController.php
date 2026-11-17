@@ -15,12 +15,11 @@ class InventarioVideoController extends Controller
 {
     use VerificaPermisoInventario;
 
-    public function __construct(private InventarioVideoService $service)
-    {
-    }
+    public function __construct(private InventarioVideoService $service) {}
 
     public function store(Request $request): JsonResponse
     {
+
         if ($denegado = $this->sinPermiso()) {
             return $denegado;
         }
@@ -30,13 +29,14 @@ class InventarioVideoController extends Controller
             'video' => 'required|file|mimes:mp4,mov,avi,wmv|max:102400',
             'descripcion' => 'nullable|string|max:2000',
         ]);
-
+        /* Log::info('entro a guardar'); */
         $proceso = Proceso_propiedad::find($request->id_proceso_propiedad);
         if (!$proceso) {
             return response()->json(['success' => false, 'message' => 'Proceso no encontrado.'], 404);
         }
 
         try {
+            Log::info('entro a guardar');
             $video = $this->service->guardar(
                 $proceso,
                 $request->file('video'),

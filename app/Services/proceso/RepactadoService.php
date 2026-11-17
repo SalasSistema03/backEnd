@@ -10,6 +10,7 @@ use App\Models\At_cl\Empresas_propiedades;
 use App\Models\At_cl\Propiedad;
 use App\Models\proceso\Historial_estado_repactado;
 use App\Models\proceso\Estado_repactado;
+use App\Models\proceso\Proceso_propiedad;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -63,22 +64,14 @@ class RepactadoService
         // vigente en PropiedadService::obtenerAlquiler.
         $resultados = DB::connection('mysql2')->select(
             "
-            SELECT DISTINCT
-    cc.id_contrato_cabecera,
-    vp.carpeta AS folio,
-    cc.comienza,
-    cc.finaliza AS finaliza,
-    cc.id_inquilino,
-    cc.id_casa,
-    vp.direccion,
-
-    MAX(cd.monto_alquiler) AS monto_alquiler,
-
-    (SELECT cd2.reconocimiento
-     FROM contratos_detalle cd2
-     WHERE cd2.id_contrato_cabecera = cc.id_contrato_cabecera
-     ORDER BY cd2.monto_alquiler DESC
-     LIMIT 1) AS reconocimiento,
+            SELECT DISTINCT cc.id_contrato_cabecera, vp.carpeta AS folio, cc.comienza, cc.finaliza AS finaliza, cc.id_inquilino,
+                            cc.id_casa, vp.direccion,
+                        MAX(cd.monto_alquiler) AS monto_alquiler,
+                            (SELECT cd2.reconocimiento 
+                                FROM contratos_detalle cd2
+                                WHERE cd2.id_contrato_cabecera = cc.id_contrato_cabecera
+                            ORDER BY cd2.monto_alquiler DESC
+                            LIMIT 1) AS reconocimiento,
 
     (SELECT rp.documentos
      FROM repactados rp
@@ -245,8 +238,9 @@ GROUP BY
     /**
      * Lista los repactados ya cargados en un período y empresa, con folio opcional.
      *
-     * Parte de historial_estado_repactado, que guarda un registro por propiedad y
-     * período, y lo enriquece con los datos que muestra el listado: el estado del
+     * Parte de historial_estado_repactado y toma la versión de mayor ID de cada
+     * propiedad para el período seleccionado. Luego la enriquece con los datos que
+     * muestra el listado: el estado del
      * catálogo, la dirección, localidad y tipo de la propiedad y el propietario
      * activo con sus teléfonos (todos desde `sistema_atcl`), y el inquilino del
      * contrato del que provino la carga (desde `mysql2`, consultado por folio/carpeta).
@@ -280,9 +274,13 @@ GROUP BY
             return [];
         }
 
-        $historiales = Historial_estado_repactado::where('periodo_cargado', $periodo)
+        $idsUltimosHistoriales = Historial_estado_repactado::query()
+            ->selectRaw('MAX(id)')
+            ->where('periodo_cargado', $periodo)
             ->whereIn('propiedad_id', $folios->keys()->all())
-            ->get();
+            ->groupBy('propiedad_id');
+
+        $historiales = Historial_estado_repactado::whereIn('id', $idsUltimosHistoriales)->get();
 
         if ($historiales->isEmpty()) {
             return [];
@@ -416,13 +414,14 @@ GROUP BY
     }
 
     /**
-     * Actualiza los datos editables de un repactado cargado.
+     * Registra una nueva versión de los datos editables de un repactado.
      *
      * Los valores económico fijos (alquiler viejo, monto del documento y
      * reconocimiento) no se recalculan desde el front: se conservan los guardados
      * al cargar el repactado. El total se compone de viejo + documento - reconocimiento.
      * Al seleccionar cualquier estado, si todavía no hay fecha de cierre, se
-     * completa con la fecha actual.
+     * completa con la fecha actual. El historial anterior se conserva y el proceso
+     * de propiedad apunta al nuevo registro.
      *
      * @param Request $request Datos editables del repactado.
      * @return array Estructura con success, message y data.
@@ -445,60 +444,71 @@ GROUP BY
             'reconocimiento' => ['nullable', 'numeric', 'min:0'],
         ]);
 
-        $historial = Historial_estado_repactado::find($datos['id']);
+        $historialActualizado = DB::connection('mysql10')->transaction(function () use ($datos) {
+            $historial = Historial_estado_repactado::query()
+                ->lockForUpdate()
+                ->find($datos['id']);
 
-        if (!$historial) {
-            throw new \RuntimeException('El repactado seleccionado no existe.');
-        }
+            if (!$historial) {
+                throw new \RuntimeException('El repactado seleccionado no existe.');
+            }
 
-        $estado = Estado_repactado::find($datos['estado']);
+            $estado = Estado_repactado::find($datos['estado']);
 
-        if (!$estado) {
-            throw new \RuntimeException('El estado seleccionado no existe.');
-        }
+            if (!$estado) {
+                throw new \RuntimeException('El estado seleccionado no existe.');
+            }
 
-        // El documento y el reconocimiento se guardan al cargar el repactado. Si
-        // la carga es anterior a esos campos, se completan con los valores que
-        // envía el listado (obtenidos del contrato).
-        $montoDocumento = (float) ($historial->monto_documento ?? 0);
+            // El documento y el reconocimiento se guardan al cargar el repactado. Si
+            // la carga es anterior a esos campos, se completan con los valores que
+            // envía el listado (obtenidos del contrato).
+            $montoDocumento = (float) ($historial->monto_documento ?? 0);
 
-        if ($montoDocumento === 0.0 && !empty($datos['monto_documento'])) {
-            $montoDocumento = (float) $datos['monto_documento'];
-        }
+            if ($montoDocumento === 0.0 && !empty($datos['monto_documento'])) {
+                $montoDocumento = (float) $datos['monto_documento'];
+            }
 
-        $reconocimiento = (float) ($historial->reconocimiento ?? 0);
+            $reconocimiento = (float) ($historial->reconocimiento ?? 0);
 
-        if ($reconocimiento === 0.0 && !empty($datos['reconocimiento'])) {
-            $reconocimiento = (float) $datos['reconocimiento'];
-        }
+            if ($reconocimiento === 0.0 && !empty($datos['reconocimiento'])) {
+                $reconocimiento = (float) $datos['reconocimiento'];
+            }
 
-        $total = round((float) $historial->monto_alquiler_viejo + $montoDocumento - $reconocimiento, 2);
+            $total = round((float) $historial->monto_alquiler_viejo + $montoDocumento - $reconocimiento, 2);
 
-        // Cualquier estado seleccionado deja registrada la fecha de cierre. Si ya
-        // tenía una, se conserva para no pisar la fecha original.
-        $fechaCierre = $historial->fecha_cierre ?: now()->toDateString();
+            // Cualquier estado seleccionado deja registrada la fecha de cierre. Si ya
+            // tenía una, se conserva para no pisar la fecha original.
+            $fechaCierre = $historial->fecha_cierre ?: now()->toDateString();
 
-        $historial->update([
-            'estado' => $estado->id,
-            'cuenta_corriente' => $datos['cuenta_corriente'] ?? null,
-            'plazo_y_actualizacion_contrato' => $datos['plazo_y_actualizacion_contrato'] ?? null,
-            'condicion' => $datos['condicion'] ?? null,
-            'situacion' => $datos['situacion'] ?? null,
-            'observaciones_estado' => $datos['observaciones_estado'] ?? null,
-            'comentario_inq' => $datos['comentario_inq'] ?? null,
-            'comentario_prop' => $datos['comentario_prop'] ?? null,
-            'nuevo_valor_alquiler' => $datos['nuevo_valor_alquiler'] ?? null,
-            'monto_documento' => $montoDocumento,
-            'reconocimiento' => $reconocimiento,
-            'total' => $total,
-            'fecha_cierre' => $fechaCierre,
-            'quien_guardo' => auth('api')->id() ?? $historial->quien_guardo,
-        ]);
+            $nuevoHistorial = $historial->replicate();
+            $nuevoHistorial->fill([
+                'estado' => $estado->id,
+                'cuenta_corriente' => $datos['cuenta_corriente'] ?? null,
+                'plazo_y_actualizacion_contrato' => $datos['plazo_y_actualizacion_contrato'] ?? null,
+                'condicion' => $datos['condicion'] ?? null,
+                'situacion' => $datos['situacion'] ?? null,
+                'observaciones_estado' => $datos['observaciones_estado'] ?? null,
+                'comentario_inq' => $datos['comentario_inq'] ?? null,
+                'comentario_prop' => $datos['comentario_prop'] ?? null,
+                'nuevo_valor_alquiler' => $datos['nuevo_valor_alquiler'] ?? null,
+                'monto_documento' => $montoDocumento,
+                'reconocimiento' => $reconocimiento,
+                'total' => $total,
+                'fecha_cierre' => $fechaCierre,
+                'quien_guardo' => auth('api')->id() ?? $historial->quien_guardo,
+            ]);
+            $nuevoHistorial->save();
+
+            Proceso_propiedad::where('id_historial_estado_repactado', $historial->id)
+                ->update(['id_historial_estado_repactado' => $nuevoHistorial->id]);
+
+            return $nuevoHistorial;
+        });
 
         return [
             'success' => true,
             'message' => 'Repactado actualizado correctamente.',
-            'data' => $historial->fresh(),
+            'data' => $historialActualizado,
         ];
     }
 
