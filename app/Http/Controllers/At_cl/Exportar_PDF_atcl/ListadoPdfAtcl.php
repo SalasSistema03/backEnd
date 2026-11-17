@@ -768,7 +768,20 @@ class ListadoPdfAtcl
                 }
             }
 
+            $codigosConsultados = $data
+                ->flatMap(function ($criterio) {
+                    return $criterio->historialConsultas->pluck('codigo_consulta');
+                })
+                ->filter()
+                ->unique()
+                ->values();
 
+            $propiedadesPorCodigo = $codigosConsultados->isNotEmpty()
+                ? Propiedad::with('precio')
+                    ->whereIn('cod_venta', $codigosConsultados)
+                    ->get()
+                    ->keyBy('cod_venta')
+                : collect();
 
 
 
@@ -784,7 +797,8 @@ class ListadoPdfAtcl
                     'conteoAsesores',
                     'total_tipo_ingreso',
                     'fechaDesde',
-                    'fechaHasta'
+                    'fechaHasta',
+                    'propiedadesPorCodigo'
                 )
             )->render();
         }
