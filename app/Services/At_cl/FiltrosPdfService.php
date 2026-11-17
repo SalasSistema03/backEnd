@@ -37,6 +37,7 @@ class FiltrosPdfService
         $this->aplicarFiltroCantDorm($query, $filtros);
         $this->aplicarFiltroEstadoPorSector($query, $filtros, $sector);
         $this->aplicarFiltroCartel($query, $filtros);
+        $this->aplicarFiltroLlave($query, $filtros);
         $this->aplicarFiltroCaptador($query, $filtros, $sector);
 
         $this->aplicarFiltroImportePorSector($query, $filtros, $sector);
@@ -124,6 +125,17 @@ class FiltrosPdfService
     {
         if (!empty($filtros['cartel'])) {
             $query->where('cartel', $filtros['cartel']);
+        }
+    }
+
+    private function aplicarFiltroLlave(Builder $query, array $filtros): void
+    {
+        if (($filtros['llave'] ?? '') === 's') {
+            $query->where('llave', '>', 0);
+        } elseif (($filtros['llave'] ?? '') === 'no') {
+            $query->where(function (Builder $query) {
+                $query->whereNull('llave')->orWhere('llave', '<=', 0);
+            });
         }
     }
 

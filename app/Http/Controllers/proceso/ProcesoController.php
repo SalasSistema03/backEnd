@@ -579,8 +579,9 @@ class ProcesoController extends Controller
     /**
      * Actualiza un repactado (PUT /updateRepactado).
      *
-     * Delega en RepactadoService la actualización de los campos editables y el
-     * cálculo del total y de la fecha de cierre.
+     * Delega en RepactadoService el registro de una nueva versión del historial,
+     * el cálculo del total y de la fecha de cierre, y la actualización de la
+     * referencia desde proceso_propiedad.
      */
     public function updateRepactado(Request $request)
     {

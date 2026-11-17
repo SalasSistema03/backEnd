@@ -141,8 +141,11 @@
                             @if (in_array('descripcion', $campos) && $sector === 'Venta')
                                 <th>Descripcion</th>
                             @endif
-                            @if (in_array('llave', $campos) && $sector === 'Venta')
-                                <th>LLave</th>
+                            @if (in_array('llave', $campos))
+                                <th>Llave</th>
+                            @endif
+                            @if (in_array('comentarioLlave', $campos))
+                                <th>Comentario Llave</th>
                             @endif
                             @if (in_array('cartel', $campos))
                                 <th>Cartel</th>
@@ -320,14 +323,11 @@
                                 @if (in_array('descripcion', $campos) && $sector === 'Venta')
                                     <td>{{ $propiedad->descipcion_propiedad }}</td>
                                 @endif
-                                @if (in_array('llave', $campos) && $sector === 'Venta')
-                                    <td>
-                                        @if ($propiedad->llave > 0)
-                                            SI
-                                        @else
-                                            NO
-                                        @endif
-                                    </td>
+                                @if (in_array('llave', $campos))
+                                    <td>{{ $propiedad->llave ?? '' }}</td>
+                                @endif
+                                @if (in_array('comentarioLlave', $campos))
+                                    <td>{{ $propiedad->comentario_llave ?? '' }}</td>
                                 @endif
                                 @if (in_array('cartel', $campos))
                                     <td>{{ $propiedad->cartel ?? '' }}</td>
