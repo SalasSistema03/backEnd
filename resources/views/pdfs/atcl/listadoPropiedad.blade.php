@@ -728,7 +728,8 @@
                             <th>Tipo Inmueble</th>
                             <th>Categoria</th>
                             <th>Zona</th>
-                            <th>Cant. Dormitorios</th>
+                            <th>Cant. Dorm</th>
+
                             <th>Cochera</th>
                             <th>Precio</th>
                         </tr>
@@ -762,7 +763,8 @@
                             <th>Codigo</th>
                             <th>Direccion</th>
                             <th>Tipo Inmueble</th>
-                            <th>Cant. Dormitorios</th>
+                            <th>Cant. Dorm.</th>
+                            <th>Precio</th>
                             <th>Zona</th>
                             <th>Cochera</th>
                             <th>Asesor</th>
@@ -802,6 +804,21 @@
                                             <td rowspan="{{ count($historial) }}">
                                                 {{ $criterio->cant_dormitorios ?? '-' }}
                                             </td>
+                                        @endif
+                                        @php
+                                            $propiedadConsultada = $propiedadesPorCodigo->get($consulta->codigo_consulta);
+                                            $precioConsultado = $propiedadConsultada?->precio;
+                                        @endphp
+                                        <td>
+                                            @if ($precioConsultado && $precioConsultado->moneda_venta_dolar && $precioConsultado->moneda_venta_dolar != null)
+                                                u$s {{ $precioConsultado->moneda_venta_dolar }}
+                                            @elseif ($precioConsultado && $precioConsultado->moneda_venta_pesos && $precioConsultado->moneda_venta_pesos != null)
+                                                $ {{ $precioConsultado->moneda_venta_pesos }}
+                                            @else
+                                                -
+                                            @endif
+                                        </td>
+                                        @if ($loop->first)
                                             <td rowspan="{{ count($historial) }}">
                                                 {{ $criterio->zona->name ?? '-' }}
                                             </td>
@@ -825,6 +842,7 @@
                                     <td>-</td>
                                     <td>{{ $criterio->tipoInmueble->inmueble ?? '-' }}</td>
                                     <td>{{ $criterio->cant_dormitorios ?? '-' }}</td>
+                                    <td>-</td>
                                     <td>{{ $criterio->zona->name ?? '-' }}</td>
                                     <td>{{ $criterio->cochera ?? '-' }}</td>
                                     <td>{{ $criterio->cliente->asesor->usuario->username ?? '-' }}</td>
