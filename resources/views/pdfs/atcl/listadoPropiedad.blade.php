@@ -17,7 +17,7 @@
         $campos = $informacionMostrar ?? [];
     @endphp
 
-    <div class="row mx-3">
+    <div class="mx-3">
         <div class="header col-12 row">
             <div class="col-3">
                 <img src="{{ public_path('image/logo.png') }}" class="logo">

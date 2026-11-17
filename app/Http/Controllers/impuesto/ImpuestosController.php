@@ -211,6 +211,7 @@ class ImpuestosController extends Controller
     {
         $registros = app(CargaImpuestoService::class)->exportarFaltantesService($request->anio, $request->mes, $request->impuesto);
 
+
         $encabezados = [
             'Folio',
             'Partida',
@@ -407,10 +408,17 @@ class ImpuestosController extends Controller
         return response()->json(['status' => 'success', 'message' => 'El registro se ha eliminado correctamente.']);
     }
 
+    /**
+     * Devuelve los broches pendientes de control para el impuesto y período recibidos.
+     */
     public function sinControlar(Request $request)
     {
         // Log::info([$request]);
-        return app(CargaImpuestoService::class)->sinControlar($request->impuesto);
+        return app(CargaImpuestoService::class)->sinControlar(
+            $request->impuesto,
+            $request->anio,
+            $request->mes
+        );
     }
 
     public function gasRechazar(Request $request)

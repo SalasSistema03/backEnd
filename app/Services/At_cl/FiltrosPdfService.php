@@ -37,6 +37,7 @@ class FiltrosPdfService
         $this->aplicarFiltroCantDorm($query, $filtros);
         $this->aplicarFiltroEstadoPorSector($query, $filtros, $sector);
         $this->aplicarFiltroCartel($query, $filtros);
+        $this->aplicarFiltroCaptador($query, $filtros, $sector);
 
         $this->aplicarFiltroImportePorSector($query, $filtros, $sector);
         $this->aplicarOrdenPorSector($query, $filtros, $sector);
@@ -123,6 +124,17 @@ class FiltrosPdfService
     {
         if (!empty($filtros['cartel'])) {
             $query->where('cartel', $filtros['cartel']);
+        }
+    }
+
+    /**
+     * Filtra por captador interno del sector: captador_int_a en Alquiler y captador_int_v en Venta.
+     */
+    private function aplicarFiltroCaptador(Builder $query, array $filtros, string $sector): void
+    {
+        if (!empty($filtros['captador'])) {
+            $campo = ($sector === 'Alquiler') ? 'captador_int_a' : 'captador_int_v';
+            $query->where($campo, $filtros['captador']);
         }
     }
 

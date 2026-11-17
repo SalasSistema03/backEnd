@@ -38,6 +38,9 @@ use App\Services\At_cl\PropiedadService;
 use App\Services\clientes\UsuarioSectorService;
 use App\Http\Controllers\proceso\ProcesoController;
 use App\Http\Controllers\proceso\RepactadoConversacionController;
+use App\Http\Controllers\proceso\FotoInventarioController;
+use App\Http\Controllers\proceso\DocumentoInventarioController;
+use App\Http\Controllers\Dpto\InventarioVideoController;
 use App\Http\Controllers\impuesto\Expensas\ExpensasController;
 use App\Models\At_cl\Zona;
 use App\Models\At_cl\Tipo_inmueble;
@@ -254,6 +257,7 @@ Route::prefix('v1')->group(function () {
         //LISTADO ATCL
         Route::post('/broches/pdf/listadoPropiedad', [ListadoPdfAtcl::class, 'listadoPropiedad']);
         Route::post('/broches/listado/criterios-activos', [ListadoPdfAtcl::class, 'criteriosActivosListado']);
+        Route::post('/broches/listado/captadores', [ListadoPdfAtcl::class, 'captadoresListado']);
         Route::post('/broches/conversaciones/criterio', [ListadoPdfAtcl::class, 'conversacionesJson']);
         Route::get('propietarios/activos', [PadronController::class, 'padronActivos']);
 
@@ -331,6 +335,18 @@ Route::prefix('v1')->group(function () {
         Route::get('/getEstadoDpto', [ProcesoController::class, 'getEstadoDpto']);
         Route::post('/ActualizarInventario', [ProcesoController::class, 'ActualizarInventario']);
         Route::get('/getComentariosInventario', [ProcesoController::class, 'getComentarios']);
+        Route::post('/dpto/inventario/videos', [InventarioVideoController::class, 'store']);
+        Route::get('/dpto/inventario/videos/{idProcesoPropiedad}', [InventarioVideoController::class, 'index']);
+        Route::delete('/dpto/inventario/videos/{id}', [InventarioVideoController::class, 'destroy']);
+        // Fotos de inventario (Dpto Técnico)
+        Route::get('/fotosInventario', [FotoInventarioController::class, 'index']);
+        Route::post('/fotosInventario', [FotoInventarioController::class, 'store']);
+        Route::patch('/fotosInventario/{id}', [FotoInventarioController::class, 'update']);
+        Route::delete('/fotosInventario/{id}', [FotoInventarioController::class, 'destroy']);
+        // Documentos de inventario (Dpto Técnico): uno por proceso
+        Route::get('/documentosInventario', [DocumentoInventarioController::class, 'index']);
+        Route::post('/documentosInventario', [DocumentoInventarioController::class, 'store']);
+        Route::delete('/documentosInventario/{id}', [DocumentoInventarioController::class, 'destroy']);
         // Fideicomiso
         Route::prefix('fideicomiso')->group(function () {
 

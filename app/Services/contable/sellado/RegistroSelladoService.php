@@ -230,7 +230,10 @@ class RegistroSelladoService
 
     public function exportarRegistrosSelladoService()
     {
-        $registros = Registro_sellado::all();
+        // Mismo criterio que la tabla visual: los registros eliminados quedan con finalizado = 1.
+        $registros = Registro_sellado::where('mostrar', 1)
+            ->where('finalizado', '!=', '1')
+            ->get();
 
         return $registros->map(function ($registro) {
             $monto_vivienda = $registro->monto_alquiler_vivienda * $registro->cantidad_meses;

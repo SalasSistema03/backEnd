@@ -9,7 +9,7 @@ class BuscadorPdfController
 {
     public function verPDF(Request $request)
     {
-        $rutaBase = '\\\\10.10.10.190\\Compartido\\PDF AFIP-WSAFIPFE\\Inmobiliaria Salas\\';
+        $rutaBase = '\\\\10.10.10.184\\Compartido\\PDF AFIP-WSAFIPFE\\Inmobiliaria Salas\\';
 
         $empresa = $request->input('empresa');
         $comprobante = $request->input('comprobante');
@@ -24,8 +24,7 @@ class BuscadorPdfController
             $punto = '5';
         } elseif ($empresa == 'Florencia') {
             $punto = '1';
-        }
-        else {
+        } else {
             $punto = '4';
         }
         $puntos = str_pad($punto, 4, '0', STR_PAD_LEFT);
@@ -36,10 +35,10 @@ class BuscadorPdfController
         if ($comprobante == 'Opp Concatenadas') {
             // Buscar y combinar PDFs similares
             try {
-                return $this->buscarYCombinarPDFs($rutaBase, $empresa, $comprobante, $tipo, $numero, $letra, $puntos,$numeros);
+                return $this->buscarYCombinarPDFs($rutaBase, $empresa, $comprobante, $tipo, $numero, $letra, $puntos, $numeros);
             } catch (\Exception $e) {
                 $letra = "";
-                return $this->buscarYCombinarPDFs($rutaBase, $empresa, $comprobante, $tipo, $letra, $numero, $puntos,$numeros);
+                return $this->buscarYCombinarPDFs($rutaBase, $empresa, $comprobante, $tipo, $letra, $numero, $puntos, $numeros);
             }
             /* return $this->buscarYCombinarPDFs($rutaBase, $empresa, $comprobante, $tipo, $numero, $letra, $puntos,$numeros); */
         } else {
@@ -54,15 +53,13 @@ class BuscadorPdfController
             return response(file_get_contents($rutaCompleta))
                 ->header('Content-Type', 'application/pdf')
                 ->header('Content-Disposition', 'inline; filename="' . $nombreDescarga . '"');
-
         }
-
     }
 
     /**
      * Busca PDFs similares y los combina en un solo archivo
      */
-    private function buscarYCombinarPDFs($rutaBase, $empresa, $comprobante, $tipo, $numeros, $letra, $puntos,$numero)
+    private function buscarYCombinarPDFs($rutaBase, $empresa, $comprobante, $tipo, $numeros, $letra, $puntos, $numero)
     {
         // Directorio donde buscar los PDFs
         $directorioBase = $rutaBase . $empresa . "\\" . $comprobante . "\\" . $tipo;
@@ -76,15 +73,15 @@ class BuscadorPdfController
         $archivosEncontrados = [];
         $archivos = scandir($directorioBase);
         $contador = 0;
-        $nombreArchivo = sprintf('%s %s-%s-%s.pdf',"OppConcatenada", "X", $puntos, $numero);
+        $nombreArchivo = sprintf('%s %s-%s-%s.pdf', "OppConcatenada", "X", $puntos, $numero);
 
 
 
         foreach ($archivos as $archivo) {
             if (pathinfo($archivo, PATHINFO_EXTENSION) === 'pdf') {
-               if(strpos($archivo, $numeros) !== false) {
-                   $archivosEncontrados[] = $directorioBase . "\\" . $archivo;
-               }
+                if (strpos($archivo, $numeros) !== false) {
+                    $archivosEncontrados[] = $directorioBase . "\\" . $archivo;
+                }
             }
         }
 

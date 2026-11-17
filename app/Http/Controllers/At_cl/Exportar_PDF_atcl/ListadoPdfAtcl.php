@@ -1144,6 +1144,68 @@ class ListadoPdfAtcl
     }
 
     /**
+     * Devuelve como JSON los captadores internos de venta o alquiler con las propiedades que tienen asignadas.
+     *
+     * Con tipo "venta" se usa captador_int_v y cod_venta; con tipo "alquiler", captador_int_a y cod_alquiler.
+     * Solo se incluyen propiedades con código de la operación correspondiente.
+     *
+     * @param  \Illuminate\Http\Request  $request  Debe incluir tipo ("venta" o "alquiler").
+     * @return \Illuminate\Http\JsonResponse  Objeto con "total" y "data" (un captador por elemento, con sus propiedades).
+     */
+    public function captadoresListado(Request $request)
+    {
+        $request->validate([
+            'tipo' => 'required|in:venta,alquiler',
+        ]);
+
+        $esVenta = $request->input('tipo') === 'venta';
+        $campoCaptador = $esVenta ? 'captador_int_v' : 'captador_int_a';
+        $campoCodigo = $esVenta ? 'cod_venta' : 'cod_alquiler';
+
+        $propiedades = Propiedad::whereNotNull($campoCaptador)
+            ->whereNotNull($campoCodigo)
+            ->with(['calle', 'zona', 'tipoInmueble', 'estadoVenta', 'estadoAlquiler', 'precioActual'])
+            ->orderBy('numero_calle')
+            ->get();
+
+        $usernamesById = Usuario::whereIn('id', $propiedades->pluck($campoCaptador)->unique())
+            ->pluck('username', 'id')
+            ->all();
+
+        $captadores = $propiedades->groupBy($campoCaptador)->map(function ($grupo, $captadorId) use ($usernamesById, $esVenta, $campoCodigo) {
+            return [
+                'captador_id' => (int) $captadorId,
+                'captador' => $usernamesById[$captadorId] ?? '-',
+                'total' => $grupo->count(),
+                'propiedades' => $grupo->map(function ($propiedad) use ($esVenta, $campoCodigo) {
+                    return [
+                        'id' => $propiedad->id,
+                        'codigo' => $propiedad->{$campoCodigo},
+                        'calle' => $propiedad->calle->name ?? '-',
+                        'numero' => $propiedad->numero_calle ?? '-',
+                        'piso' => $propiedad->piso ?? '-',
+                        'departamento' => $propiedad->departamento ?? '-',
+                        'zona' => $propiedad->zona->name ?? '-',
+                        'tipo_inmueble' => $propiedad->tipoInmueble->inmueble ?? '-',
+                        'cantidad_dormitorios' => $propiedad->cantidad_dormitorios ?? '-',
+                        'estado' => $esVenta
+                            ? ($propiedad->estadoVenta->name ?? '-')
+                            : ($propiedad->estadoAlquiler->name ?? '-'),
+                        'precio' => $esVenta
+                            ? ($propiedad->precioActual->moneda_venta_dolar ?? '-')
+                            : ($propiedad->precioActual->moneda_alquiler_pesos ?? '-'),
+                    ];
+                })->values(),
+            ];
+        })->sortBy('captador')->values();
+
+        return response()->json([
+            'total' => $captadores->count(),
+            'data' => $captadores,
+        ]);
+    }
+
+    /**
      * Convierte la distancia entre una fecha y hoy en texto, por ejemplo "2 años 3 meses 5 días".
      *
      * Se usan solo las unidades mayores a cero. Si la diferencia es menor a un día se devuelve "0 días".

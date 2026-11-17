@@ -64,66 +64,48 @@ class RepactadoService
         $resultados = DB::connection('mysql2')->select(
             "
             SELECT DISTINCT
-                cc.id_contrato_cabecera,
-                vp.carpeta AS folio,
-                cc.comienza,
+    cc.id_contrato_cabecera,
+    vp.carpeta AS folio,
+    cc.comienza,
+    cc.finaliza AS finaliza,
+    cc.id_inquilino,
+    cc.id_casa,
+    vp.direccion,
 
-                IF(
-                    cc.rescicion <> '0000-00-00',
-                    IF(
-                        cc.rescicion <= cc.finaliza,
-                        cc.rescicion,
-                        cc.finaliza
-                    ),
-                    cc.rescicion
-                ) AS finaliza,
+    MAX(cd.monto_alquiler) AS monto_alquiler,
 
-                cc.id_inquilino,
-                cc.id_casa,
-                vp.direccion,
+    (SELECT cd2.reconocimiento
+     FROM contratos_detalle cd2
+     WHERE cd2.id_contrato_cabecera = cc.id_contrato_cabecera
+     ORDER BY cd2.monto_alquiler DESC
+     LIMIT 1) AS reconocimiento,
 
-                MAX(cd.monto_alquiler) AS monto_alquiler,
+    (SELECT rp.documentos
+     FROM repactados rp
+     WHERE rp.id_contrato_cabecera = cc.id_contrato_cabecera
+     ORDER BY rp.id_repactado DESC
+     LIMIT 1) AS monto_documento,
 
-                (SELECT cd2.reconocimiento
-                 FROM contratos_detalle cd2
-                 WHERE cd2.id_contrato_cabecera = cc.id_contrato_cabecera
-                 ORDER BY cd2.monto_alquiler DESC
-                 LIMIT 1) AS reconocimiento,
+    'VTO. CONTRATO' AS motivo
 
-                (SELECT rp.documentos
-                 FROM repactados rp
-                 WHERE rp.id_contrato_cabecera = cc.id_contrato_cabecera
-                 ORDER BY rp.id_repactado DESC
-                 LIMIT 1) AS monto_documento,
+FROM contratos_cabecera AS cc, contratos_detalle AS cd, view_propiedades AS vp
 
-                IF(
-                    cc.rescicion <> '0000-00-00',
-                    IF(
-                        cc.rescicion < cc.finaliza,
-                        'RESCICION',
-                        'VTO. CONTRATO'
-                    ),
-                    'VTO. CONTRATO'
-                ) AS motivo
+WHERE
+    cc.id_contrato_cabecera = cd.id_contrato_cabecera
+    AND cc.id_casa = vp.id_casa
+    AND LEFT(cc.finaliza, 7) = ?
+    AND (
+        cc.rescicion = '0000-00-00'
+        OR cc.rescicion >= cc.finaliza
+    )
+    AND cc.id_empresa = ?
+    AND cc.documentos = 'N'
 
-            FROM contratos_cabecera AS cc, contratos_detalle AS cd, view_propiedades AS vp
-
-            WHERE
-                cc.id_contrato_cabecera = cd.id_contrato_cabecera
-                AND cc.id_casa = vp.id_casa
-                AND (
-                    LEFT(cc.finaliza, 7) = ?
-                    OR LEFT(cc.rescicion, 7) = ?
-                )
-                AND LEFT(cc.rescicion, 7) >= ?
-                AND cc.id_empresa = ?
-                AND cc.documentos = 'N'
-
-            GROUP BY
-                cc.id_contrato_cabecera,
-                cc.id_casa
+GROUP BY
+    cc.id_contrato_cabecera,
+    cc.id_casa
             ",
-            [$periodo, $periodo, $periodo, $empresa]
+            [$periodo, $empresa]
         );
         //Log::info($resultados);
 
@@ -399,6 +381,8 @@ class RepactadoService
                 'condicion' => $historial->condicion ?: null,
                 'situacion' => $historial->situacion ?: null,
                 'observaciones' => $historial->observaciones_estado ?: null,
+                'comentario' => $historial->comentario_inq ?: null,
+                'comentarioProp' => $historial->comentario_prop ?: null,
                 'apellidoNombre' => $datos['apellidoNombre'] ?? null,
                 'telefono' => !empty($datos['telefono']) ? $datos['telefono'] : null,
                 'direccion' => $direccion,
@@ -454,6 +438,8 @@ class RepactadoService
             'condicion' => ['nullable', 'string', 'in:No Renueva,Renueva,Retiro'],
             'situacion' => ['nullable', 'string', 'in:Nuevo,Prop Retira,Prorroga,Reingresa'],
             'observaciones_estado' => ['nullable', 'string'],
+            'comentario_inq' => ['nullable', 'string'],
+            'comentario_prop' => ['nullable', 'string'],
             'nuevo_valor_alquiler' => ['nullable', 'numeric', 'min:0'],
             'monto_documento' => ['nullable', 'numeric', 'min:0'],
             'reconocimiento' => ['nullable', 'numeric', 'min:0'],
@@ -499,6 +485,8 @@ class RepactadoService
             'condicion' => $datos['condicion'] ?? null,
             'situacion' => $datos['situacion'] ?? null,
             'observaciones_estado' => $datos['observaciones_estado'] ?? null,
+            'comentario_inq' => $datos['comentario_inq'] ?? null,
+            'comentario_prop' => $datos['comentario_prop'] ?? null,
             'nuevo_valor_alquiler' => $datos['nuevo_valor_alquiler'] ?? null,
             'monto_documento' => $montoDocumento,
             'reconocimiento' => $reconocimiento,
