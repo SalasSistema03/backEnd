@@ -313,6 +313,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/getRepactadoFiltrado', [ProcesoController::class, 'getRepactadoFiltrado']);
         Route::get('/getEstadosRepactado', [ProcesoController::class, 'getEstadosRepactado']);
         Route::put('/updateRepactado', [ProcesoController::class, 'updateRepactado']);
+        Route::post('/guardarTasacionRepactado', [ProcesoController::class, 'guardarTasacionRepactado']);
         Route::get('/repactado/{id}/conversacion', [RepactadoConversacionController::class, 'index']);
         Route::post('/repactado/{id}/conversacion', [RepactadoConversacionController::class, 'store']);
 

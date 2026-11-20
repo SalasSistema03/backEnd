@@ -6,12 +6,17 @@ namespace App\Services\proceso;
 use App\Models\usuarios_y_permisos\Usuario;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use App\Models\At_cl\Empresas_propiedades;
 use App\Models\At_cl\Propiedad;
+use App\Models\At_cl\Tasacion;
 use App\Models\proceso\Historial_estado_repactado;
 use App\Models\proceso\Estado_repactado;
 use App\Models\proceso\Proceso_propiedad;
+use App\Models\proceso\Historial_tasaciones_repactado;
+use App\Services\At_cl\TasacionService;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Servicio de carga de repactados.
@@ -26,9 +31,10 @@ class RepactadoService
      *
      * La consulta base reúne los contratos de la empresa cuyo vencimiento o rescisión
      * cae dentro del período, descartando los que ya habían sido rescindidos antes de
-     * ese momento. Cada contrato se vincula con su propiedad a través del folio y la
-     * empresa, y se registra en historial_estado_repactado el alquiler vigente, las
-     * fechas del contrato y el usuario que realizó la carga.
+     * ese momento. También descarta un contrato si existe otro posterior para la
+     * misma casa y empresa. Cada contrato se vincula con su propiedad a través del
+     * folio y la empresa, y se registra en historial_estado_repactado el alquiler
+     * vigente, las fechas del contrato y el usuario que realizó la carga.
      *
      * La carga se ejecuta dentro de una transacción: si un registro falla, se revierten
      * los inserts ya realizados.
@@ -60,8 +66,9 @@ class RepactadoService
         // vencimiento) y motivo distingue el motivo por el que termina el contrato.
         // El filtro por período exige que el vencimiento o la rescisión ocurran en el
         // mes analizado y descarta los contratos ya rescindidos con anterioridad.
-        // La condición documentos = 'N' toma el mismo contrato que se considera
-        // vigente en PropiedadService::obtenerAlquiler.
+        // La condición documentos = 'N' toma el mismo tipo de contrato que se usa
+        // en PropiedadService::obtenerAlquiler; más abajo se descartan los que ya
+        // tienen un contrato posterior para la misma casa y empresa.
         $resultados = DB::connection('mysql2')->select(
             "
             SELECT DISTINCT cc.id_contrato_cabecera, vp.carpeta AS folio, cc.comienza, cc.finaliza AS finaliza, cc.id_inquilino,
@@ -102,6 +109,35 @@ GROUP BY
         );
         //Log::info($resultados);
 
+
+        if (empty($resultados)) {
+            return [
+                'success' => true,
+                'message' => 'No se encontraron repactados para el período seleccionado.',
+                'data' => [],
+            ];
+        }
+
+        $casas = array_values(array_unique(array_map(
+            fn($resultado) => (int) $resultado->id_casa,
+            $resultados
+        )));
+        $ultimoContratoPorCasa = DB::connection('mysql2')->table('contratos_cabecera')
+            ->where('id_empresa', $empresa)
+            ->whereIn('id_casa', $casas)
+            ->selectRaw('id_casa, MAX(id_contrato_cabecera) AS ultimo_id')
+            ->groupBy('id_casa')
+            ->pluck('ultimo_id', 'id_casa')
+            ->all();
+
+        $resultados = array_values(array_filter(
+            $resultados,
+            fn($resultado) => $this->esContratoMasRecientePorCasa(
+                (int) $resultado->id_casa,
+                (int) $resultado->id_contrato_cabecera,
+                $ultimoContratoPorCasa
+            )
+        ));
 
         if (empty($resultados)) {
             return [
@@ -236,51 +272,96 @@ GROUP BY
     }
 
     /**
-     * Lista los repactados ya cargados en un período y empresa, con folio opcional.
+     * Lista los repactados usando uno o más filtros opcionales.
      *
-     * Parte de historial_estado_repactado y toma la versión de mayor ID de cada
-     * propiedad para el período seleccionado. Luego la enriquece con los datos que
-     * muestra el listado: el estado del
-     * catálogo, la dirección, localidad y tipo de la propiedad y el propietario
-     * activo con sus teléfonos (todos desde `sistema_atcl`), y el inquilino del
-     * contrato del que provino la carga (desde `mysql2`, consultado por folio/carpeta).
+     * Parte de historial_estado_repactado, excluye los historiales de contratos
+     * reemplazados y toma la versión de mayor ID válida de cada propiedad para el
+     * período seleccionado. Luego enriquece las filas con el estado, los datos de
+     * la propiedad y el inquilino del contrato actual.
      *
-     * @param Request $request Período, empresa y folio opcional (mes, anio, empresa, folio).
+     * @param Request $request Filtros opcionales de período, empresa, folio, estado, dirección y usuario.
      * @return array Repartición de filas para el listado, en formato camelCase.
      */
     public function getRepactadoFiltrado(Request $request)
     {
         $datos = $request->validate([
-            'mes' => ['required', 'integer', 'between:1,12'],
-            'anio' => ['required', 'integer', 'digits:4'],
-            'empresa' => ['required', 'integer', 'in:1,2,3'],
+            'mes' => ['nullable', 'integer', 'between:1,12'],
+            'anio' => ['nullable', 'integer', 'digits:4'],
+            'empresa' => ['nullable', 'integer', 'in:1,2,3'],
             'folio' => ['nullable', 'integer', 'between:0,100000'],
+            'estado' => ['nullable', 'integer', 'min:1'],
+            'direccion' => ['nullable', 'string', 'max:255'],
+            'usuario' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $periodo = sprintf('%04d-%02d', (int) $datos['anio'], (int) $datos['mes']);
-        $empresa = (int) $datos['empresa'];
+        $mes = isset($datos['mes']) ? (int) $datos['mes'] : null;
+        $anio = isset($datos['anio']) ? (int) $datos['anio'] : null;
+        $empresa = isset($datos['empresa']) ? (int) $datos['empresa'] : null;
         $folioBuscado = isset($datos['folio']) ? (int) $datos['folio'] : null;
+        $estadoBuscado = isset($datos['estado']) ? (int) $datos['estado'] : null;
+        $direccionBuscada = trim((string) ($datos['direccion'] ?? ''));
+        $usuarioBuscado = trim((string) ($datos['usuario'] ?? ''));
+
+        $hayFiltros = collect([
+            $mes,
+            $anio,
+            $empresa,
+            $folioBuscado,
+            $estadoBuscado,
+            $direccionBuscada,
+            $usuarioBuscado,
+        ])->contains(fn($filtro) => $filtro !== null && $filtro !== '');
+
+        if (!$hayFiltros) {
+            throw ValidationException::withMessages([
+                'filtros' => ['Ingresá al menos un filtro para buscar.'],
+            ]);
+        }
 
         // Los folios de la empresa se guardan indexados por propiedad, que es la
         // clave con la que historial_estado_repactado relaciona cada repactado.
-        $folios = Empresas_propiedades::where('empresa_id', $empresa)->pluck('folio', 'propiedad_id');
+        $empresaPropiedadesQuery = Empresas_propiedades::query()->orderBy('id');
 
-        if ($folioBuscado !== null) {
-            $folios = $folios->filter(fn($folio) => (int) $folio === $folioBuscado);
+        if ($empresa !== null) {
+            $empresaPropiedadesQuery->where('empresa_id', $empresa);
         }
 
+        if ($folioBuscado !== null) {
+            $empresaPropiedadesQuery->where('folio', $folioBuscado);
+        }
+
+        $empresaPropiedades = $empresaPropiedadesQuery
+            ->get(['id', 'folio', 'propiedad_id', 'empresa_id']);
+        $empresaPropiedadesPorPropiedad = $empresaPropiedades->unique('propiedad_id');
+        $folios = $empresaPropiedadesPorPropiedad->pluck('folio', 'propiedad_id');
+        $empresasPorPropiedad = $empresaPropiedadesPorPropiedad->pluck('empresa_id', 'propiedad_id');
+        $idsEmpresaPropiedad = $empresaPropiedades->mapWithKeys(
+            fn($empresaPropiedad) => [
+                $empresaPropiedad->propiedad_id . '|' . $empresaPropiedad->empresa_id => $empresaPropiedad->id,
+            ]
+        );
+        $paresEmpresaFolio = $empresaPropiedades->mapWithKeys(
+            fn($empresaPropiedad) => [
+                $empresaPropiedad->folio . '|' . $empresaPropiedad->empresa_id => true,
+            ]
+        );
+
         if ($folios->isEmpty()) {
-            Log::info('hay folios vacios');
             return [];
         }
 
-        $idsUltimosHistoriales = Historial_estado_repactado::query()
-            ->selectRaw('MAX(id)')
-            ->where('periodo_cargado', $periodo)
-            ->whereIn('propiedad_id', $folios->keys()->all())
-            ->groupBy('propiedad_id');
+        $historialesQuery = Historial_estado_repactado::query()
+            ->whereIn('propiedad_id', $folios->keys()->all());
 
-        $historiales = Historial_estado_repactado::whereIn('id', $idsUltimosHistoriales)->get();
+        if ($anio !== null && $mes !== null) {
+            $historialesQuery->where('periodo_cargado', sprintf('%04d-%02d', $anio, $mes));
+        } elseif ($anio !== null) {
+            $historialesQuery->where('periodo_cargado', 'like', sprintf('%04d-%%', $anio));
+        } elseif ($mes !== null) {
+            $historialesQuery->where('periodo_cargado', 'like', '%-' . sprintf('%02d', $mes));
+        }
+
+        $historiales = $historialesQuery->orderByDesc('id')->get();
 
         if ($historiales->isEmpty()) {
             return [];
@@ -293,18 +374,56 @@ GROUP BY
         // localidad y el tipo salen de sistema_atcl, igual que el propietario.
         $casasPorFolio = [];
 
-        foreach (
-            DB::connection('mysql2')->table('view_propiedades')
-                ->where('id_empresa', $empresa)
-                ->whereIn('carpeta', $folios->values()->all())
-                ->get(['carpeta', 'id_casa']) as $fila
-        ) {
+        $casasQuery = DB::connection('mysql2')->table('view_propiedades')
+            ->whereIn('carpeta', $folios->values()->all())
+            ->whereIn('id_empresa', $empresaPropiedades->pluck('empresa_id')->unique()->values()->all());
+
+        foreach ($casasQuery->get(['carpeta', 'id_casa', 'id_empresa']) as $fila) {
             $folio = (int) $fila->carpeta;
-            $casasPorFolio[$folio][] = (int) $fila->id_casa;
+            $idEmpresa = (int) $fila->id_empresa;
+
+            if (!$paresEmpresaFolio->has($folio . '|' . $idEmpresa)) {
+                continue;
+            }
+
+            $casasPorFolio[$folio][] = [
+                'id_casa' => (int) $fila->id_casa,
+                'id_empresa' => $idEmpresa,
+            ];
         }
 
-        $casasPorFolio = array_map(fn($casas) => array_unique($casas), $casasPorFolio);
-        $datosContrato = $this->obtenerDatosContrato($empresa, $historiales, $folios, $casasPorFolio);
+        $casasPorFolio = array_map(
+            fn($casas) => collect($casas)
+                ->unique(fn($casa) => $casa['id_empresa'] . '|' . $casa['id_casa'])
+                ->values()
+                ->all(),
+            $casasPorFolio
+        );
+        $contratosHistorial = $this->obtenerDatosContrato($historiales, $folios, $casasPorFolio);
+        $idsHistorialesReemplazados = $contratosHistorial['historialesReemplazados'];
+
+        if ($idsHistorialesReemplazados !== []) {
+            $historiales = $historiales->reject(
+                fn($historial) => in_array((int) $historial->id, $idsHistorialesReemplazados, true)
+            );
+        }
+
+        $historiales = $historiales
+            ->groupBy('propiedad_id')
+            ->map(fn($versiones) => $versiones->first())
+            ->values();
+
+        if ($estadoBuscado !== null) {
+            $historiales = $historiales
+                ->filter(fn($historial) => (int) $historial->estado === $estadoBuscado)
+                ->values();
+        }
+
+        if ($historiales->isEmpty()) {
+            return [];
+        }
+
+        $datosContrato = $contratosHistorial['datos'];
 
         // La propiedad y sus datos de dominio (calle, localidad, tipo y propietario
         // con teléfonos) pertenecen a sistema_atcl.
@@ -313,9 +432,52 @@ GROUP BY
             ->get()
             ->keyBy('id');
 
-        return $historiales->map(function ($historial) use ($folios, $estados, $datosContrato, $propiedades) {
+        $columnasTasacion = [
+            'id',
+            'propiedad_id',
+            'tasacion_pesos_venta',
+            'tasacion_dolar_venta',
+            'tasacion_pesos_alquiler',
+            'fecha_tasacion',
+        ];
+
+        if (Schema::connection('mysql')->hasColumn('tasacion', 'id_usuario')) {
+            $columnasTasacion[] = 'id_usuario';
+        }
+
+        $tasaciones = Tasacion::query()
+            ->whereIn('propiedad_id', $historiales->pluck('propiedad_id')->unique()->all())
+            ->orderByDesc('id')
+            ->get($columnasTasacion)
+            ->unique('propiedad_id')
+            ->keyBy('propiedad_id');
+
+        $idsUsuariosTasacion = $tasaciones->pluck('id_usuario')->filter()->unique()->values();
+        $usuariosTasacion = $idsUsuariosTasacion->isEmpty()
+            ? collect()
+            : Usuario::query()->whereIn('id', $idsUsuariosTasacion)->get(['id', 'name', 'username'])->keyBy('id');
+
+        $filas = $historiales->map(function ($historial) use (
+            $folios,
+            $idsEmpresaPropiedad,
+            $empresasPorPropiedad,
+            $estados,
+            $datosContrato,
+            $propiedades,
+            $tasaciones,
+            $usuariosTasacion
+        ) {
             $folio = $folios->get($historial->propiedad_id);
             $propiedad = $propiedades->get($historial->propiedad_id);
+            $tasacion = $tasaciones->get($historial->propiedad_id);
+            $datos = $datosContrato->get($historial->id) ?? [];
+            $idEmpresa = $datos['idEmpresa'] ?? $empresasPorPropiedad->get($historial->propiedad_id);
+            $idEmpresaPropiedad = $idsEmpresaPropiedad->get(
+                $historial->propiedad_id . '|' . $idEmpresa
+            );
+            $usuarioTasacion = $tasacion
+                ? $usuariosTasacion->get($tasacion->id_usuario)
+                : null;
 
             // De los propietarios de la propiedad se toma el activo; si no hay
             // ninguno marcado como activo se recurre al primero registrado.
@@ -329,8 +491,6 @@ GROUP BY
                 $telefonoPropietario = $propietario->telefonos->pluck('phone_number')->filter()->implode(' / ');
                 $telefonoPropietario = $telefonoPropietario !== '' ? $telefonoPropietario : null;
             }
-
-            $datos = $datosContrato->get($historial->id) ?? [];
 
             // Para las cargas anteriores a la incorporación de estos campos se
             // completa con los valores del contrato en el sistema de contratos.
@@ -371,6 +531,8 @@ GROUP BY
 
             return [
                 'id' => $historial->id,
+                'propiedadId' => (int) $historial->propiedad_id,
+                'empresaPropiedadId' => $idEmpresaPropiedad !== null ? (int) $idEmpresaPropiedad : null,
                 'folio' => $folio,
                 'cuentaCorriente' => $historial->cuenta_corriente ?: null,
                 'estado' => $estados[$historial->estado] ?? null,
@@ -395,12 +557,137 @@ GROUP BY
                 'montoDocumento' => $montoDocumento,
                 'reconocimiento' => $reconocimiento,
                 'nuevo' => $historial->nuevo_valor_alquiler ?: null,
+                'tasacionPesosVenta' => $tasacion?->tasacion_pesos_venta,
+                'tasacionDolarVenta' => $tasacion?->tasacion_dolar_venta,
+                'tasacionAlquiler' => $tasacion?->tasacion_pesos_alquiler,
+                'fechaTasacion' => $tasacion?->fecha_tasacion,
+                'usuarioTasacionId' => $tasacion?->id_usuario,
+                'usuarioTasacion' => $usuarioTasacion?->name ?: $usuarioTasacion?->username,
+                'usuarioTasacionUsername' => $usuarioTasacion?->username,
                 'total' => $total,
                 'plazoActualizacion' => $historial->plazo_y_actualizacion_contrato ?: null,
                 'inicioContrato' => $historial->inicio_contrato,
                 'vencimientoContrato' => $historial->vencimiento_contrato,
             ];
-        })->values()->all();
+        });
+
+        if ($direccionBuscada !== '') {
+            $filas = $filas->filter(
+                fn($fila) => stripos((string) ($fila['direccion'] ?? ''), $direccionBuscada) !== false
+            );
+        }
+
+        if ($usuarioBuscado !== '') {
+            $filas = $filas->filter(
+                fn($fila) => stripos((string) ($fila['usuarioTasacion'] ?? ''), $usuarioBuscado) !== false
+                    || stripos((string) ($fila['usuarioTasacionUsername'] ?? ''), $usuarioBuscado) !== false
+            );
+        }
+
+        return $filas->values()->all();
+    }
+
+    /**
+     * Registra una nueva tasación de propiedad y la asocia al historial de repactado.
+     *
+     * Los importes se guardan en la tabla `tasacion` de sistema_atcl. La tabla
+     * `historial_tasaciones_repactado` vincula la tasación de la propiedad con el
+     * registro de repactado y la empresa seleccionada.
+     *
+     * @param Request $request IDs de la relación y montos opcionales de venta/alquiler.
+     * @return array Resultado con la tasación y su asociación al repactado.
+     */
+    public function guardarTasacionRepactado(Request $request): array
+    {
+        $datos = $request->validate([
+            'id_empresa_propiedad' => ['required', 'integer', 'min:1'],
+            'id_historial_estado_repactado' => ['required', 'integer', 'min:1'],
+            'tasacion_venta' => ['nullable', 'integer', 'min:1'],
+            'moneda_venta' => ['nullable', 'required_with:tasacion_venta', 'in:1,2'],
+            'tasacion_alquiler' => ['nullable', 'integer', 'min:1'],
+            'fecha_tasacion' => ['required', 'date'],
+            'comentario_tasacion' => ['nullable', 'string'],
+        ]);
+
+        if (empty($datos['tasacion_venta']) && empty($datos['tasacion_alquiler'])) {
+            throw ValidationException::withMessages([
+                'tasacion_venta' => ['Ingrese un valor de venta o de alquiler.'],
+            ]);
+        }
+
+        return DB::connection('mysql10')->transaction(function () use ($datos) {
+            $empresaPropiedad = Empresas_propiedades::find($datos['id_empresa_propiedad']);
+            $historial = Historial_estado_repactado::find($datos['id_historial_estado_repactado']);
+
+            if (!$empresaPropiedad || !$historial) {
+                throw new \RuntimeException('No se encontró la propiedad o el repactado seleccionado.');
+            }
+
+            if ((int) $empresaPropiedad->propiedad_id !== (int) $historial->propiedad_id) {
+                throw new \RuntimeException('La empresa y el historial de repactado no corresponden a la misma propiedad.');
+            }
+
+            $tasacionActual = Tasacion::where('propiedad_id', $empresaPropiedad->propiedad_id)
+                ->orderByDesc('id')
+                ->first();
+
+            $venta = [
+                'fecha_tasacion_venta' => $datos['fecha_tasacion'],
+            ];
+
+            if (isset($datos['tasacion_venta'])) {
+                $venta['tasacion_venta'] = $datos['tasacion_venta'];
+                $venta['moneda_venta'] = $datos['moneda_venta'];
+            } elseif ($tasacionActual) {
+                $venta['tasacion_venta'] = $tasacionActual->tasacion_dolar_venta
+                    ?? $tasacionActual->tasacion_pesos_venta;
+                $venta['moneda_venta'] = $tasacionActual->tasacion_dolar_venta !== null ? '2' : '1';
+            }
+
+            $alquiler = [];
+            $tasacionAlquiler = $datos['tasacion_alquiler']
+                ?? $tasacionActual?->tasacion_pesos_alquiler;
+
+            if ($tasacionAlquiler !== null) {
+                $alquiler['tasacion_alquiler'] = $tasacionAlquiler;
+            }
+
+            $asociacion = Historial_tasaciones_repactado::create([
+                'id_empresa_propiedad' => $empresaPropiedad->id,
+                'id_historial_estado_repactado' => $historial->id,
+            ]);
+
+            $tasacion = DB::connection('mysql')->transaction(function () use (
+                $venta,
+                $alquiler,
+                $empresaPropiedad,
+                $datos
+            ) {
+                $tasacion = (new TasacionService())->crearDesdeRequest(
+                    $venta,
+                    (int) $empresaPropiedad->propiedad_id,
+                    $alquiler
+                );
+
+                if (!$tasacion) {
+                    throw new \RuntimeException('No se pudo crear la tasación.');
+                }
+
+                $tasacion->comentario_tasacion = $datos['comentario_tasacion'] ?? null;
+                $tasacion->save();
+
+                return $tasacion;
+            });
+
+            return [
+                'success' => true,
+                'message' => 'Tasación de repactado guardada correctamente.',
+                'data' => [
+                    'tasacion' => $tasacion,
+                    'historial' => $asociacion,
+                ],
+            ];
+        });
     }
 
     /**
@@ -547,29 +834,53 @@ GROUP BY
      * desde el contrato que originó la carga: por el folio se buscan las casas de
      * la empresa en view_propiedades y, con las mismas fechas de inicio y de fecha
      * efectiva de cierre registradas al cargar, se identifica contratos_cabecera.
-     * Con el contrato se traen la razón social y los teléfonos del inquilino, el
-     * reconocimiento del detalle vigente y el monto del documento del repactado.
+     * Solo se conservan los contratos de mayor ID por casa; los historiales que
+     * coinciden únicamente con un contrato anterior se marcan como reemplazados.
+     * Con el contrato actual se traen los datos del inquilino y los montos asociados.
      *
-     * @param int $empresa Empresa a la que pertenecen los folios.
      * @param \Illuminate\Support\Collection $historiales Repactados del período.
      * @param \Illuminate\Support\Collection $folios Folios por propiedad.
-     * @param array $casasPorFolio Casas de cada folio en el sistema de contratos.
-     * @return \Illuminate\Support\Collection Datos por id de historial.
+     * @param array $casasPorFolio Casas y empresas de cada folio en contratos.
+     * @return array Datos de contrato por historial e IDs de historiales reemplazados.
      */
-    private function obtenerDatosContrato(int $empresa, $historiales, $folios, array $casasPorFolio)
+    private function obtenerDatosContrato($historiales, $folios, array $casasPorFolio)
     {
         if (empty($casasPorFolio)) {
-            return collect();
+            return [
+                'datos' => collect(),
+                'historialesReemplazados' => [],
+            ];
+        }
+
+        $idsCasa = [];
+        $idsEmpresa = [];
+
+        foreach ($casasPorFolio as $casas) {
+            foreach ($casas as $casa) {
+                $idsCasa[] = (int) $casa['id_casa'];
+                $idsEmpresa[] = (int) $casa['id_empresa'];
+            }
+        }
+
+        $idsCasa = array_values(array_unique($idsCasa));
+        $idsEmpresa = array_values(array_unique($idsEmpresa));
+
+        if ($idsCasa === [] || $idsEmpresa === []) {
+            return [
+                'datos' => collect(),
+                'historialesReemplazados' => [],
+            ];
         }
 
         // La fecha de cierre se guarda calculada como la rescisión cuando es
         // anterior al vencimiento; se repite la misma fórmula del criterio de
         // carga para poder identificar el contrato por sus fechas.
         $contratos = DB::connection('mysql2')->table('contratos_cabecera')
-            ->where('id_empresa', $empresa)
-            ->whereIn('id_casa', array_merge([], ...array_values($casasPorFolio)))
+            ->whereIn('id_empresa', $idsEmpresa)
+            ->whereIn('id_casa', $idsCasa)
             ->selectRaw("
                 id_contrato_cabecera,
+                id_empresa,
                 id_casa,
                 id_inquilino,
                 comienza,
@@ -585,29 +896,65 @@ GROUP BY
         // Se agrupan para luego tomar de cualquiera de ellos el repactado y el
         // reconocimiento, que puede estar cargado en una sola de las copias.
         $contratosPorClave = [];
+        $ultimoContratoPorCasa = [];
 
         foreach ($contratos as $contrato) {
-            $clave = $contrato->id_casa . '|' . $contrato->comienza . '|' . $contrato->fecha_cierre;
+            $idCasa = (int) $contrato->id_casa;
+            $idEmpresa = (int) $contrato->id_empresa;
+            $idContrato = (int) $contrato->id_contrato_cabecera;
+            $clave = $idEmpresa . '|' . $idCasa . '|' . $contrato->comienza . '|' . $contrato->fecha_cierre;
             $contratosPorClave[$clave][] = $contrato;
+
+            if (
+                !isset($ultimoContratoPorCasa[$idEmpresa . '|' . $idCasa])
+                || $idContrato > $ultimoContratoPorCasa[$idEmpresa . '|' . $idCasa]
+            ) {
+                $ultimoContratoPorCasa[$idEmpresa . '|' . $idCasa] = $idContrato;
+            }
         }
 
         $contratoPorHistorial = [];
+        $historialesReemplazados = [];
 
         foreach ($historiales as $historial) {
             $folio = (int) $folios->get($historial->propiedad_id);
+            $historialReemplazado = false;
 
-            foreach ($casasPorFolio[$folio] ?? [] as $idCasa) {
-                $clave = $idCasa . '|' . $historial->inicio_contrato . '|' . $historial->vencimiento_contrato;
+            foreach ($casasPorFolio[$folio] ?? [] as $casa) {
+                $idCasa = (int) $casa['id_casa'];
+                $idEmpresa = (int) $casa['id_empresa'];
+                $clave = $idEmpresa . '|' . $idCasa . '|' . $historial->inicio_contrato . '|' . $historial->vencimiento_contrato;
 
                 if (isset($contratosPorClave[$clave])) {
-                    $contratoPorHistorial[$historial->id] = $contratosPorClave[$clave];
-                    break;
+                    $contratosVigentes = array_values(array_filter(
+                        $contratosPorClave[$clave],
+                        fn($contrato) => $this->esContratoMasRecientePorCasa(
+                            (int) $idCasa,
+                            (int) $contrato->id_contrato_cabecera,
+                            $ultimoContratoPorCasa,
+                            $idEmpresa
+                        )
+                    ));
+
+                    if ($contratosVigentes !== []) {
+                        $contratoPorHistorial[$historial->id] = $contratosVigentes;
+                        break;
+                    }
+
+                    $historialReemplazado = true;
                 }
+            }
+
+            if ($historialReemplazado && !isset($contratoPorHistorial[$historial->id])) {
+                $historialesReemplazados[] = (int) $historial->id;
             }
         }
 
         if (empty($contratoPorHistorial)) {
-            return collect();
+            return [
+                'datos' => collect(),
+                'historialesReemplazados' => $historialesReemplazados,
+            ];
         }
 
         $idsInquilino = [];
@@ -701,6 +1048,7 @@ GROUP BY
             }
 
             $resultado[$idHistorial] = [
+                'idEmpresa' => (int) $contrato->id_empresa,
                 'apellidoNombre' => $persona->razon_social ?? null,
                 'telefono' => !empty($telefonos) ? implode(' / ', array_unique($telefonos)) : null,
                 'idContrato' => $idContrato,
@@ -709,6 +1057,30 @@ GROUP BY
             ];
         }
 
-        return collect($resultado);
+        return [
+            'datos' => collect($resultado),
+            'historialesReemplazados' => $historialesReemplazados,
+        ];
+    }
+
+    /**
+     * Indica si el contrato asociado a una casa es el de mayor ID de su empresa.
+     *
+     * @param int $idCasa Identificador de casa del sistema de contratos.
+     * @param int $idContrato Identificador del contrato evaluado.
+     * @param array $ultimoContratoPorCasa IDs recientes indexados por casa o empresa y casa.
+     * @param int|null $idEmpresa Empresa del contrato, cuando la clave incluye empresa.
+     * @return bool
+     */
+    private function esContratoMasRecientePorCasa(
+        int $idCasa,
+        int $idContrato,
+        array $ultimoContratoPorCasa,
+        ?int $idEmpresa = null
+    ): bool {
+        $clave = $idEmpresa !== null ? $idEmpresa . '|' . $idCasa : $idCasa;
+
+        return isset($ultimoContratoPorCasa[$clave])
+            && (int) $ultimoContratoPorCasa[$clave] === $idContrato;
     }
 }

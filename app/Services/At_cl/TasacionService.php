@@ -29,6 +29,8 @@ class TasacionService
      */
     public function crearTasacion(array $tasacionData)
     {
+        $tasacionData['id_usuario'] = auth('api')->id();
+
         return Tasacion::create($tasacionData);
     }
 
@@ -55,6 +57,7 @@ class TasacionService
         $data = [
             'fecha_tasacion' => $venta['fecha_tasacion_venta'] ?? null,
             'propiedad_id'   => $propiedadId,
+            'id_usuario'     => auth('api')->id(),
         ];
 
         if (array_key_exists('tasacion_venta', $venta)) {

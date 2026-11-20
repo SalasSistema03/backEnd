@@ -607,4 +607,32 @@ class ProcesoController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Registra una nueva tasación y la vincula al historial de repactado.
+     */
+    public function guardarTasacionRepactado(Request $request)
+    {
+        try {
+            $resultado = (new RepactadoService())->guardarTasacionRepactado($request);
+
+            return response()->json($resultado, 201);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'error' => $e->getMessage(),
+            ], 400);
+        } catch (\Exception $e) {
+            Log::error('Error guardarTasacionRepactado: ' . $e->getMessage(), ['exception' => $e]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Ocurrió un error al guardar la tasación del repactado.',
+                'error' => 'Ocurrió un error al guardar la tasación del repactado.',
+            ], 500);
+        }
+    }
 }
