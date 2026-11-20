@@ -74,13 +74,38 @@ class ProcesoContratoService
 
         foreach ($res as $proceso) {
             $historialEstadoContrato = $proceso->historialEstadoContrato;
-            $folio = $proceso->propiedad?->folios?->first()?->folio;
+            $foliosPropiedad = $proceso->propiedad?->folios ?? collect();
+            $registroSellado = null;
 
-            if ($historialEstadoContrato?->gastos_administrativos === null && $folio !== null) {
-                $folioEncontrado = Registro_sellado::where('folio', $folio)->first();
-                if ($folioEncontrado) {
-                    $historialEstadoContrato->gastos_administrativos = $folioEncontrado->gasto_administrativo;
+            if ($foliosPropiedad->isNotEmpty()) {
+                $coincideFolioEmpresa = static function ($query) use ($foliosPropiedad) {
+                    foreach ($foliosPropiedad as $folioPropiedad) {
+                        $query->orWhere(function ($subquery) use ($folioPropiedad) {
+                            $subquery->where('folio', $folioPropiedad->folio)
+                                ->where('empresa', $folioPropiedad->empresa_id);
+                        });
+                    }
+                };
+
+                $registroSellado = Registro_sellado::where($coincideFolioEmpresa)
+                    ->where('finalizado', 0)
+                    ->orderByDesc('id_registro_sellado')
+                    ->first();
+
+                if (!$registroSellado) {
+                    $registroSellado = Registro_sellado::where($coincideFolioEmpresa)
+                        ->orderByDesc('id_registro_sellado')
+                        ->first();
                 }
+            }
+
+            $registroSellado ??= $proceso->registroSellado;
+            if ($registroSellado) {
+                $proceso->setRelation('registroSellado', $registroSellado);
+            }
+
+            if ($historialEstadoContrato?->gastos_administrativos === null && $registroSellado) {
+                $historialEstadoContrato->gastos_administrativos = $registroSellado->gasto_administrativo;
             }
         }
         return $res;
@@ -286,20 +311,24 @@ class ProcesoContratoService
         ];
 
        
-        $folioEncontrado = Registro_sellado::where('folio', $folioSolicitado)->first();
+        $folioEncontrado = Registro_sellado::where('folio', $folioSolicitado)
+            ->where('empresa', $idEmpresa)
+            ->orderByDesc('id_registro_sellado')
+            ->first();
 
         if ($folioEncontrado) {
-            if ($folioEncontrado->mostrar != 0) {
-                /* throw new \RuntimeException('Folio ya calculado.'); */
-                return;
-            }
-         
-
-            return;
+            $datosActualizar = array_filter(
+                $datosSellado,
+                fn ($valor, $campo) => !in_array($campo, ['mostrar', 'finalizado'], true)
+                    && $valor !== null
+                    && $valor !== '',
+                ARRAY_FILTER_USE_BOTH
+            );
+            $folioEncontrado->update($datosActualizar);
+            $registro = $folioEncontrado;
+        } else {
+            $registro = Registro_sellado::create($datosSellado);
         }
-
-        $registro = Registro_sellado::create($datosSellado);
-        
 
         $proceso->update(['id_registro_sellado' => $registro->id_registro_sellado]);
      

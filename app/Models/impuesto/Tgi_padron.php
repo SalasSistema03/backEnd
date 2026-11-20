@@ -28,6 +28,7 @@ class Tgi_padron extends Model
         'abona',
         'administra',
         'empresa',
+        'id_contrato_cabecera',
         'estado',
         'comienza',
         'rescicion',

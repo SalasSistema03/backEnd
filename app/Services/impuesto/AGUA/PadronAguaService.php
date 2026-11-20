@@ -40,6 +40,7 @@ class PadronAguaService
             pi.quien_administra as administra,
             e.id_empresa as empresa,
             ti.impuesto,
+            cc.id_contrato_cabecera as id_contrato_cabecera,
             cc.comienza as comienza,
             cc.rescicion as rescicion
         FROM desarrollo.propiedades_impuestos pi
@@ -65,6 +66,7 @@ class PadronAguaService
             pi.quien_administra,
             e.id_empresa,
             ti.impuesto,
+             cc.id_contrato_cabecera,
              cc.comienza,
              cc.rescicion
         ORDER BY e.id_empresa, FOLIO

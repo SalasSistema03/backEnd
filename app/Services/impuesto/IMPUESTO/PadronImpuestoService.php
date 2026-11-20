@@ -321,25 +321,28 @@ class PadronImpuestoService
         }
 
         $modelo = $this->obtenerModeloPorImpuesto($impuesto);
+        $padronExistente = collect($padronExistente);
+        $nuevoPadron = collect($nuevoPadron);
+
+        $this->vincularCabecerasExistentes($modelo, $padronExistente, $nuevoPadron);
 
         // ── Índices para búsqueda rápida ──────────────────────────────────────
-        //toma todos los datos de padronExistente y lo transforma en claves ej:123-1752484
-        $existentePorFolioPartida = collect($padronExistente)->mapWithKeys(function ($item) {
-            //Log::info([$item->folio . '-' . ltrim($item->partida, '0') => $item]);
-            return [$item->folio . '-' . ltrim($item->partida, '0') => $item];
-        });
+        $registrosExistentesPorIdentidad = $padronExistente->groupBy(
+            fn($item) => $this->claveRegistroPadron($item)
+        );
+        $existentePorFolioPartida = $registrosExistentesPorIdentidad->map(
+            fn($registros) => $registros->first()
+        );
+        $nuevoPorFolioPartida = $nuevoPadron->mapWithKeys(
+            fn($item) => [$this->claveRegistroPadron($item) => $item]
+        );
 
 
-        $nuevoPorFolioPartida = collect($nuevoPadron)->mapWithKeys(function ($item) {
-            return [$item->folio . '-' . ltrim($item->partida, '0') => $item];
-        });
-
-
-        $existentePorFolioCalle = collect($padronExistente)->groupBy(function ($item) {
+        $existentePorFolioCalle = $padronExistente->groupBy(function ($item) {
             return $item->folio . '-' . trim($item->calle);
         });
 
-        $nuevoPorFolioCalle = collect($nuevoPadron)->groupBy(function ($item) {
+        $nuevoPorFolioCalle = $nuevoPadron->groupBy(function ($item) {
             return $item->folio . '-' . trim($item->calle);
         });
 
@@ -348,19 +351,18 @@ class PadronImpuestoService
             return isset($existentePorFolioPartida[$key]) && $existentePorFolioPartida[$key]->estado === 'INACTIVO';
         });
 
-        foreach ($reactivar as $registro) {
-            $modelo::where('folio', $registro->folio)
-                ->where('partida', $registro->partida)
-                ->update([
-                    'estado'     => 'ACTIVO',
-                    'calle'      => !empty($registro->calle) ? mb_convert_encoding($registro->calle, 'UTF-8', 'UTF-8') : '',
-                    'clave'      => is_numeric($registro->clave) ? $registro->clave : null,
-                    'abona'      => $registro->abona ?? '',
-                    'administra' => $registro->administra ?? '',
-                    'empresa'    => $registro->empresa ?? 0,
-                    'comienza'   => $registro->comienza ?? 0,
-                    'rescicion'  => $registro->rescicion ?? 0,
-                ]);
+        foreach ($reactivar as $key => $registro) {
+            $this->actualizarRegistrosPorIdentidad($modelo, $registrosExistentesPorIdentidad, $key, [
+                'estado'                => 'ACTIVO',
+                'calle'                 => !empty($registro->calle) ? mb_convert_encoding($registro->calle, 'UTF-8', 'UTF-8') : '',
+                'clave'                 => is_numeric($registro->clave) ? $registro->clave : null,
+                'abona'                 => $registro->abona ?? '',
+                'administra'            => $registro->administra ?? '',
+                'empresa'               => $registro->empresa ?? 0,
+                'id_contrato_cabecera'  => $registro->id_contrato_cabecera ?? null,
+                'comienza'              => $registro->comienza ?? 0,
+                'rescicion'             => $registro->rescicion ?? 0,
+            ]);
         }
 
         // ── 0.5 Detectar MODIFICADOS ────────────────────────────────────────
@@ -379,55 +381,71 @@ class PadronImpuestoService
                     continue;
                 }
 
+                $registrosMismaCabecera = $registrosNuevos->filter(
+                    fn($nuevo) => $this->esMismaCabeceraContrato($viejo, $nuevo)
+                );
+
+                if ($registrosMismaCabecera->isEmpty()) {
+                    continue;
+                }
+
                 $partidaViejaLimpia = ltrim($viejo->partida, '0');
                 $partidaViejaNumerica = is_numeric($partidaViejaLimpia) && !empty($partidaViejaLimpia);
 
                 if ($impuesto === 'api') {
                     // ── API: folio+calle fijos, partida variable ──
-                    $partidaViejaExisteEnNuevos = $registrosNuevos->contains(function ($nuevo) use ($viejo) {
-                        return ltrim($nuevo->partida, '0') === ltrim($viejo->partida, '0');
+                    $partidaViejaExisteEnNuevos = $registrosMismaCabecera->contains(function ($nuevo) use ($viejo) {
+                        return $this->normalizarPartida($nuevo->partida) === $this->normalizarPartida($viejo->partida);
                     });
 
                     if (!$partidaViejaExisteEnNuevos) {
-                        $modelo::where('folio', $viejo->folio)
-                            ->where('calle', $viejo->calle)
-                            ->where('partida', $viejo->partida)
-                            ->update(['estado' => 'MODIFICADO']);
+                        $this->actualizarRegistrosPorIdentidad(
+                            $modelo,
+                            $registrosExistentesPorIdentidad,
+                            $this->claveRegistroPadron($viejo),
+                            ['estado' => 'MODIFICADO']
+                        );
                     }
                 } else {
                     // ── TGI / Agua / Gas ──
 
                     // CASO B: partida vieja no numérica → llegan nuevos con partida numérica real
                     if (!$partidaViejaNumerica) {
-                        $hayNuevosConPartidaReal = $registrosNuevos->contains(function ($nuevo) {
+                        $hayNuevosConPartidaReal = $registrosMismaCabecera->contains(function ($nuevo) {
                             $partidaNuevaLimpia = ltrim($nuevo->partida, '0');
                             return is_numeric($partidaNuevaLimpia) && !empty($partidaNuevaLimpia);
                         });
 
                         if ($hayNuevosConPartidaReal) {
-                            $modelo::where('folio', $viejo->folio)
-                                ->where('partida', $viejo->partida)
-                                ->update(['estado' => 'MODIFICADO']);
+                            $this->actualizarRegistrosPorIdentidad(
+                                $modelo,
+                                $registrosExistentesPorIdentidad,
+                                $this->claveRegistroPadron($viejo),
+                                ['estado' => 'MODIFICADO']
+                            );
                         }
                         continue;
                     }
 
                     // CASO A: partida numérica vieja no existe entre los nuevos (cambió la partida)
-                    $partidaViejaExisteEnNuevos = $registrosNuevos->contains(function ($nuevo) use ($viejo) {
-                        return ltrim($nuevo->partida, '0') === ltrim($viejo->partida, '0');
+                    $partidaViejaExisteEnNuevos = $registrosMismaCabecera->contains(function ($nuevo) use ($viejo) {
+                        return $this->normalizarPartida($nuevo->partida) === $this->normalizarPartida($viejo->partida);
                     });
 
                     if (!$partidaViejaExisteEnNuevos) {
                         // La partida cambió → MODIFICADO
-                        $modelo::where('folio', $viejo->folio)
-                            ->where('partida', $viejo->partida)
-                            ->update(['estado' => 'MODIFICADO']);
+                        $this->actualizarRegistrosPorIdentidad(
+                            $modelo,
+                            $registrosExistentesPorIdentidad,
+                            $this->claveRegistroPadron($viejo),
+                            ['estado' => 'MODIFICADO']
+                        );
                         continue;
                     }
 
                     // CASO C: partida coincide pero clave cambió
-                    $nuevoCorrespondiente = $registrosNuevos->first(function ($nuevo) use ($viejo) {
-                        return ltrim($nuevo->partida, '0') === ltrim($viejo->partida, '0');
+                    $nuevoCorrespondiente = $registrosMismaCabecera->first(function ($nuevo) use ($viejo) {
+                        return $this->normalizarPartida($nuevo->partida) === $this->normalizarPartida($viejo->partida);
                     });
 
                     if ($nuevoCorrespondiente) {
@@ -435,9 +453,12 @@ class PadronImpuestoService
                         $claveNueva = is_numeric($nuevoCorrespondiente->clave) ? (string) $nuevoCorrespondiente->clave : '';
 
                         if ($claveVieja !== $claveNueva) {
-                            $modelo::where('folio', $viejo->folio)
-                                ->where('partida', $viejo->partida)
-                                ->update(['estado' => 'MODIFICADO']);
+                            $this->actualizarRegistrosPorIdentidad(
+                                $modelo,
+                                $registrosExistentesPorIdentidad,
+                                $this->claveRegistroPadron($viejo),
+                                ['estado' => 'MODIFICADO']
+                            );
                         }
                     }
                 }
@@ -457,18 +478,17 @@ class PadronImpuestoService
                     continue;
                 }
 
-                $modelo::where('folio', $registro->folio)
-                    ->where('partida', $registro->partida)
-                    ->update([
-                        'estado'     => 'ACTIVO',
-                        'calle'      => !empty($registro->calle) ? mb_convert_encoding($registro->calle, 'UTF-8', 'UTF-8') : '',
-                        'clave'      => is_numeric($registro->clave) ? $registro->clave : null,
-                        'abona'      => $registro->abona ?? '',
-                        'administra' => $registro->administra ?? '',
-                        'empresa'    => $registro->empresa ?? 0,
-                        'comienza'   => $registro->comienza ?? 0,
-                        'rescicion'  => $registro->rescicion ?? 0,
-                    ]);
+                $this->actualizarRegistrosPorIdentidad($modelo, $registrosExistentesPorIdentidad, $key, [
+                    'estado'               => 'ACTIVO',
+                    'calle'                => !empty($registro->calle) ? mb_convert_encoding($registro->calle, 'UTF-8', 'UTF-8') : '',
+                    'clave'                => is_numeric($registro->clave) ? $registro->clave : null,
+                    'abona'                => $registro->abona ?? '',
+                    'administra'           => $registro->administra ?? '',
+                    'empresa'              => $registro->empresa ?? 0,
+                    'id_contrato_cabecera' => $registro->id_contrato_cabecera ?? null,
+                    'comienza'             => $registro->comienza ?? 0,
+                    'rescicion'            => $registro->rescicion ?? 0,
+                ]);
             } else {
                 $modelo::create([
                     'folio'      => is_numeric($registro->folio) ? $registro->folio : null,
@@ -478,6 +498,7 @@ class PadronImpuestoService
                     'abona'      => $registro->abona ?? '',
                     'administra' => $registro->administra ?? '',
                     'empresa'    => $registro->empresa ?? 0,
+                    'id_contrato_cabecera' => $registro->id_contrato_cabecera ?? null,
                     'estado'     => 'ACTIVO',
                     'comienza'   => $registro->comienza ?? 0,
                     'rescicion'  => $registro->rescicion ?? 0,
@@ -488,18 +509,13 @@ class PadronImpuestoService
         // ── 3. Inactivar / Pendiente ────────────────────────────────────────
         // Refrescar desde BD los registros que ya fueron marcados MODIFICADO
         $modificadosEnBD = $modelo::where('estado', 'MODIFICADO')
-            ->get(['folio', 'partida'])
-            ->map(fn($r) => $r->folio . '-' . ltrim($r->partida, '0'))
+            ->get(['id', 'folio', 'empresa', 'partida', 'clave', 'id_contrato_cabecera', 'comienza'])
+            ->map(fn($registro) => $this->claveRegistroPadron($registro))
             ->toArray();
 
         $posiblesInactivos = $existentePorFolioPartida
             ->diffKeys($nuevoPorFolioPartida)
-            ->filter(function ($registro, $key) use ($modificadosEnBD) {
-                return !in_array(
-                    $registro->folio . '-' . ltrim($registro->partida, '0'),
-                    $modificadosEnBD
-                );
-            });
+            ->filter(fn($registro, $key) => !in_array($key, $modificadosEnBD, true));
 
         $registrosInactivos = $posiblesInactivos->map(function ($registro) use ($impuesto) {
 
@@ -555,15 +571,113 @@ class PadronImpuestoService
                 continue;
             }
 
-            $modelo::where('folio', $registro->folio)
-                ->where('partida', $registro->partida)
-                ->update(['estado' => $registro->nuevo_estado]);
+            $this->actualizarRegistrosPorIdentidad(
+                $modelo,
+                $registrosExistentesPorIdentidad,
+                $this->claveRegistroPadron($registro),
+                ['estado' => $registro->nuevo_estado]
+            );
         }
 
         return [
             'nuevos'    => $nuevosRegistros->values(),
             'inactivos' => $registrosInactivos->values(),
         ];
+    }
+
+    private function vincularCabecerasExistentes($modelo, $padronExistente, $nuevoPadron): void
+    {
+        $nuevosPorInicioContrato = $nuevoPadron->groupBy(
+            fn($registro) => $this->claveFolioPartidaComienzo($registro)
+        );
+
+        foreach ($padronExistente as $existente) {
+            if ($existente->id_contrato_cabecera !== null && $existente->id_contrato_cabecera !== '') {
+                continue;
+            }
+
+            $candidatos = $nuevosPorInicioContrato[$this->claveFolioPartidaComienzo($existente)] ?? collect();
+            $idsCabecera = $candidatos
+                ->pluck('id_contrato_cabecera')
+                ->filter(fn($id) => $id !== null && $id !== '')
+                ->unique()
+                ->values();
+
+            if ($idsCabecera->count() !== 1) {
+                continue;
+            }
+
+            $idCabecera = $idsCabecera->first();
+            $modelo::whereKey($existente->getKey())
+                ->update(['id_contrato_cabecera' => $idCabecera]);
+            $existente->id_contrato_cabecera = $idCabecera;
+        }
+    }
+
+    private function claveRegistroPadron($registro): string
+    {
+        $idCabecera = $registro->id_contrato_cabecera ?? null;
+        $identidadCabecera = $idCabecera !== null && $idCabecera !== ''
+            ? 'cabecera:' . $idCabecera
+            : 'comienza:' . $this->normalizarFechaPadron($registro->comienza ?? null);
+
+        return implode('|', [
+            (string) ($registro->folio ?? ''),
+            (string) ($registro->empresa ?? ''),
+            $this->normalizarPartida($registro->partida ?? ''),
+            (string) ($registro->clave ?? ''),
+            $identidadCabecera,
+        ]);
+    }
+
+    private function claveFolioPartidaComienzo($registro): string
+    {
+        return implode('|', [
+            (string) ($registro->folio ?? ''),
+            (string) ($registro->empresa ?? ''),
+            $this->normalizarPartida($registro->partida ?? ''),
+            $this->normalizarFechaPadron($registro->comienza ?? null),
+        ]);
+    }
+
+    private function normalizarPartida($partida): string
+    {
+        return ltrim(trim((string) $partida), '0');
+    }
+
+    private function normalizarFechaPadron($fecha): string
+    {
+        if ($fecha === null || $fecha === '' || $fecha === 0 || $fecha === '0' || $fecha === '0000-00-00') {
+            return '';
+        }
+
+        try {
+            return Carbon::parse($fecha)->toDateString();
+        } catch (\Exception) {
+            return (string) $fecha;
+        }
+    }
+
+    private function esMismaCabeceraContrato($existente, $nuevo): bool
+    {
+        $idExistente = $existente->id_contrato_cabecera ?? null;
+        $idNuevo = $nuevo->id_contrato_cabecera ?? null;
+
+        if ($idExistente !== null && $idExistente !== '' && $idNuevo !== null && $idNuevo !== '') {
+            return (string) $idExistente === (string) $idNuevo;
+        }
+
+        $comienzaExistente = $this->normalizarFechaPadron($existente->comienza ?? null);
+        $comienzaNuevo = $this->normalizarFechaPadron($nuevo->comienza ?? null);
+
+        return $comienzaExistente !== '' && $comienzaExistente === $comienzaNuevo;
+    }
+
+    private function actualizarRegistrosPorIdentidad($modelo, $registrosExistentes, string $clave, array $datos): void
+    {
+        foreach ($registrosExistentes[$clave] ?? [] as $registro) {
+            $modelo::whereKey($registro->getKey())->update($datos);
+        }
     }
 
 

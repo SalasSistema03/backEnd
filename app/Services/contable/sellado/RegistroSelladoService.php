@@ -142,9 +142,8 @@ class RegistroSelladoService
             // Primero obtenemos los resultados del cálculo para estar seguros de qué guardamos
             $resultados = $this->calcularSellado($data);
 
-            $gastoAdministrativo = 
-                 $data['resultado']['gasto_adm_calc2']
-               
+            $gastoAdministrativo = $data['resultado']['gasto_administrativo']
+                ?? $resultados['gasto_administrativo']
                 ?? 0;
 
             //Llama el id del usuario actual
@@ -165,7 +164,8 @@ class RegistroSelladoService
                     'hojas'                   => $resultados['hojas'],
                     'informe'                 => $resultados['informe'],
                     'inq_prop'                => $resultados['inq_prop'],
-                    'iva_gasto_adm'           => $resultados['iva_gasto_adm'],
+                    'iva_gasto_adm'           => $data['resultado']['iva_gasto_adm']
+                        ?? $resultados['iva_gasto_adm'],
                     'monto_alquiler_comercial' => $resultados['monto_alquiler_comercial'],
                     'monto_alquiler_vivienda'  => $resultados['monto_alquiler_vivienda'],
                     'monto_contrato'          => $resultados['monto_contrato'],
@@ -190,7 +190,10 @@ class RegistroSelladoService
                 ->pluck('propiedad_id');
 
             $procesoPropiedad = Proceso_propiedad::whereIn('id_propiedad', $propiedadIds)
-                ->where('id_registro_sellado', 0)
+                ->where(function ($query) {
+                    $query->whereNull('id_registro_sellado')
+                        ->orWhere('id_registro_sellado', 0);
+                })
                 ->first();
 
             if ($procesoPropiedad) {
