@@ -23,15 +23,15 @@ class PadronImpuestoService
 
     //Esta funcion llama a la funcion obtenerPadronAGUA para obtener el padrón
 
-    public function actualizarPadronImpuesto($impuesto)
+    public function actualizarPadronImpuesto($impuesto, ?Carbon $periodo = null)
     {
-        return $this->actualizarPadron($impuesto);
+        return $this->actualizarPadron($impuesto, $periodo);
     }
 
-    public function actualizarPadron($impuesto)
+    public function actualizarPadron($impuesto, ?Carbon $periodo = null)
     {
         if ($impuesto === 'tgi' || $impuesto === 'agua' || $impuesto === 'api') {
-            $this->obtenerPadron($impuesto);
+            $this->obtenerPadron($impuesto, $periodo);
             return response()->json([
                 'message' => 'Padrón ' . strtoupper($impuesto) . ' actualizado correctamente.',
                 'ultimo_periodo' => $this->obtenerUltimoPeriodo($impuesto),
@@ -278,11 +278,12 @@ class PadronImpuestoService
     }
 
 
-    public function obtenerPadron($impuesto)
+    public function obtenerPadron($impuesto, ?Carbon $periodo = null)
     {
         if ($impuesto === 'tgi') {
             $padronExistente = Tgi_padron::all();
-            $nuevoPadron = (new PadronTgiService)->consultaObtenerPadronTGI();
+            $periodoConsulta = $periodo?->copy()->startOfMonth() ?? Carbon::now()->startOfMonth();
+            $nuevoPadron = (new PadronTgiService)->consultaObtenerPadronTGI($periodoConsulta);
 
             $fechaTgi = boton_actualizado::query()->firstOrFail()->ultima_fecha_tgi;
 
@@ -309,7 +310,8 @@ class PadronImpuestoService
 
         if ($impuesto === 'api') {
             $padronExistente = Api_padron::all();
-            $nuevoPadron = (new PadronApiService)->consultaObtenerPadronAPI();
+            $periodoConsulta = $periodo?->copy()->startOfMonth() ?? Carbon::now()->startOfMonth();
+            $nuevoPadron = (new PadronApiService)->consultaObtenerPadronAPI($periodoConsulta);
 
             $fechapi = boton_actualizado::query()->firstOrFail()->ultima_fecha_api;
 
@@ -517,40 +519,51 @@ class PadronImpuestoService
             ->diffKeys($nuevoPorFolioPartida)
             ->filter(fn($registro, $key) => !in_array($key, $modificadosEnBD, true));
 
-        $registrosInactivos = $posiblesInactivos->map(function ($registro) use ($impuesto) {
+        if ($periodo !== null && in_array($impuesto, ['tgi', 'api'], true)) {
+            $mesReferencia = ($periodo->year * 12) + $periodo->month;
+            $posiblesInactivos = $posiblesInactivos->filter(function ($registro) use ($mesReferencia) {
+                if (empty($registro->rescicion)) {
+                    return true;
+                }
+
+                $fechaRescision = Carbon::parse($registro->rescicion);
+                $mesRescision = ($fechaRescision->year * 12) + $fechaRescision->month;
+
+                return $mesRescision <= $mesReferencia;
+            });
+        }
+
+        $fechaReferencia = $periodo?->copy()->startOfMonth() ?? Carbon::now();
+        $registrosInactivos = $posiblesInactivos->map(function ($registro) use ($impuesto, $fechaReferencia) {
 
             if (empty($registro->rescicion)) {
                 $registro->nuevo_estado = 'INACTIVO';
                 return $registro;
             }
 
-            $fechaActual     = \Carbon\Carbon::now();
             if ($impuesto === 'tgi') {
                 $registro->nuevo_estado = $this->calcularEstadoTgiAusente(
                     $registro->rescicion,
-                    $fechaActual
+                    $fechaReferencia
+                );
+                return $registro;
+            }
+
+            if ($impuesto === 'api') {
+                $registro->nuevo_estado = $this->calcularEstadoApiAusente(
+                    $registro->rescicion,
+                    $fechaReferencia
                 );
                 return $registro;
             }
 
             $fechaRescision = \Carbon\Carbon::parse($registro->rescicion);
-            $mesActual       = ($fechaActual->year * 12) + $fechaActual->month;
+            $mesActual       = ($fechaReferencia->year * 12) + $fechaReferencia->month;
             $mesRescision    = ($fechaRescision->year * 12) + $fechaRescision->month;
             $diferenciaMeses = $mesActual - $mesRescision;
 
             if ($impuesto === 'agua') {
                 $registro->nuevo_estado = $diferenciaMeses >= 3 ? 'INACTIVO' : 'PENDIENTE';
-                return $registro;
-            }
-
-            if ($impuesto === 'api') {
-                if ($diferenciaMeses >= 4) {
-                    $registro->nuevo_estado = 'INACTIVO';
-                } elseif ($diferenciaMeses >= 1) {
-                    $registro->nuevo_estado = 'PENDIENTE';
-                } else {
-                    $registro->nuevo_estado = 'ACTIVO';
-                }
                 return $registro;
             }
 
@@ -663,11 +676,30 @@ class PadronImpuestoService
 
         if (
             $diferenciaMeses === 1
+            || $diferenciaMeses === 2
             || (
                 $diferenciaMeses === 0
                 && $fechaRescision->lt($fechaActual->copy()->startOfDay())
             )
         ) {
+            return 'PENDIENTE';
+        }
+
+        return 'ACTIVO';
+    }
+
+    private function calcularEstadoApiAusente($rescicion, Carbon $fechaReferencia): string
+    {
+        $fechaRescision = Carbon::parse($rescicion);
+        $mesReferencia = ($fechaReferencia->year * 12) + $fechaReferencia->month;
+        $mesRescision = ($fechaRescision->year * 12) + $fechaRescision->month;
+        $diferenciaMeses = $mesReferencia - $mesRescision;
+
+        if ($diferenciaMeses >= 4) {
+            return 'INACTIVO';
+        }
+
+        if ($diferenciaMeses >= 1) {
             return 'PENDIENTE';
         }
 

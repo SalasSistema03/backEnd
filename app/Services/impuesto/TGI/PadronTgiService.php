@@ -4,6 +4,7 @@ namespace App\Services\impuesto\TGI;
 
 
 use App\Models\impuesto\Tgi_padron;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -52,7 +53,7 @@ class PadronTgiService
 
     //Esta consulta obtiene el padrón TGI desde la base de datos externa
     //Funcion utilizada por el servicio PadronImpuestoService
-    public function consultaObtenerPadronTGI()
+    public function consultaObtenerPadronTGI(Carbon $periodo)
     {
         $sql = "
        SELECT
@@ -81,8 +82,8 @@ INNER JOIN desarrollo.contratos_cabecera cc
 INNER JOIN desarrollo.empresa e
     ON cc.id_empresa = e.id_empresa
 WHERE ti.id_tipo_impuesto = 1
-  AND cc.comienza <= CURDATE()
-  AND cc.rescicion >= CURDATE()
+  AND cc.comienza <= ?
+  AND cc.rescicion >= ?
 GROUP BY
     pi.id_propiedad_impuesto,
     p.carpeta,
@@ -99,7 +100,10 @@ GROUP BY
 ORDER BY e.id_empresa, folio;
     ";
 
-        $resultado = DB::connection('mysql2')->select($sql);
+        $resultado = DB::connection('mysql2')->select($sql, [
+            $periodo->copy()->endOfMonth()->toDateString(),
+            $periodo->copy()->startOfMonth()->toDateString(),
+        ]);
         //Log::info([$resultado]);
         //dd('hola');
         // Normalizar partida a 8 dígitos

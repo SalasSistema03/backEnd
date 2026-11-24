@@ -24,9 +24,18 @@ class ImpuestosController extends Controller
 
 
 
-    public function actualizarPadron($impuesto)
+    public function actualizarPadron(Request $request, $impuesto)
     {
-        return (new PadronImpuestoService())->actualizarPadronImpuesto($impuesto);
+        $periodo = null;
+        if (in_array($impuesto, ['tgi', 'api'], true)) {
+            $datos = $request->validate([
+                'anio' => ['required', 'integer', 'min:1900', 'max:9999'],
+                'mes' => ['required', 'integer', 'between:1,12'],
+            ]);
+            $periodo = Carbon::createFromDate($datos['anio'], $datos['mes'], 1);
+        }
+
+        return (new PadronImpuestoService())->actualizarPadronImpuesto($impuesto, $periodo);
     }
 
     public function filtradoPadron(Request $request, $impuesto)
