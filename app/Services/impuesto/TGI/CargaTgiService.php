@@ -32,7 +32,10 @@ class CargaTgiService
             $cod_separado = $this->extraerCodBarra->separarCodigoBarras($codigoBarras);
             $fecha = Carbon::parse($cod_separado['fecha_vencimiento']);
 
-            $tgi_padron = $this->padronTgiService->buscarTgiPorPartida($cod_separado['partida']);
+            $tgi_padron = $this->padronTgiService->buscarTgiPorPartida(
+                $cod_separado['partida'],
+                $cod_separado['folio']
+            );
 
             // Validación: ¿Existe el registro en ña tabla tgi_padrón para la partida dada?
             if (!$tgi_padron) {
@@ -44,7 +47,14 @@ class CargaTgiService
 
             // Validación: ¿Ya existe un registro con la misma partida, mes y año?
 
-            if ((new CargaImpuestoService)->yaFueCargado($listaCargaCompleta, $tgi_padron->id, $fecha->month, $fecha->year, 'tgi')) {
+            if ((new CargaImpuestoService)->yaFueCargado(
+                $listaCargaCompleta,
+                $tgi_padron->id,
+                $fecha->month,
+                $fecha->year,
+                'tgi',
+                $codigoBarras
+            )) {
                 throw new \Exception("Ya existe un registro cargado para esta partida en el periodo {$fecha->month}/{$fecha->year}.");
             }
 

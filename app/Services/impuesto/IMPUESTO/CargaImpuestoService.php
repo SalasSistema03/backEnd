@@ -164,9 +164,15 @@ class CargaImpuestoService
     public function detectarFoliosCompartidos($partida, $clave, $impuesto)
     {
         $modelo = (new PadronImpuestoService)->obtenerModeloPorImpuesto($impuesto);
-        return $modelo::where('partida', $partida)
+        $registros = $modelo::where('partida', $partida)
             ->where('clave', $clave)
-            ->get(['folio', 'estado', 'empresa'])
+            ->get(['folio', 'estado', 'empresa', 'comienza']);
+
+        if ($impuesto === 'tgi') {
+            $registros = $this->seleccionarFoliosTgi($registros);
+        }
+
+        return $registros
             ->map(function ($item) {
                 return [
                     'folio' => $item->folio,
@@ -177,6 +183,14 @@ class CargaImpuestoService
             ->toArray();
     }
 
+    private function seleccionarFoliosTgi($registros)
+    {
+        return collect($registros)
+            ->groupBy(fn($item) => (string) $item->folio)
+            ->map(fn($folios) => $folios->sortByDesc('comienza')->first())
+            ->values();
+    }
+
     //Esta función busca si ya se ha cargado un registro con el mismo padrón, mes y año (dentro de la tabla tgi_carga)
     public function yaFueCargado($lista, int $idPadron, int $mes, int $anio, string $impuesto, ?string $codigoBarra = null): bool
     {
@@ -184,10 +198,10 @@ class CargaImpuestoService
             return false; // no hay nada, no hace nada
         }
 
-
         if ($impuesto === 'tgi') {
-            $registroExistente = $lista->first(function ($item) use ($idPadron, $mes, $anio) {
-                return $item->id_tgiPadron == $idPadron &&
+            $registroExistente = $lista->first(function ($item) use ($idPadron, $mes, $anio, $codigoBarra) {
+                return ($item->id_tgiPadron == $idPadron ||
+                    ($codigoBarra !== null && $item->codigo_barra == $codigoBarra)) &&
                     $item->periodo_mes == $mes &&
                     $item->periodo_anio == $anio;
             });

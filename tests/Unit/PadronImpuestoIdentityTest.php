@@ -58,3 +58,85 @@ test('conserva la identidad del contrato cuando cambia solo la fecha de rescisi�
     expect(invocarMetodoIdentidadPadron('claveRegistroPadron', $rescisionAnterior))
         ->toBe(invocarMetodoIdentidadPadron('claveRegistroPadron', $rescisionActualizada));
 });
+
+test('marca pendiente la TGI ausente después de una rescisión dentro del mes actual', function () {
+    $estado = invocarMetodoIdentidadPadron(
+        'calcularEstadoTgiAusente',
+        '2026-11-11',
+        \Carbon\Carbon::parse('2026-11-20')
+    );
+
+    expect($estado)->toBe('PENDIENTE');
+});
+
+test('mantiene los umbrales existentes para la inactivación de TGI', function () {
+    $fechaActual = \Carbon\Carbon::parse('2026-11-20');
+
+    expect(invocarMetodoIdentidadPadron(
+        'calcularEstadoTgiAusente',
+        '2026-10-11',
+        $fechaActual
+    ))->toBe('PENDIENTE');
+
+    expect(invocarMetodoIdentidadPadron(
+        'calcularEstadoTgiAusente',
+        '2026-08-19',
+        $fechaActual
+    ))->toBe('INACTIVO');
+});
+
+test('clasifica las resciciones TGI según el período seleccionado', function () {
+    $periodo = \Carbon\Carbon::parse('2026-11-01');
+
+    expect(invocarMetodoIdentidadPadron(
+        'calcularEstadoTgiAusente',
+        '2026-11-20',
+        $periodo
+    ))->toBe('ACTIVO');
+
+    expect(invocarMetodoIdentidadPadron(
+        'calcularEstadoTgiAusente',
+        '2026-10-20',
+        $periodo
+    ))->toBe('PENDIENTE');
+
+    expect(invocarMetodoIdentidadPadron(
+        'calcularEstadoTgiAusente',
+        '2026-09-20',
+        $periodo
+    ))->toBe('PENDIENTE');
+
+    expect(invocarMetodoIdentidadPadron(
+        'calcularEstadoTgiAusente',
+        '2026-08-20',
+        $periodo
+    ))->toBe('INACTIVO');
+});
+
+test('clasifica las resciciones API según el período seleccionado', function () {
+    $periodo = \Carbon\Carbon::parse('2026-11-01');
+
+    expect(invocarMetodoIdentidadPadron(
+        'calcularEstadoApiAusente',
+        '2026-11-20',
+        $periodo
+    ))->toBe('ACTIVO');
+
+    expect(invocarMetodoIdentidadPadron(
+        'calcularEstadoApiAusente',
+        '2026-10-20',
+        $periodo
+    ))->toBe('PENDIENTE');
+
+    expect(invocarMetodoIdentidadPadron(
+        'calcularEstadoApiAusente',
+        '2026-08-20',
+        $periodo
+    ))->toBe('PENDIENTE');
+
+    expect(invocarMetodoIdentidadPadron(
+        'calcularEstadoApiAusente',
+        '2026-07-20',
+        $periodo
+    ))->toBe('INACTIVO');
+});

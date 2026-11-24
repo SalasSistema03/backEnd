@@ -4,6 +4,7 @@ namespace App\Services\impuesto\API;
 
 use App\Models\impuesto\Api_padron;
 use App\Models\impuesto\Tgi_padron;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -43,7 +44,7 @@ class PadronApiService
 
     //Esta consulta obtiene el padrón TGI desde la base de datos externa
     //Funcion utilizada por el servicio PadronImpuestoService
-    public function consultaObtenerPadronAPI()
+    public function consultaObtenerPadronAPI(Carbon $periodo)
     {
         $sql = "
                 SELECT
@@ -66,15 +67,8 @@ LEFT JOIN desarrollo.impuestos i ON pi.id_casa = i.id_casa
 INNER JOIN desarrollo.contratos_cabecera cc ON cc.id_casa = p.id_casa
 INNER JOIN desarrollo.empresa e ON cc.id_empresa = e.id_empresa
 WHERE ti.id_tipo_impuesto = 3
-  AND cc.comienza <= CURDATE()
-  AND (
-      -- Contratos vigentes (rescisión a futuro)
-      cc.rescicion >= CURDATE()
-      OR
-      -- Contratos rescindidos desde el primer día de hace 3 meses hasta hoy
-      (cc.rescicion >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 3 MONTH), '%Y-%m-01')
-       AND cc.rescicion < CURDATE())
-  )
+  AND cc.comienza <= ?
+  AND cc.rescicion >= ?
 GROUP BY
     pi.id_propiedad_impuesto,
     p.carpeta,
@@ -91,7 +85,10 @@ GROUP BY
 ORDER BY e.id_empresa, FOLIO;
     ";
 
-        $resultado = DB::connection('mysql2')->select($sql);
+        $resultado = DB::connection('mysql2')->select($sql, [
+            $periodo->copy()->endOfMonth()->toDateString(),
+            $periodo->copy()->startOfMonth()->toDateString(),
+        ]);
 
         //Log::info($resultado);
         // Normalizar partida a 8 dígitos

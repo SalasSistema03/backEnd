@@ -22,13 +22,12 @@ class ExtraerCodBarra
         $fechaVencimiento = $this->separarFechaVencimiento($codigoBarras);//2026-10-14  
         $fechatgi = boton_actualizado::query()->firstOrFail()->ultima_fecha_tgi;
 
-        if (Carbon::parse($fechaVencimiento)->month > Carbon::parse($fechatgi)->month) {
+        if ($this->fechaVencimientoSuperaPeriodoTgi($fechaVencimiento, $fechatgi)) {
             throw new \Exception('El Padron se encuentra desactualizado');
         }
 
-        
         $adm = $this->separarAdm($codigoBarras);
-       
+
         // Retornar los valores separados en un array asociativo
         return [
             'codigo_barra' => $codigoBarras,
@@ -38,6 +37,16 @@ class ExtraerCodBarra
             'fecha_vencimiento' => $fechaVencimiento,
             'adm' => $adm
         ];
+    }
+
+    private function fechaVencimientoSuperaPeriodoTgi($fechaVencimiento, $fechaTgi): bool
+    {
+        $vencimiento = Carbon::parse($fechaVencimiento);
+        $periodoTgi = Carbon::parse($fechaTgi);
+        $mesVencimiento = ($vencimiento->year * 12) + $vencimiento->month;
+        $mesTgi = ($periodoTgi->year * 12) + $periodoTgi->month;
+
+        return $mesVencimiento > $mesTgi;
     }
 
 
