@@ -373,34 +373,21 @@
                                     </td>
                                 @endif
 
-                                @if (in_array('reel', $campos) && $sector === 'Venta')
-                                    @if ($propiedad->reel_v)
-                                        <td>SI</td>
-                                    @else
-                                        <td>NO</td>
-                                    @endif
-                                @elseif (in_array('reel', $campos) && $sector === 'Alquiler')
-                                    @if ($propiedad->reel_a)
-                                        <td>SI</td>
-                                    @else
-                                        <td>NO</td>
-                                    @endif
+                             @if (in_array('reel', $campos))
+                                @if ($sector === 'Venta')
+                                    <td>{{ $propiedad->reel_v ?: 'NO' }}</td>
+                                @elseif ($sector === 'Alquiler')
+                                    <td>{{ $propiedad->reel_a ?: 'NO' }}</td>
                                 @endif
+                            @endif
 
-                                @if (in_array('flyer', $campos) && $sector === 'Venta')
-                                    @if ($propiedad->flyer_v)
-                                        <td>SI</td>
-                                    @else
-                                        <td>NO</td>
-                                    @endif
-                                @elseif (in_array('flyer', $campos) && $sector === 'Alquiler')
-                                    @if ($propiedad->flyer_a)
-                                        <td>SI</td>
-                                    @else
-                                        <td>NO</td>
-                                    @endif
-                                @endif
-
+                               @if (in_array('flyer', $campos))
+                            @if ($sector === 'Venta')
+                                <td>{{ $propiedad->flyer_v ?: 'NO' }}</td>
+                            @elseif ($sector === 'Alquiler')
+                                <td>{{ $propiedad->flyer_a ?: 'NO' }}</td>
+                            @endif
+                        @endif
                                 @if (in_array('captador', $campos) && $sector === 'Venta')
                                     <td>{{ $propiedad->captador_int_v ?? '' }}</td>
                                 @elseif(in_array('captador', $campos) && $sector === 'Alquiler')
