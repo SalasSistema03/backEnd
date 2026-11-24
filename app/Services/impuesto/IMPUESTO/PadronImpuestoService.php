@@ -524,27 +524,19 @@ class PadronImpuestoService
                 return $registro;
             }
 
-            $fechaRescision  = \Carbon\Carbon::parse($registro->rescicion);
             $fechaActual     = \Carbon\Carbon::now();
+            if ($impuesto === 'tgi') {
+                $registro->nuevo_estado = $this->calcularEstadoTgiAusente(
+                    $registro->rescicion,
+                    $fechaActual
+                );
+                return $registro;
+            }
+
+            $fechaRescision = \Carbon\Carbon::parse($registro->rescicion);
             $mesActual       = ($fechaActual->year * 12) + $fechaActual->month;
             $mesRescision    = ($fechaRescision->year * 12) + $fechaRescision->month;
             $diferenciaMeses = $mesActual - $mesRescision;
-
-            if ($impuesto === 'tgi') {
-                if ($diferenciaMeses < 0) {
-                    $registro->nuevo_estado = 'INACTIVO';
-                    return $registro;
-                }
-                // CORRECCIÓN: > 2 INACTIVO, = 1 PENDIENTE, sino ACTIVO
-                if ($diferenciaMeses > 2) {
-                    $registro->nuevo_estado = 'INACTIVO';
-                } elseif ($diferenciaMeses === 1) {
-                    $registro->nuevo_estado = 'PENDIENTE';
-                } else {
-                    $registro->nuevo_estado = 'ACTIVO';
-                }
-                return $registro;
-            }
 
             if ($impuesto === 'agua') {
                 $registro->nuevo_estado = $diferenciaMeses >= 3 ? 'INACTIVO' : 'PENDIENTE';
@@ -656,6 +648,30 @@ class PadronImpuestoService
         } catch (\Exception) {
             return (string) $fecha;
         }
+    }
+
+    private function calcularEstadoTgiAusente($rescicion, Carbon $fechaActual): string
+    {
+        $fechaRescision = Carbon::parse($rescicion);
+        $mesActual = ($fechaActual->year * 12) + $fechaActual->month;
+        $mesRescision = ($fechaRescision->year * 12) + $fechaRescision->month;
+        $diferenciaMeses = $mesActual - $mesRescision;
+
+        if ($diferenciaMeses < 0 || $diferenciaMeses > 2) {
+            return 'INACTIVO';
+        }
+
+        if (
+            $diferenciaMeses === 1
+            || (
+                $diferenciaMeses === 0
+                && $fechaRescision->lt($fechaActual->copy()->startOfDay())
+            )
+        ) {
+            return 'PENDIENTE';
+        }
+
+        return 'ACTIVO';
     }
 
     private function esMismaCabeceraContrato($existente, $nuevo): bool

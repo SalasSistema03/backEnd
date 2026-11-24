@@ -58,3 +58,29 @@ test('conserva la identidad del contrato cuando cambia solo la fecha de rescisi�
     expect(invocarMetodoIdentidadPadron('claveRegistroPadron', $rescisionAnterior))
         ->toBe(invocarMetodoIdentidadPadron('claveRegistroPadron', $rescisionActualizada));
 });
+
+test('marca pendiente la TGI ausente después de una rescisión dentro del mes actual', function () {
+    $estado = invocarMetodoIdentidadPadron(
+        'calcularEstadoTgiAusente',
+        '2026-11-11',
+        \Carbon\Carbon::parse('2026-11-20')
+    );
+
+    expect($estado)->toBe('PENDIENTE');
+});
+
+test('mantiene los umbrales existentes para la inactivación de TGI', function () {
+    $fechaActual = \Carbon\Carbon::parse('2026-11-20');
+
+    expect(invocarMetodoIdentidadPadron(
+        'calcularEstadoTgiAusente',
+        '2026-10-11',
+        $fechaActual
+    ))->toBe('PENDIENTE');
+
+    expect(invocarMetodoIdentidadPadron(
+        'calcularEstadoTgiAusente',
+        '2026-08-19',
+        $fechaActual
+    ))->toBe('INACTIVO');
+});
