@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\impuesto\Api_padron;
 use App\Services\impuesto\IMPUESTO\PadronImpuestoService;
 
 function invocarMetodoIdentidadPadron(string $nombre, ...$argumentos)
@@ -139,4 +140,25 @@ test('clasifica las resciciones API según el período seleccionado', function (
         '2026-07-20',
         $periodo
     ))->toBe('INACTIVO');
+});
+
+test('conserva la clave de API al crear un registro del padrón', function () {
+    $registro = new Api_padron(['clave' => '87854418']);
+
+    expect($registro->clave)->toBe('87854418');
+});
+
+test('mantiene la identidad de un registro API aunque cambie su clave', function () {
+    $registro = (object) [
+        'folio' => '100',
+        'empresa' => 1,
+        'partida' => '10110310677100017',
+        'clave' => '87854418',
+        'id_contrato_cabecera' => 7128,
+    ];
+    $registroConOtraClave = clone $registro;
+    $registroConOtraClave->clave = 'otra-clave';
+
+    expect(invocarMetodoIdentidadPadron('claveRegistroPadron', $registro, 'api'))
+        ->toBe(invocarMetodoIdentidadPadron('claveRegistroPadron', $registroConOtraClave, 'api'));
 });

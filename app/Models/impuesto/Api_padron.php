@@ -24,6 +24,7 @@ class Api_padron extends Model
         'folio',
         'calle',
         'partida',
+        'clave',
         'abona',
         'administra',
         'empresa',

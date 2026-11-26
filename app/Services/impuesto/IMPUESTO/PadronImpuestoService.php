@@ -330,13 +330,13 @@ class PadronImpuestoService
 
         // ── Índices para búsqueda rápida ──────────────────────────────────────
         $registrosExistentesPorIdentidad = $padronExistente->groupBy(
-            fn($item) => $this->claveRegistroPadron($item)
+            fn($item) => $this->claveRegistroPadron($item, $impuesto)
         );
         $existentePorFolioPartida = $registrosExistentesPorIdentidad->map(
             fn($registros) => $registros->first()
         );
         $nuevoPorFolioPartida = $nuevoPadron->mapWithKeys(
-            fn($item) => [$this->claveRegistroPadron($item) => $item]
+            fn($item) => [$this->claveRegistroPadron($item, $impuesto) => $item]
         );
 
 
@@ -404,7 +404,7 @@ class PadronImpuestoService
                         $this->actualizarRegistrosPorIdentidad(
                             $modelo,
                             $registrosExistentesPorIdentidad,
-                            $this->claveRegistroPadron($viejo),
+                            $this->claveRegistroPadron($viejo, $impuesto),
                             ['estado' => 'MODIFICADO']
                         );
                     }
@@ -422,7 +422,7 @@ class PadronImpuestoService
                             $this->actualizarRegistrosPorIdentidad(
                                 $modelo,
                                 $registrosExistentesPorIdentidad,
-                                $this->claveRegistroPadron($viejo),
+                                $this->claveRegistroPadron($viejo, $impuesto),
                                 ['estado' => 'MODIFICADO']
                             );
                         }
@@ -439,7 +439,7 @@ class PadronImpuestoService
                         $this->actualizarRegistrosPorIdentidad(
                             $modelo,
                             $registrosExistentesPorIdentidad,
-                            $this->claveRegistroPadron($viejo),
+                            $this->claveRegistroPadron($viejo, $impuesto),
                             ['estado' => 'MODIFICADO']
                         );
                         continue;
@@ -458,7 +458,7 @@ class PadronImpuestoService
                             $this->actualizarRegistrosPorIdentidad(
                                 $modelo,
                                 $registrosExistentesPorIdentidad,
-                                $this->claveRegistroPadron($viejo),
+                                $this->claveRegistroPadron($viejo, $impuesto),
                                 ['estado' => 'MODIFICADO']
                             );
                         }
@@ -512,7 +512,7 @@ class PadronImpuestoService
         // Refrescar desde BD los registros que ya fueron marcados MODIFICADO
         $modificadosEnBD = $modelo::where('estado', 'MODIFICADO')
             ->get(['id', 'folio', 'empresa', 'partida', 'clave', 'id_contrato_cabecera', 'comienza'])
-            ->map(fn($registro) => $this->claveRegistroPadron($registro))
+            ->map(fn($registro) => $this->claveRegistroPadron($registro, $impuesto))
             ->toArray();
 
         $posiblesInactivos = $existentePorFolioPartida
@@ -579,7 +579,7 @@ class PadronImpuestoService
             $this->actualizarRegistrosPorIdentidad(
                 $modelo,
                 $registrosExistentesPorIdentidad,
-                $this->claveRegistroPadron($registro),
+                $this->claveRegistroPadron($registro, $impuesto),
                 ['estado' => $registro->nuevo_estado]
             );
         }
@@ -619,20 +619,26 @@ class PadronImpuestoService
         }
     }
 
-    private function claveRegistroPadron($registro): string
+    private function claveRegistroPadron($registro, ?string $impuesto = null): string
     {
         $idCabecera = $registro->id_contrato_cabecera ?? null;
         $identidadCabecera = $idCabecera !== null && $idCabecera !== ''
             ? 'cabecera:' . $idCabecera
             : 'comienza:' . $this->normalizarFechaPadron($registro->comienza ?? null);
 
-        return implode('|', [
+        $identidad = [
             (string) ($registro->folio ?? ''),
             (string) ($registro->empresa ?? ''),
             $this->normalizarPartida($registro->partida ?? ''),
-            (string) ($registro->clave ?? ''),
-            $identidadCabecera,
-        ]);
+        ];
+
+        if ($impuesto !== 'api') {
+            $identidad[] = (string) ($registro->clave ?? '');
+        }
+
+        $identidad[] = $identidadCabecera;
+
+        return implode('|', $identidad);
     }
 
     private function claveFolioPartidaComienzo($registro): string
