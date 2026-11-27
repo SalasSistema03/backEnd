@@ -4,6 +4,7 @@ namespace App\Services\impuesto\API;
 
 use App\Models\impuesto\Api_padron;
 use App\Models\impuesto\Tgi_padron;
+use App\Services\impuesto\IMPUESTO\CargaImpuestoService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -18,10 +19,10 @@ class PadronApiService
     public function buscarApiPorPartida($partida)
     {
         // Buscar en la tabla tgi_padron por el campo 'partida'
+        $apiPadron = Api_padron::where('partida', $partida)->get();
 
-        $apiPadron = Api_padron::where('partida', $partida)->first();
-
-        return $apiPadron; // Retorna el registro encontrado o null si no existe
+        // Retorna el registro según el criterio común o null si no existe
+        return CargaImpuestoService::seleccionarRegistroPadron($apiPadron);
     }
 
 

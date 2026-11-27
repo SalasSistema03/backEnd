@@ -39,12 +39,12 @@ class CargaAguaService
             $foliosCompartidos = (new CargaImpuestoService())->detectarFoliosCompartidos($agua_padron->partida, $agua_padron->clave, 'agua');
 
 
-            if ((new CargaImpuestoService())->yaFueCargado($listaCargaCompleta, $agua_padron->id, $fecha_1->month, $fecha_1->year, 'agua')) {
+            if ((new CargaImpuestoService())->yaFueCargado($listaCargaCompleta, $agua_padron->id, $fecha_1->month, $fecha_1->year, 'agua', $codigoBarras)) {
                 throw new \Exception("Ya existe un registro cargado para esta partida en el periodo {$fecha_1->month}/{$fecha_1->year}.");
             }
 
             //segunda validacion para la segunda cuota
-            if ((new CargaImpuestoService())->yaFueCargado($listaCargaCompleta, $agua_padron->id, $fecha_2->month, $fecha_2->year, 'agua')) {
+            if ((new CargaImpuestoService())->yaFueCargado($listaCargaCompleta, $agua_padron->id, $fecha_2->month, $fecha_2->year, 'agua', $codigoBarras)) {
                 throw new \Exception("Ya existe un registro cargado para esta partida en el periodo {$fecha_2->month}/{$fecha_2->year}.");
             }
 

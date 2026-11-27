@@ -4,6 +4,7 @@ namespace App\Services\impuesto\AGUA;
 
 
 use App\Models\impuesto\Agua_padron;
+use App\Services\impuesto\IMPUESTO\CargaImpuestoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -93,9 +94,10 @@ class PadronAguaService
     {
         // Buscar en la tabla agua_padron por el campo 'partida'
         $partida = trim($partida); // elimina espacios
-        $aguaPadron = Agua_padron::where('partida', $partida)->first();
+        $aguaPadron = Agua_padron::where('partida', $partida)->get();
 
-        return $aguaPadron; // Retorna el registro encontrado o null si no existe
+        // Retorna el registro según el criterio común o null si no existe
+        return CargaImpuestoService::seleccionarRegistroPadron($aguaPadron);
     }
 }
 /* SELECT

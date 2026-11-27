@@ -44,7 +44,7 @@ class CargaApiService
         $foliosCompartidos = (new CargaImpuestoService)->detectarFoliosCompartidos($api_padron->partida, $api_padron->clave, 'api');
 
         // Validación: ¿Ya existe un registro con misma partida, mes y año?
-        if ((new CargaImpuestoService)->yaFueCargado($listaCargaCompleta, $api_padron->id, $fecha->month, $fecha->year, 'api')) {
+        if ((new CargaImpuestoService)->yaFueCargado($listaCargaCompleta, $api_padron->id, $fecha->month, $fecha->year, 'api', $codigoBarras)) {
             throw new \Exception("Ya existe un registro cargado para esta partida en el periodo {$fecha->month}/{$fecha->year}.");
         }
 

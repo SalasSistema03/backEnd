@@ -4,6 +4,7 @@ namespace App\Services\impuesto\GAS;
 
 
 use App\Models\impuesto\Gas_padron;
+use App\Services\impuesto\IMPUESTO\CargaImpuestoService;
 use Illuminate\Support\Facades\DB;
 
 
@@ -124,9 +125,10 @@ class PadronGasService
     {
         // Buscar en la tabla tgi_padron por el campo 'partida'
         $partida = trim($partida); // elimina espacios
-        $gasPadron = Gas_padron::where('partida', $partida)->first();
+        $gasPadron = Gas_padron::where('partida', $partida)->get();
 
-        return $gasPadron; // Retorna el registro encontrado o null si no existe
+        // Retorna el registro según el criterio común o null si no existe
+        return CargaImpuestoService::seleccionarRegistroPadron($gasPadron);
     }
 
 }

@@ -656,6 +656,32 @@ class PadronImpuestoService
         return ltrim(trim((string) $partida), '0');
     }
 
+    /**
+     * Deja una sola fila por folio, empresa, partida y clave, conservando la de mayor
+     * comienza. Mantiene el orden de primera aparición de cada grupo.
+     */
+    private function deduplicarPadronFiltrado($padron, $impuesto)
+    {
+        return $padron
+            ->groupBy(function ($item) use ($impuesto) {
+                $identidad = [
+                    (string) ($item->folio ?? ''),
+                    (string) ($item->empresa ?? ''),
+                    $this->normalizarPartida($item->partida ?? ''),
+                ];
+
+                if ($impuesto !== 'api') {
+                    $identidad[] = (string) ($item->clave ?? '');
+                }
+
+                return implode('|', $identidad);
+            })
+            ->map(function ($registros) {
+                return $registros->sortByDesc('comienza')->first();
+            })
+            ->values();
+    }
+
     private function normalizarFechaPadron($fecha): string
     {
         if ($fecha === null || $fecha === '' || $fecha === 0 || $fecha === '0' || $fecha === '0000-00-00') {
@@ -805,6 +831,9 @@ class PadronImpuestoService
                 return $item->seguir_pagando === 'S';
             });
         }
+
+        // Los filtros de estado se aplican antes para conservar el historial por estado.
+        $padron = $this->deduplicarPadronFiltrado($padron, $impuesto);
 
 
         //Log::info('padron', $padron->all());

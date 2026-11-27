@@ -4,6 +4,7 @@ namespace App\Services\impuesto\TGI;
 
 
 use App\Models\impuesto\Tgi_padron;
+use App\Services\impuesto\IMPUESTO\CargaImpuestoService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -27,10 +28,7 @@ class PadronTgiService
 
     private function seleccionarRegistroParaCarga($registros)
     {
-        $registros = collect($registros);
-
-        return $registros->where('estado', 'ACTIVO')->sortByDesc('comienza')->first()
-            ?? $registros->sortByDesc('comienza')->first();
+        return CargaImpuestoService::seleccionarRegistroPadron($registros);
     }
 
 

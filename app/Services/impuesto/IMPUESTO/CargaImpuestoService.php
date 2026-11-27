@@ -127,8 +127,89 @@ class CargaImpuestoService
             // Reindexamos la colección después del ordenamiento
             ->values();
 
+        // Normalizamos los folios compartidos solo para la respuesta: no se persiste.
+        $registros = $this->normalizarCompartidosConEstadoPadron($registros, $request->impuesto);
+
         // Retornamos los resultados en formato JSON
         return json_encode($registros);
+    }
+
+    /**
+     * Deja una sola entrada por folio en el campo compartidos y actualiza su estado
+     * con el del contrato más reciente del padrón del impuesto.
+     * El cambio se aplica solo en memoria: no modifica la base de datos.
+     */
+    private function normalizarCompartidosConEstadoPadron($registros, $impuesto)
+    {
+        $modeloPadron = $this->obtenerModeloPadronPorImpuesto($impuesto);
+
+        $folios = $registros
+            ->flatMap(function ($registro) {
+                return collect($this->decodificarCompartidos($registro->compartidos))
+                    ->pluck('folio')
+                    ->filter();
+            })
+            ->unique()
+            ->values()
+            ->all();
+
+        // Una única consulta por request para resolver el estado vigente de cada folio.
+        $estadosPorFolio = [];
+        if (!empty($folios)) {
+            $modeloPadron::whereIn('folio', $folios)
+                ->orderByDesc('comienza')
+                ->get(['folio', 'estado', 'comienza'])
+                ->each(function ($padron) use (&$estadosPorFolio) {
+                    $folio = (string) $padron->folio;
+
+                    if (!array_key_exists($folio, $estadosPorFolio)) {
+                        $estadosPorFolio[$folio] = $padron->estado;
+                    }
+                });
+        }
+
+        return $registros->map(function ($registro) use ($estadosPorFolio) {
+            $compartidos = $this->decodificarCompartidos($registro->compartidos);
+
+            // Sin compartidos válidos se conserva el valor original.
+            if (empty($compartidos)) {
+                return $registro;
+            }
+
+            $deduplicados = collect($compartidos)
+                ->groupBy(fn($item) => (string) ($item['folio'] ?? ''))
+                ->map(fn($folios) => $folios->sortByDesc(fn($item) => $item['comienzo'] ?? null)->first())
+                ->values()
+                ->map(function ($item) use ($estadosPorFolio) {
+                    $folio = (string) ($item['folio'] ?? '');
+
+                    if (array_key_exists($folio, $estadosPorFolio)) {
+                        $item['estado'] = $estadosPorFolio[$folio];
+                    }
+
+                    return $item;
+                })
+                ->values()
+                ->all();
+
+            $registro->compartidos = json_encode($deduplicados);
+
+            return $registro;
+        });
+    }
+
+    /**
+     * Devuelve el campo compartidos como array, admitiendo JSON o array ya decodificado.
+     */
+    private function decodificarCompartidos($compartidos): array
+    {
+        if (is_array($compartidos)) {
+            return $compartidos;
+        }
+
+        $decodificado = json_decode((string) $compartidos, true);
+
+        return is_array($decodificado) ? $decodificado : [];
     }
 
 
@@ -151,9 +232,10 @@ class CargaImpuestoService
             $partida = trim($partida); // elimina espacios
 
             $modelo = $this->obtenerModeloPadronPorImpuesto($impuesto);
-            $tgiPadron = $modelo::where('partida', $partida)->first();
+            $tgiPadron = $modelo::where('partida', $partida)->get();
 
-            return $tgiPadron; // Retorna el registro encontrado o null si no existe
+            // Retorna el registro según el criterio común o null si no existe
+            return self::seleccionarRegistroPadron($tgiPadron);
         } catch (\Exception $e) {
             throw $e;
         }
@@ -168,9 +250,7 @@ class CargaImpuestoService
             ->where('clave', $clave)
             ->get(['folio', 'estado', 'empresa', 'comienza']);
 
-        if ($impuesto === 'tgi') {
-            $registros = $this->seleccionarFoliosTgi($registros);
-        }
+        $registros = $this->seleccionarFoliosCompartidos($registros);
 
         return $registros
             ->map(function ($item) {
@@ -178,17 +258,39 @@ class CargaImpuestoService
                     'folio' => $item->folio,
                     'estado' => $item->estado,
                     'empresa' => $item->empresa,
+                    'comienzo' => $item->comienza,
                 ];
             })
             ->toArray();
     }
 
-    private function seleccionarFoliosTgi($registros)
+    /**
+     * Deja una única entrada por folio conservando el registro de mayor comienza.
+     */
+    public function seleccionarFoliosCompartidos($registros)
     {
         return collect($registros)
             ->groupBy(fn($item) => (string) $item->folio)
             ->map(fn($folios) => $folios->sortByDesc('comienza')->first())
             ->values();
+    }
+
+    // Se conserva como alias del selector común por compatibilidad con las pruebas existentes.
+    private function seleccionarFoliosTgi($registros)
+    {
+        return $this->seleccionarFoliosCompartidos($registros);
+    }
+
+    /**
+     * Elige el registro de padrón que corresponde cargar: el ACTIVO con mayor comienza
+     * y, si no hay ACTIVO, el de mayor comienza.
+     */
+    public static function seleccionarRegistroPadron($registros)
+    {
+        $registros = collect($registros);
+
+        return $registros->where('estado', 'ACTIVO')->sortByDesc('comienza')->first()
+            ?? $registros->sortByDesc('comienza')->first();
     }
 
     //Esta función busca si ya se ha cargado un registro con el mismo padrón, mes y año (dentro de la tabla tgi_carga)
@@ -208,24 +310,26 @@ class CargaImpuestoService
         }
 
         if ($impuesto === 'agua') {
-            $registroExistente = $lista->first(function ($item) use ($idPadron, $mes, $anio) {
-                return $item->id_aguaPadron == $idPadron &&
+            $registroExistente = $lista->first(function ($item) use ($idPadron, $mes, $anio, $codigoBarra) {
+                return ($item->id_aguaPadron == $idPadron ||
+                    ($codigoBarra !== null && $item->codigo_barra == $codigoBarra)) &&
                     $item->periodo_mes == $mes &&
                     $item->periodo_anio == $anio;
             });
         }
         if ($impuesto === 'gas') {
             $registroExistente = $lista->first(function ($item) use ($idPadron, $mes, $anio, $codigoBarra) {
-                return $item->id_gasPadron == $idPadron &&
+                return ($item->id_gasPadron == $idPadron ||
+                    ($codigoBarra !== null && $item->codigo_barra == $codigoBarra)) &&
                     $item->periodo_mes == $mes &&
-                    $item->periodo_anio == $anio &&
-                    ($codigoBarra === null || $item->codigo_barra == $codigoBarra);
+                    $item->periodo_anio == $anio;
             });
         }
 
         if ($impuesto === 'api') {
-            $registroExistente = $lista->first(function ($item) use ($idPadron, $mes, $anio) {
-                return $item->id_apiPadron == $idPadron &&
+            $registroExistente = $lista->first(function ($item) use ($idPadron, $mes, $anio, $codigoBarra) {
+                return ($item->id_apiPadron == $idPadron ||
+                    ($codigoBarra !== null && $item->codigo_barra == $codigoBarra)) &&
                     $item->periodo_mes == $mes &&
                     $item->periodo_anio == $anio;
             });
