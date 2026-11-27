@@ -26,7 +26,10 @@ class ExtraerCodBarraAgua
         //Log::info('fecha_vencimiento_1', [$fechaVencimiento_1]);
         //dd('hola');
 
-        if (Carbon::parse($fechaVencimiento_1)->month > Carbon::parse($fechatgi)->month) {
+        //if (Carbon::parse($fechaVencimiento_1)->month > Carbon::parse($fechatgi)->month) {
+          //  throw new \Exception('El Padron se encuentra desactualizado');
+        //}
+          if ($this->fechaVencimientoSuperaPeriodoAgua($fechaVencimiento_1, $fechatgi)) {
             throw new \Exception('El Padron se encuentra desactualizado');
         }
 
@@ -96,5 +99,15 @@ class ExtraerCodBarraAgua
         $fecha = substr($codigoBarras, $inicio, 6); // DDMMYY
 
         return Carbon::createFromFormat('dmy', $fecha)->format('Y-m-d');
+    }
+
+    private function fechaVencimientoSuperaPeriodoAgua($fechaVencimiento, $fechaTgi): bool
+    {
+        $vencimiento = Carbon::parse($fechaVencimiento);
+        $periodoTgi = Carbon::parse($fechaTgi);
+        $mesVencimiento = ($vencimiento->year * 12) + $vencimiento->month;
+        $mesTgi = ($periodoTgi->year * 12) + $periodoTgi->month;
+
+        return $mesVencimiento > $mesTgi;
     }
 }
