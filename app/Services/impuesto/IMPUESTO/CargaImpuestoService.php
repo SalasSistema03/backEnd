@@ -156,19 +156,26 @@ class CargaImpuestoService
         // Una única consulta por request para resolver el estado vigente de cada folio.
         $estadosPorFolio = [];
         if (!empty($folios)) {
-            $modeloPadron::whereIn('folio', $folios)
-                ->orderByDesc('comienza')
-                ->get(['folio', 'estado', 'comienza'])
-                ->each(function ($padron) use (&$estadosPorFolio) {
-                    $folio = (string) $padron->folio;
+            $padronesPorFolio = $modeloPadron::whereIn('folio', $folios)
+                ->get(['folio', 'estado', 'comienza', 'rescicion'])
+                ->groupBy(fn($padron) => (string) $padron->folio);
+            $vigenteDesde = $impuesto === 'agua' ? Carbon::today()->startOfMonth() : null;
 
-                    if (!array_key_exists($folio, $estadosPorFolio)) {
-                        $estadosPorFolio[$folio] = $padron->estado;
-                    }
-                });
+            foreach ($folios as $folio) {
+                if (!$padronesPorFolio->has((string) $folio)) {
+                    continue;
+                }
+
+                $padronSeleccionado = $this->seleccionarFoliosCompartidos(
+                    $padronesPorFolio->get((string) $folio),
+                    $vigenteDesde
+                )->first();
+
+                $estadosPorFolio[(string) $folio] = $padronSeleccionado?->estado;
+            }
         }
 
-        return $registros->map(function ($registro) use ($estadosPorFolio) {
+        return $registros->map(function ($registro) use ($estadosPorFolio, $impuesto) {
             $compartidos = $this->decodificarCompartidos($registro->compartidos);
 
             // Sin compartidos válidos se conserva el valor original.
@@ -180,15 +187,20 @@ class CargaImpuestoService
                 ->groupBy(fn($item) => (string) ($item['folio'] ?? ''))
                 ->map(fn($folios) => $folios->sortByDesc(fn($item) => $item['comienzo'] ?? null)->first())
                 ->values()
-                ->map(function ($item) use ($estadosPorFolio) {
+                ->map(function ($item) use ($estadosPorFolio, $impuesto) {
                     $folio = (string) ($item['folio'] ?? '');
 
                     if (array_key_exists($folio, $estadosPorFolio)) {
+                        if ($impuesto === 'agua' && $estadosPorFolio[$folio] === null) {
+                            return null;
+                        }
+
                         $item['estado'] = $estadosPorFolio[$folio];
                     }
 
                     return $item;
                 })
+                ->filter()
                 ->values()
                 ->all();
 
@@ -248,9 +260,10 @@ class CargaImpuestoService
         $modelo = (new PadronImpuestoService)->obtenerModeloPorImpuesto($impuesto);
         $registros = $modelo::where('partida', $partida)
             ->where('clave', $clave)
-            ->get(['folio', 'estado', 'empresa', 'comienza']);
+            ->get(['folio', 'estado', 'empresa', 'comienza', 'rescicion']);
 
-        $registros = $this->seleccionarFoliosCompartidos($registros);
+        $vigenteDesde = $impuesto === 'agua' ? Carbon::today()->startOfMonth() : null;
+        $registros = $this->seleccionarFoliosCompartidos($registros, $vigenteDesde);
 
         return $registros
             ->map(function ($item) {
@@ -265,13 +278,37 @@ class CargaImpuestoService
     }
 
     /**
-     * Deja una única entrada por folio conservando el registro de mayor comienza.
+     * Deja una entrada por folio vigente, priorizando ACTIVO y luego el mayor comienza.
      */
-    public function seleccionarFoliosCompartidos($registros)
+    public function seleccionarFoliosCompartidos($registros, ?Carbon $vigenteDesde = null)
     {
         return collect($registros)
             ->groupBy(fn($item) => (string) $item->folio)
-            ->map(fn($folios) => $folios->sortByDesc('comienza')->first())
+            ->map(function ($folios) use ($vigenteDesde) {
+                $vigentes = $folios;
+
+                if ($vigenteDesde !== null) {
+                    $vigentes = $folios->filter(function ($folio) use ($vigenteDesde) {
+                        if (empty($folio->rescicion)) {
+                            return false;
+                        }
+
+                        return Carbon::parse($folio->rescicion)
+                            ->startOfMonth()
+                            ->greaterThanOrEqualTo($vigenteDesde);
+                    });
+                }
+
+                if ($vigentes->isEmpty()) {
+                    return null;
+                }
+
+                $activos = $vigentes->where('estado', 'ACTIVO');
+                $candidatos = $activos->isNotEmpty() ? $activos : $vigentes;
+
+                return $candidatos->sortByDesc('comienza')->first();
+            })
+            ->filter()
             ->values();
     }
 

@@ -16,12 +16,14 @@ test('deja una sola entrada por folio y conserva el contrato de mayor comienza',
             'estado' => 'INACTIVO',
             'empresa' => 1,
             'comienzo' => '2024-01-15',
+            'rescicion' => '2025-01-15',
         ],
         (object) [
             'folio' => 189,
             'estado' => 'ACTIVO',
             'empresa' => 1,
             'comienzo' => '2026-12-01',
+            'rescicion' => '2027-12-01',
         ],
     ]);
 
@@ -32,6 +34,57 @@ test('deja una sola entrada por folio y conserva el contrato de mayor comienza',
     expect($seleccionados->first()->comienzo)->toBe('2026-12-01');
 });
 
+test('prioriza el folio ACTIVO cuando comparte fecha de inicio con uno MODIFICADO', function () {
+    $registros = collect([
+        (object) [
+            'folio' => 5,
+            'estado' => 'MODIFICADO',
+            'empresa' => 1,
+            'comienza' => '2026-09-01 00:00:00',
+            'rescicion' => '2028-02-29',
+        ],
+        (object) [
+            'folio' => 5,
+            'estado' => 'ACTIVO',
+            'empresa' => 1,
+            'comienza' => '2026-09-01 00:00:00',
+            'rescicion' => '2028-02-29',
+        ],
+    ]);
+
+    $seleccionados = (new CargaImpuestoService())->seleccionarFoliosCompartidos($registros);
+
+    expect($seleccionados)->toHaveCount(1);
+    expect($seleccionados->first()->estado)->toBe('ACTIVO');
+});
+
+test('excluye contratos rescindidos antes del mes y considera vigentes los del mes actual', function () {
+    $registros = collect([
+        (object) [
+            'folio' => 5,
+            'estado' => 'ACTIVO',
+            'empresa' => 1,
+            'comienza' => '2026-09-01',
+            'rescicion' => '2026-10-31',
+        ],
+        (object) [
+            'folio' => 6,
+            'estado' => 'ACTIVO',
+            'empresa' => 1,
+            'comienza' => '2024-01-01',
+            'rescicion' => '2026-11-28',
+        ],
+    ]);
+
+    $seleccionados = (new CargaImpuestoService())->seleccionarFoliosCompartidos(
+        $registros,
+        \Carbon\Carbon::parse('2026-11-01')
+    );
+
+    expect($seleccionados)->toHaveCount(1);
+    expect($seleccionados->first()->folio)->toBe(6);
+});
+
 test('muestra dos folios distintos que comparten partida/clave', function () {
     $registros = collect([
         (object) [
@@ -39,12 +92,14 @@ test('muestra dos folios distintos que comparten partida/clave', function () {
             'estado' => 'ACTIVO',
             'empresa' => 1,
             'comienzo' => '2026-12-01',
+            'rescicion' => '2027-12-01',
         ],
         (object) [
             'folio' => 190,
             'estado' => 'ACTIVO',
             'empresa' => 1,
             'comienzo' => '2026-11-20',
+            'rescicion' => '2027-11-20',
         ],
     ]);
 

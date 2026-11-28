@@ -172,9 +172,9 @@ class ImpuestosController extends Controller
                 return response()->json(['error' => 'El campo código de barras es obligatorio'], 400);
             }
 
-            if (empty($codigoBarras) || strlen($codigoBarras) !== 45) {
+            if (empty($codigoBarras) || strlen($codigoBarras) !== 47) {
                 // Log::info('error cod barras');
-                return response()->json(['error' => 'Debés ingresar un código de barras válido de 35 caracteres'], 400);
+                return response()->json(['error' => 'Debés ingresar un código de barras válido de 47 caracteres'], 400);
             }
 
             return app(CargaAguaService::class)->cargarNuevoAguaService($codigoBarras);

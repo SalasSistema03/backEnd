@@ -13,13 +13,17 @@ class ExtraerCodBarraAgua
     {
         $padron = $this->obtenerPadron($codigoBarras);
 
+        if (!$padron) {
+            $clave = ltrim(substr($codigoBarras, 0, 10), '0');
+            throw new \Exception("No se encontró un padrón de agua para la clave {$clave} del código de barras.");
+        }
+
         $folio = $padron->folio;
         $partida = $padron->partida;
         $adm = $padron->administra;
 
-        // Extracción correcta según posiciones fijas
-        $fechaVencimiento_1 = $this->separarFechaVencimiento($codigoBarras, 8);
-        $importe_1 = $this->separarImporte($codigoBarras, 14);
+        $fechaVencimiento_1 = $this->separarFechaVencimiento($codigoBarras, 10);
+        $importe_1 = $this->separarImporte($codigoBarras, 18);
 
         $fechatgi = boton_actualizado::query()->firstOrFail()->ultima_fecha_agua;
         //Log::info('fechaagua', [$fechatgi]);
@@ -35,8 +39,8 @@ class ExtraerCodBarraAgua
 
 
 
-        $fechaVencimiento_2 = $this->separarFechaVencimiento($codigoBarras, 24);
-        $importe_2 = $this->separarImporte($codigoBarras, 34);
+        $fechaVencimiento_2 = $this->separarFechaVencimiento($codigoBarras, 26);
+        $importe_2 = $this->separarImporte($codigoBarras, 38);
 
 
 
@@ -55,18 +59,17 @@ class ExtraerCodBarraAgua
 
     public function obtenerPadron($codigoBarras)
     {
-        //Obtenemos los primeros 8 digitos
-        $clave = substr($codigoBarras, 0, 8);
+        // Los primeros 10 dígitos identifican la clave; la fecha comienza en la posición 10.
+        $clave = substr($codigoBarras, 0, 10);
 
-        //Limpiamos la clave
-        $clave = ltrim($clave, "0");
+        $clave = ltrim($clave, '0');
 
-        //Obtenemos el padron existente
         $padronExistente = (new PadronAguaService())->obtenerPadronExistente();
 
         $registro = $padronExistente->first(function ($item) use ($clave) {
-            return $item->clave == $clave;
+            return ltrim((string) $item->clave, '0') === $clave;
         });
+
         return $registro;
     }
 
@@ -84,8 +87,8 @@ class ExtraerCodBarraAgua
 
     public function separarImporte($codigoBarras, $inicio)
     {
-        // Extrae los 10 dígitos (ej: "0003016451")
-        $subcadena = substr($codigoBarras, $inicio, 10);
+        // Extrae los 8 dígitos del importe (ej: "02045128")
+        $subcadena = substr($codigoBarras, $inicio, 8);
 
         // Convierte directamente a float dividiendo entre 100
         $importeFloat = (float)$subcadena / 100;
