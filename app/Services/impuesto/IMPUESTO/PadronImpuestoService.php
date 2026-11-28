@@ -59,7 +59,14 @@ class PadronImpuestoService
             return null;
         }
 
-        return boton_actualizado::query()->value($columna);
+        $fecha = boton_actualizado::query()->value($columna);
+        $mesesDeMargen = ['tgi' => 1, 'api' => 2][$impuesto] ?? 0;
+
+        if (!$fecha || $mesesDeMargen === 0) {
+            return $fecha;
+        }
+
+        return Carbon::parse($fecha)->subMonthsNoOverflow($mesesDeMargen)->toDateString();
     }
 
     private function calcularEstadoGas($rescicion, $hoy)
@@ -285,10 +292,9 @@ class PadronImpuestoService
             $periodoConsulta = $periodo?->copy()->startOfMonth() ?? Carbon::now()->startOfMonth();
             $nuevoPadron = (new PadronTgiService)->consultaObtenerPadronTGI($periodoConsulta);
 
-            $fechaTgi = boton_actualizado::query()->firstOrFail()->ultima_fecha_tgi;
-
             boton_actualizado::query()->update([
-                'ultima_fecha_tgi' => Carbon::parse($fechaTgi)
+                'ultima_fecha_tgi' => $periodoConsulta
+                    ->copy()
                     ->addMonthNoOverflow()
                     ->toDateString(),
             ]);
@@ -313,10 +319,9 @@ class PadronImpuestoService
             $periodoConsulta = $periodo?->copy()->startOfMonth() ?? Carbon::now()->startOfMonth();
             $nuevoPadron = (new PadronApiService)->consultaObtenerPadronAPI($periodoConsulta);
 
-            $fechapi = boton_actualizado::query()->firstOrFail()->ultima_fecha_api;
-
             boton_actualizado::query()->update([
-                'ultima_fecha_api' => Carbon::parse($fechapi)
+                'ultima_fecha_api' => $periodoConsulta
+                    ->copy()
                     ->addMonthsNoOverflow(2)
                     ->toDateString(),
             ]);
