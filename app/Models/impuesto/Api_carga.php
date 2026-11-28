@@ -28,6 +28,7 @@ class Api_carga extends Model
         'periodo_anio',
         'periodo_mes',
         'num_broche',
+        'estado',
         'origen_carga',
         'comienza',
         'rescicion',

@@ -176,14 +176,19 @@ class CargaImpuestoService
                 return $registro;
             }
 
+            // El estado propio del registro de carga tiene prioridad sobre el del padrón.
+            $estadoPropio = $registro->estado ?? null;
+
             $deduplicados = collect($compartidos)
                 ->groupBy(fn($item) => (string) ($item['folio'] ?? ''))
                 ->map(fn($folios) => $folios->sortByDesc(fn($item) => $item['comienzo'] ?? null)->first())
                 ->values()
-                ->map(function ($item) use ($estadosPorFolio) {
+                ->map(function ($item) use ($estadosPorFolio, $estadoPropio) {
                     $folio = (string) ($item['folio'] ?? '');
 
-                    if (array_key_exists($folio, $estadosPorFolio)) {
+                    if ($estadoPropio !== null) {
+                        $item['estado'] = $estadoPropio;
+                    } elseif (array_key_exists($folio, $estadosPorFolio)) {
                         $item['estado'] = $estadosPorFolio[$folio];
                     }
 
@@ -1575,6 +1580,10 @@ class CargaImpuestoService
         if ($estado === 'INACTIVO') {
             $registro->num_broche = null;
         }
+
+        // Persistir el estado en el campo propio del registro de carga
+        $registro->estado = $estado;
+
         if (is_array($compartidos)) {
             foreach ($compartidos as &$item) {
                 if (isset($item['folio'])) {
